@@ -1,0 +1,31 @@
+# Don't ship local data / caches into Docker build context
+local_ehr_db/
+local_ehr_uploads/
+local_auth/
+local_audit_log/
+local_nursing_events/
+
+# Python venvs / caches
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+
+# Frontend (Vite + Vue) — node_modules 在 builder 阶段重装;
+# static/v2/ 是 Vite 产物,生产镜像由 frontend-builder stage 产出,而不是从本地拷
+node_modules/
+frontend/node_modules/
+frontend/dist/
+static/v2/
+
+# Editor / OS
+.git/
+.github/
+.vscode/
+.idea/
+.DS_Store
+
+# Logs
+*.log
+nohup.out
