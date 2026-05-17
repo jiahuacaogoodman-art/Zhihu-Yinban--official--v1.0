@@ -352,6 +352,17 @@ else:
 #       return FileResponse(V2_DIR / "index.html") 而旧版降到 /legacy/。
 V2_DIR = STATIC_DIR / "v2"
 if V2_DIR.is_dir():
+    # ── 护工端入口 /v2/nurse/ ──────────────────────────────────────────
+    # Phase 5: Vite 多入口构建产出 static/v2/nurse.html;
+    # 用独立路由 serve 它,让 /v2/nurse/ 或 /v2/nurse 都能命中(SPA hash 模式)。
+    _nurse_html = V2_DIR / "nurse.html"
+    if _nurse_html.is_file():
+        @app.get("/v2/nurse", include_in_schema=False)
+        @app.get("/v2/nurse/", include_in_schema=False)
+        async def v2_nurse():
+            return FileResponse(str(_nurse_html))
+        logger.info(f"v2 护工端入口已挂载: /v2/nurse/")
+
     app.mount("/v2", StaticFiles(directory=str(V2_DIR), html=True), name="v2")
     logger.info(f"v2 前端目录已挂载: {V2_DIR}")
 else:
