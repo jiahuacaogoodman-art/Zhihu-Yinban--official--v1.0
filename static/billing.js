@@ -62,10 +62,10 @@ async function loadRecords(){
       document.getElementById('recordsTable').innerHTML='<div class="empty-state"><i class="fa-solid fa-receipt"></i><p>暂无缴费记录</p></div>';
       return;
     }
-    let html='<div style="overflow-x:auto"><table><thead><tr><th>缴费时间</th><th>老人</th><th>类别</th><th>金额</th><th>周期</th><th>起始</th><th>截止</th><th>方式</th><th>收据号</th></tr></thead><tbody>';
+    let html='<div style="overflow-x:auto"><table><thead><tr><th>缴费时间</th><th>老人</th><th>类别</th><th>金额</th><th>周期</th><th>起始</th><th>截止</th><th>方式</th><th>收据号</th><th>操作</th></tr></thead><tbody>';
     d.records.forEach(r=>{
       const catMap={bed:'床位费',care:'护理费',meal:'餐饮费',medical:'医疗费',supplies:'耗材',service:'服务',other:'其他'};
-      html+=`<tr><td>${(r.paid_at||'').slice(0,16)}</td><td>${esc(r.patient_name||r.admission_id)}</td><td>${catMap[r.fee_category]||r.fee_category}</td><td style="font-weight:600;color:var(--accent)">¥${r.amount.toLocaleString()}</td><td>${r.billing_cycle}</td><td>${r.period_start}</td><td>${r.period_end}</td><td>${r.payment_method}</td><td>${esc(r.receipt_number||'-')}</td></tr>`;
+      html+=`<tr><td>${(r.paid_at||'').slice(0,16)}</td><td>${esc(r.patient_name||r.admission_id)}</td><td>${catMap[r.fee_category]||r.fee_category}</td><td style="font-weight:600;color:var(--accent)">¥${r.amount.toLocaleString()}</td><td>${r.billing_cycle}</td><td>${r.period_start}</td><td>${r.period_end}</td><td>${r.payment_method}</td><td>${esc(r.receipt_number||'-')}</td><td><button class="btn btn-outline btn-sm" onclick="printReceiptPdf('${r.record_id}')"><i class="fa-solid fa-print"></i>打印收据</button></td></tr>`;
     });
     html+='</tbody></table></div>';
     document.getElementById('recordsTable').innerHTML=html;
@@ -251,6 +251,19 @@ async function deleteStd(id){
 
 // ========== UTILS ==========
 function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+
+// ========== PRINT RECEIPT PDF ==========
+async function printReceiptPdf(recordId){
+  try{
+    const r=await fetch(`/api/export/billing/receipt/${encodeURIComponent(recordId)}`,{headers:hdr()});
+    if(!r.ok){const d=await r.json().catch(()=>({}));throw new Error(d.detail||'打印失败')}
+    const blob=await r.blob();
+    const url=URL.createObjectURL(blob);
+    const w=window.open(url,'_blank');
+    if(!w){const a=document.createElement('a');a.href=url;a.download=`收据_${recordId}.pdf`;a.click()}
+    setTimeout(()=>URL.revokeObjectURL(url),60000);
+  }catch(e){alert('打开收据失败: '+e.message)}
+}
 
 // ========== INIT ==========
 document.addEventListener('DOMContentLoaded',()=>{

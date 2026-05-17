@@ -1277,6 +1277,8 @@ function renderRecs(list){
       <div class="patient-actions">
         <button class="btn btn-ghost btn-icon" title="查看详情" onclick="viewPatient('${esc(p.patient_id)}')"><span class="icon-s" data-icon="eye"></span></button>
         <button class="btn btn-ghost btn-icon" title="编辑" onclick="openEdit('${esc(p.patient_id)}')"><span class="icon-s" data-icon="edit"></span></button>
+        <button class="btn btn-ghost btn-icon" title="打印档案PDF" onclick="printPatientPdf('${esc(p.patient_id)}')"><span class="icon-s" data-icon="file"></span></button>
+        <button class="btn btn-ghost btn-icon" title="打印护理记录" onclick="printCareRecordsPdf('${esc(p.patient_id)}')"><span class="icon-s" data-icon="history"></span></button>
         <button class="btn btn-ghost btn-icon" title="删除" onclick="delPt('${esc(p.patient_id)}','${esc(p.name)}')"><span class="icon-s" data-icon="trash"></span></button>
       </div>
     </div>`).join('') + '</div>';
@@ -1365,6 +1367,47 @@ function exportPatientCSV(pid){
   a.href = URL.createObjectURL(blob);
   a.download = `档案_${p.name||pid}_${pid}.csv`;
   a.click(); URL.revokeObjectURL(a.href);
+}
+
+/* ═══════════ 打印 PDF ═══════════
+ * 后端鉴权要求 X-Auth-Token 请求头，浏览器直接打开 URL 不会带上。
+ * 解决方案：用 fetch 拿到 PDF 的 blob，转成对象 URL 后在新标签页打开。
+ * 这样 PDF 在新页面预览，浏览器自带"打印/下载"按钮即可使用。 */
+async function _openPdfBlob(url, downloadName){
+  try{
+    const r = await fetch(url, {headers: authHeadersRaw()});
+    if(!r.ok){
+      const errText = await describeHttpError(r, '打开PDF失败');
+      toast(errText, 'error'); return;
+    }
+    const blob = await r.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    // 新标签页打开（用户可在那里查看/打印/保存）
+    const w = window.open(blobUrl, '_blank');
+    if(!w){
+      // 浏览器拦截了弹窗 → 降级为直接下载
+      const a = document.createElement('a');
+      a.href = blobUrl; a.download = downloadName || 'document.pdf';
+      a.click();
+    }
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);  // 60s 后回收
+  }catch(e){
+    toast('打开PDF失败: ' + e.message, 'error');
+  }
+}
+function printPatientPdf(pid){
+  _openPdfBlob(`/api/export/patient/${encodeURIComponent(pid)}/pdf`, `档案卡_${pid}.pdf`);
+  addHist('add', `打印档案PDF：${allPts.find(p=>p.patient_id===pid)?.name||pid}`);
+}
+function printCareRecordsPdf(pid){
+  _openPdfBlob(`/api/export/care-records/${encodeURIComponent(pid)}/pdf`, `护理记录_${pid}.pdf`);
+  addHist('add', `打印护理记录：${allPts.find(p=>p.patient_id===pid)?.name||pid}`);
+}
+function printBillingReceipt(recordId){
+  _openPdfBlob(`/api/export/billing/receipt/${encodeURIComponent(recordId)}`, `收据_${recordId}.pdf`);
+}
+function printHandoverPdf(handoverId){
+  _openPdfBlob(`/api/export/handover/${encodeURIComponent(handoverId)}/pdf`, `交接班_${handoverId}.pdf`);
 }
 
 /* ═══════════ 编辑 ═══════════ */

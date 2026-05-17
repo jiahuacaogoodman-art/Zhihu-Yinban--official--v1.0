@@ -88,11 +88,13 @@ COPY --from=builder /usr/bin/dpkg-architecture /usr/bin/dpkg-architecture
 RUN MULTIARCH=$(dpkg-architecture -qDEB_HOST_MULTIARCH 2>/dev/null || echo "x86_64-linux-gnu") && \
     echo "Detected multiarch: ${MULTIARCH}"
 # 直接安装运行时依赖而非手动复制 .so，更稳定且跨架构兼容
+# 增加：fonts-noto-cjk 用于 PDF 生成的中文字体（档案卡/收据/交接班/护理记录）
 RUN apt-get -o Acquire::Retries=5 update \
     && apt-get -o Acquire::Retries=5 install -y --no-install-recommends \
         libtesseract5 \
         libleptonica-dev \
         libgomp1 \
+        fonts-noto-cjk \
     && rm -rf /var/lib/apt/lists/*
 
 # 非 root 用户运行
