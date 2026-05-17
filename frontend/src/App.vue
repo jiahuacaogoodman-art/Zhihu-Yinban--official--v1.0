@@ -1,24 +1,31 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
 import { Toast } from './components'
 
 /**
- * App.vue — Phase 3 起的根布局
+ * App.vue — 根布局
  *
  * 结构:侧栏导航 + 主内容区(router-view)。
- * 全局 Toast 容器挂在这里,整个应用复用。
- *
- * 侧栏暂时极简(只有几个链接);Phase 4 全量迁移时丰富。
+ * 当路由 meta.fullBleed = true(如 Landing / Login)时,
+ *   隐藏侧栏 + 主内容区取消 max-width 限制,让动效可以铺满。
  */
+
+const route = useRoute()
+const fullBleed = computed(() => route.meta.fullBleed === true)
 </script>
 
 <template>
-  <div class="v2-layout">
-    <aside class="v2-sidebar">
+  <div class="v2-layout" :class="{ 'v2-layout--full': fullBleed }">
+    <aside v-if="!fullBleed" class="v2-sidebar">
       <div class="v2-sidebar-brand">
         <span class="title-s">智护银伴</span>
         <span class="meta">v2</span>
       </div>
       <nav class="v2-nav">
+        <router-link to="/" class="v2-nav-item" active-class="v2-nav-active">
+          首页
+        </router-link>
         <router-link to="/beds" class="v2-nav-item" active-class="v2-nav-active">
           床位管理
         </router-link>
@@ -43,7 +50,7 @@ import { Toast } from './components'
       </div>
     </aside>
 
-    <main class="v2-main">
+    <main class="v2-main" :class="{ 'v2-main--full': fullBleed }">
       <router-view />
     </main>
 
@@ -56,6 +63,9 @@ import { Toast } from './components'
   display: grid;
   grid-template-columns: 220px 1fr;
   min-height: 100vh;
+}
+.v2-layout--full {
+  grid-template-columns: 1fr;
 }
 
 .v2-sidebar {
@@ -115,6 +125,10 @@ import { Toast } from './components'
   padding: var(--sp-5, 20px);
   max-width: 1200px;
   width: 100%;
+}
+.v2-main--full {
+  padding: 0;
+  max-width: none;
 }
 
 /* 移动端:隐藏侧栏,全宽 */

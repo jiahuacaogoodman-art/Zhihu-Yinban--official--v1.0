@@ -11,13 +11,14 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/',
     name: 'home',
-    redirect: '/beds',
+    component: () => import('../views/Landing.vue'),
+    meta: { title: '首页', guest: true, fullBleed: true },
   },
   {
     path: '/login',
     name: 'login',
     component: () => import('../views/Login.vue'),
-    meta: { title: '登录', guest: true },
+    meta: { title: '登录', guest: true, fullBleed: true },
   },
   {
     path: '/beds',
