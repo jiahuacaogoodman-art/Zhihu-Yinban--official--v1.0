@@ -416,7 +416,19 @@ async def nurse_frontend():
 # 缴费管理端入口
 @app.get("/billing", include_in_schema=False)
 async def billing_frontend():
-    """返回缴费管理页面。"""
+    """
+    返回缴费管理页面。
+
+    历史路径，向后兼容：原来缴费是独立页 /billing。现在管理端首页 / 已经把
+    缴费做成了内嵌 tab，新的入口是 /#billing。
+
+    保留 /billing 这条路径而不是直接 301 到 /#billing，是因为：
+      1) 如果家属设备/培训资料里写死了 /billing，还能正常访问；
+      2) 财务等"只看缴费"的轻量账号偏好独立窗口，不带左侧栏更清爽。
+
+    /static/billing.html 已经在 DOMContentLoaded 里调用 Billing.bindSubtabs()
+    + Billing.activate()，与嵌入式 tab 共用同一份 billing.js。
+    """
     billing_html = STATIC_DIR / "billing.html"
     if billing_html.is_file():
         return FileResponse(str(billing_html))

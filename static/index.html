@@ -27,11 +27,14 @@
 <script defer src="/static/design/dialog.js"></script>
 <script defer src="/static/design/evidence.js"></script>
 <script defer src="/static/design/vendors.js"></script>
-
 <!-- 外部 JS 库（AOS 滚动动画 / Typed.js 打字机。GSAP 由 vendors.js 懒加载，不在此重复引入） -->
 <script defer src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/typed.js@2.1.0/dist/typed.umd.js"></script>
 <script defer src="/static/pet/pet.js"></script>
+<!-- 缴费管理：嵌入式 tab 渲染逻辑（首次切到该 tab 时才发请求；模块化无副作用）。
+     QRCode 库给"微信扫码收款"模态框用，未点开时不会触发渲染。 -->
+<script defer src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+<script defer src="/static/billing.js"></script>
 <style>
 /* ---- 页面级布局：桌面端左侧固定边栏 ----
    · 侧栏必须贴着视窗最左侧（用户在超宽屏 / Win 笔电上反馈看到左边一条灰，
@@ -131,6 +134,20 @@
   box-shadow: 0 0 10px rgba(94,234,212,0.80);
 }
 .nav-tab.active .icon-s{ opacity: 1; color: var(--accent-glow); }
+
+/* 侧栏 tab 上的红点提醒数字（缴费过期/到期等） */
+.nav-badge{
+  margin-left: auto;
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 18px; height: 18px; padding: 0 6px;
+  border-radius: 999px;
+  background: rgba(239,68,68,0.92);
+  color: #fff;
+  font: 600 10px/1 var(--font-ui);
+  letter-spacing: 0;
+}
+.nav-tab.active .nav-badge{ background: rgba(255,255,255,0.28); color: #fff; }
+.nav-badge[hidden]{ display: none; }
 
 .sidebar-spacer{ flex: 1 1 auto; min-height: var(--sp-3); }
 
@@ -682,6 +699,236 @@
     height: 44px;
   }
 }
+
+/* ═════════════════════════════════════════════════════════════
+   缴费管理（嵌入式 tab）样式
+   全部用 #tab-billing / .billing-* 前缀作用域，避免污染全局表格、卡片、模态。
+   ═════════════════════════════════════════════════════════════ */
+#tab-billing.billing-embed{ display: none; }
+#tab-billing.billing-embed.active{ display: block; }
+
+#tab-billing .billing-header{
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: var(--sp-3); flex-wrap: wrap; gap: var(--sp-2);
+}
+#tab-billing .billing-title{
+  font: 600 var(--fz-xl)/1.2 var(--font-ui); color: var(--ink-1);
+  display: inline-flex; align-items: center; gap: var(--sp-2);
+  letter-spacing: -0.01em;
+}
+#tab-billing .billing-title .icon{
+  width: 28px; height: 28px; color: var(--accent-ink);
+}
+#tab-billing .billing-actions{ display: flex; gap: var(--sp-2); flex-wrap: wrap; }
+
+/* 子 tab 行（与左侧主导航独立，只在缴费 tab 内部分页） */
+#tab-billing .billing-tabs{
+  display: flex; gap: 4px; margin-bottom: var(--sp-4);
+  overflow-x: auto; padding-bottom: 4px;
+  -webkit-overflow-scrolling: touch;
+}
+#tab-billing .billing-tab-btn{
+  padding: 10px 16px; border-radius: 10px;
+  border: 1px solid rgba(15,23,42,0.08);
+  background: rgba(255,255,255,0.85);
+  cursor: pointer;
+  font: 500 var(--fz-sm)/1 var(--font-ui);
+  color: var(--ink-3);
+  transition: all .2s;
+  white-space: nowrap;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+#tab-billing .billing-tab-btn:hover{ border-color: var(--accent); color: var(--accent); }
+#tab-billing .billing-tab-btn.active{
+  background: var(--accent); color: #fff; border-color: var(--accent);
+  box-shadow: 0 4px 12px rgba(14,165,164,0.25);
+}
+#tab-billing .billing-tab-btn .badge{
+  background: rgba(239,68,68,0.12); color: #ef4444;
+  padding: 2px 7px; border-radius: 99px;
+  font: 600 11px/1 var(--font-ui);
+}
+#tab-billing .billing-tab-btn.active .badge{
+  background: rgba(255,255,255,0.30); color: #fff;
+}
+
+/* 子 tab 面板 */
+#tab-billing .billing-panel{ display: none; }
+#tab-billing .billing-panel.active{ display: block; }
+
+/* 卡片：与全局 .glass.card 同视觉语言但不依赖它（避免 hist-list 等冲突） */
+#tab-billing .billing-card{
+  background: rgba(255,255,255,0.92);
+  border: 1px solid rgba(15,23,42,0.06);
+  border-radius: var(--r-l, 16px);
+  padding: var(--sp-4);
+  margin-bottom: var(--sp-3);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+#tab-billing .billing-card-title{
+  font: 600 var(--fz-md)/1.3 var(--font-ui);
+  color: var(--ink-1);
+  margin-bottom: var(--sp-3);
+  display: flex; align-items: center; gap: 8px;
+}
+#tab-billing .billing-card-title-row{ justify-content: space-between; }
+#tab-billing .billing-card-title-row > span:first-child{ display:inline-flex; align-items:center; gap:8px; }
+#tab-billing .billing-card-title .icon-s{ color: var(--accent); }
+
+/* 缴费总览卡片小指标 */
+#tab-billing .billing-stats-row{
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--sp-2); margin-bottom: var(--sp-3);
+}
+#tab-billing .billing-stat-card{
+  padding: var(--sp-3); border-radius: var(--r-m, 12px);
+  text-align: center;
+  border: 1px solid rgba(15,23,42,0.06);
+  background: #fff;
+}
+#tab-billing .billing-stat-card.normal{  background: rgba(16,185,129,0.06); border-color: rgba(16,185,129,0.15); }
+#tab-billing .billing-stat-card.warning{ background: rgba(245,158,11,0.06); border-color: rgba(245,158,11,0.15); }
+#tab-billing .billing-stat-card.danger{  background: rgba(239,68,68,0.06);  border-color: rgba(239,68,68,0.15); }
+#tab-billing .billing-stat-card.indigo{  background: rgba(99,102,241,0.06); border-color: rgba(99,102,241,0.15); }
+#tab-billing .billing-stat-card .num{
+  font: 700 28px/1 var(--font-display, var(--font-ui));
+  font-variant-numeric: tabular-nums;
+}
+#tab-billing .billing-stat-card.normal  .num{ color: #10b981; }
+#tab-billing .billing-stat-card.warning .num{ color: #f59e0b; }
+#tab-billing .billing-stat-card.danger  .num{ color: #ef4444; }
+#tab-billing .billing-stat-card.indigo  .num{ color: #6366f1; }
+#tab-billing .billing-stat-card .label{
+  font: 400 12px/1.4 var(--font-ui);
+  color: var(--ink-3); margin-top: 4px;
+}
+
+/* 表格 —— 不复用全局 .table，避免被 audit/users 那边的样式串扰 */
+#tab-billing table{
+  width: 100%; border-collapse: collapse; font-size: 14px;
+}
+#tab-billing th{
+  text-align: left; padding: 10px 12px;
+  background: rgba(15,23,42,0.03);
+  font-weight: 600; color: var(--ink-2);
+  border-bottom: 1px solid rgba(15,23,42,0.08);
+}
+#tab-billing td{
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(15,23,42,0.05);
+}
+#tab-billing tr:hover td{ background: rgba(14,165,164,0.03); }
+
+/* 状态 chip */
+#tab-billing .status-tag{
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 10px; border-radius: 999px;
+  font: 500 12px/1 var(--font-ui);
+}
+#tab-billing .status-tag.normal{   background: rgba(16,185,129,0.10); color: #059669; }
+#tab-billing .status-tag.expiring{ background: rgba(245,158,11,0.10); color: #d97706; }
+#tab-billing .status-tag.overdue{  background: rgba(239,68,68,0.10);  color: #dc2626; }
+#tab-billing .status-tag .fa-solid.fa-circle{ font-size: 6px; }
+
+/* 简化版 form-row */
+#tab-billing .billing-form-row{
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--sp-2); margin-bottom: var(--sp-3);
+}
+#tab-billing .billing-fg{ display: flex; flex-direction: column; gap: 4px; }
+#tab-billing .billing-fg > span{
+  font: 500 12px/1 var(--font-ui); color: var(--ink-3);
+}
+#tab-billing .billing-fg input,
+#tab-billing .billing-fg select{
+  height: 38px; padding: 0 12px;
+  border: 1px solid rgba(15,23,42,0.12);
+  border-radius: 8px;
+  font-size: 14px;
+  outline: none;
+  background: #fff;
+  transition: border-color .2s;
+}
+#tab-billing .billing-fg input:focus,
+#tab-billing .billing-fg select:focus{ border-color: var(--accent); }
+#tab-billing .billing-fg-full{ grid-column: 1 / -1; }
+
+#tab-billing .billing-help{
+  font: 400 13px/1.5 var(--font-ui); color: var(--ink-3);
+  margin-bottom: var(--sp-3);
+}
+#tab-billing .billing-empty{
+  text-align: center; padding: 48px 20px; color: var(--ink-4);
+}
+#tab-billing .billing-empty .empty-title{ font-size: 14px; }
+/* 嵌入式 tab 不显示 <p> 副本，避免与 .empty-title 重复（详见 billing.js err()） */
+#tab-billing .billing-empty p{ display: none; }
+
+/* 缴费弹窗（独立样式，不复用全局 .modal）*/
+.billing-modal-backdrop{
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.4);
+  z-index: 1000;
+  display: none;
+  align-items: center; justify-content: center;
+  padding: 20px;
+}
+.billing-modal-backdrop.show{ display: flex; }
+.billing-modal{
+  background: #fff;
+  border-radius: 16px;
+  padding: 24px;
+  max-width: 520px; width: 100%;
+  max-height: 80vh; overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+  /* 嵌入复用 #tab-billing 内的表单/帮助文案样式 */
+}
+.billing-modal h3{
+  font: 600 18px/1.3 var(--font-ui);
+  color: var(--ink-1);
+  margin-bottom: 16px;
+  display: flex; align-items: center; gap: 8px;
+}
+.billing-modal h3 .icon-s{ color: var(--accent); }
+.billing-modal .billing-form-row{
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px; margin-bottom: 16px;
+}
+.billing-modal .billing-fg{ display: flex; flex-direction: column; gap: 4px; }
+.billing-modal .billing-fg > span{ font: 500 12px/1 var(--font-ui); color: var(--ink-3); }
+.billing-modal .billing-fg input,
+.billing-modal .billing-fg select{
+  height: 38px; padding: 0 12px;
+  border: 1px solid rgba(15,23,42,0.12);
+  border-radius: 8px; font-size: 14px; outline: none; background: #fff;
+}
+.billing-modal .billing-fg input:focus,
+.billing-modal .billing-fg select:focus{ border-color: var(--accent); }
+.billing-modal .billing-fg-full{ grid-column: 1 / -1; }
+.billing-modal .billing-modal-foot{
+  display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px;
+}
+.billing-modal .billing-help{
+  font: 400 12px/1.5 var(--font-ui); color: var(--ink-3);
+}
+.billing-qr-box{
+  text-align: center; padding: 20px;
+  background: rgba(14,165,164,0.04); border-radius: 12px;
+  margin: 16px 0;
+}
+.billing-qr-box img,
+.billing-qr-box canvas{ max-width: 200px; margin: 0 auto; display: block; }
+.billing-qr-box .amount{
+  font: 700 24px/1 var(--font-display, var(--font-ui));
+  color: var(--accent); margin-top: 12px;
+}
+
+@media (max-width: 640px){
+  #tab-billing .billing-stats-row{ grid-template-columns: repeat(2, 1fr); }
+  #tab-billing .billing-form-row{ grid-template-columns: 1fr; }
+  #tab-billing table{ font-size: 12px; }
+  #tab-billing th, #tab-billing td{ padding: 8px 6px; }
+}
 </style>
 </head>
 <body>
@@ -728,7 +975,7 @@
     <button class="nav-tab" data-tab="audit"><span class="icon-s" data-icon="shield"></span>审计日志</button>
     <button class="nav-tab" data-tab="users"><span class="icon-s" data-icon="key"></span>用户管理</button>
     <button class="nav-tab" data-tab="roles"><span class="icon-s" data-icon="shield"></span>角色权限</button>
-    <a class="nav-tab" href="/billing" style="text-decoration:none"><span class="icon-s" data-icon="dollar"></span>缴费管理</a>
+    <button class="nav-tab" data-tab="billing"><span class="icon-s" data-icon="dollar"></span>缴费管理<span class="nav-badge" id="navBillingBadge" hidden>0</span></button>
   </nav>
 
   <div class="section-hint">认证</div>
@@ -1009,7 +1256,206 @@
     <div id="roleList" class="hist-list"><div class="empty"><span class="empty-icon" data-icon="shield"></span><div class="empty-title">加载中…</div></div></div>
   </section>
 
+  <!-- ═════════ 缴费管理（嵌入式 tab） ═════════
+       · DOM 结构与独立页 /billing 一致：同一份 billing.js 渲染。
+       · #tab-billing 整段不占用 .glass.card 样式包裹，因为内部已有自己的
+         多张 .billing-card；不需要 card-head 行。
+       · 所有内部样式均以 #tab-billing 前缀作用域，避免与全局 .card / .table
+         冲突。 -->
+  <section id="tab-billing" class="billing-embed" style="display:none;">
+    <div class="billing-header">
+      <h2 class="billing-title"><span class="icon" data-icon="dollar"></span>缴费管理</h2>
+      <div class="billing-actions">
+        <button class="btn btn-primary btn-sm" data-billing-action="openPayModal"><span class="icon-s" data-icon="zap"></span>微信收款</button>
+        <button class="btn btn-outline btn-sm" data-billing-action="openRenewModal"><span class="icon-s" data-icon="refresh"></span>续费</button>
+      </div>
+    </div>
+
+    <div class="billing-tabs" role="tablist">
+      <button class="billing-tab-btn active" data-billing-subtab="overview"><span class="icon-s" data-icon="layers"></span>缴费总览</button>
+      <button class="billing-tab-btn" data-billing-subtab="records"><span class="icon-s" data-icon="history"></span>缴费记录</button>
+      <button class="billing-tab-btn" data-billing-subtab="alerts"><span class="icon-s" data-icon="alert"></span>到期提醒<span class="badge" id="alertBadge">0</span></button>
+      <button class="billing-tab-btn" data-billing-subtab="standards"><span class="icon-s" data-icon="settings"></span>收费标准</button>
+      <button class="billing-tab-btn" data-billing-subtab="wechat"><span class="icon-s" data-icon="check"></span>微信支付</button>
+    </div>
+
+    <!-- Panel: Overview -->
+    <div class="billing-panel active" data-billing-panel="overview">
+      <div class="billing-stats-row">
+        <div class="billing-stat-card normal"><div class="num" id="sNormal">-</div><div class="label">正常缴费</div></div>
+        <div class="billing-stat-card warning"><div class="num" id="sExpiring">-</div><div class="label">即将到期</div></div>
+        <div class="billing-stat-card danger"><div class="num" id="sOverdue">-</div><div class="label">已欠费</div></div>
+        <div class="billing-stat-card indigo"><div class="num" id="sTotalPaid">-</div><div class="label">累计收款(元)</div></div>
+      </div>
+      <div class="billing-card">
+        <div class="billing-card-title"><span class="icon-s" data-icon="users"></span>在住老人缴费状态</div>
+        <div id="overviewTable"><div class="billing-empty"><div class="empty-title">加载中…</div></div></div>
+      </div>
+    </div>
+
+    <!-- Panel: Records -->
+    <div class="billing-panel" data-billing-panel="records">
+      <div class="billing-card">
+        <div class="billing-card-title"><span class="icon-s" data-icon="history"></span>缴费记录</div>
+        <div class="billing-form-row">
+          <label class="billing-fg"><span>按老人筛选</span><input id="recFilterAdm" placeholder="输入入住ID..."></label>
+          <label class="billing-fg"><span>费用类别</span>
+            <select id="recFilterCat">
+              <option value="">全部</option>
+              <option value="bed">床位费</option>
+              <option value="care">护理费</option>
+              <option value="meal">餐饮费</option>
+              <option value="medical">医疗费</option>
+              <option value="other">其他</option>
+            </select>
+          </label>
+        </div>
+        <div id="recordsTable"><div class="billing-empty"><div class="empty-title">加载中…</div></div></div>
+      </div>
+    </div>
+
+    <!-- Panel: Alerts -->
+    <div class="billing-panel" data-billing-panel="alerts">
+      <div class="billing-card">
+        <div class="billing-card-title"><span class="icon-s" data-icon="alert"></span>到期/欠费提醒</div>
+        <p class="billing-help">以下老人的缴费即将到期或已欠费，请及时联系家属续费。</p>
+        <div id="alertsTable"><div class="billing-empty"><div class="empty-title">加载中…</div></div></div>
+      </div>
+    </div>
+
+    <!-- Panel: Fee Standards -->
+    <div class="billing-panel" data-billing-panel="standards">
+      <div class="billing-card">
+        <div class="billing-card-title billing-card-title-row">
+          <span><span class="icon-s" data-icon="settings"></span>收费标准设置</span>
+          <button class="btn btn-primary btn-sm" data-billing-action="openStdModal"><span class="icon-s" data-icon="plus"></span>新增标准</button>
+        </div>
+        <div id="standardsTable"><div class="billing-empty"><div class="empty-title">加载中…</div></div></div>
+      </div>
+    </div>
+
+    <!-- Panel: WeChat Pay -->
+    <div class="billing-panel" data-billing-panel="wechat">
+      <div class="billing-card">
+        <div class="billing-card-title"><span class="icon-s" data-icon="check"></span>微信支付配置状态</div>
+        <div id="wechatStatus"><div class="billing-empty"><div class="empty-title">加载中…</div></div></div>
+      </div>
+    </div>
+  </section>
+
 </main>
+
+<!-- 缴费管理：模态框（独立于 main 之外，避免被 tab 切换 display:none 隐藏） -->
+<div class="billing-modal-backdrop" id="payModal">
+  <div class="billing-modal">
+    <h3><span class="icon-s" data-icon="zap"></span>微信扫码收款</h3>
+    <div class="billing-form-row">
+      <label class="billing-fg"><span>入住老人ID *</span><input id="payAdmId" placeholder="adm_xxxxx"></label>
+      <label class="billing-fg"><span>金额(元) *</span><input id="payAmount" type="number" placeholder="3000"></label>
+    </div>
+    <div class="billing-form-row">
+      <label class="billing-fg"><span>费用类别</span>
+        <select id="payCat">
+          <option value="care">护理费</option><option value="bed">床位费</option>
+          <option value="meal">餐饮费</option><option value="other">其他</option>
+        </select>
+      </label>
+      <label class="billing-fg"><span>缴费周期</span>
+        <select id="payCycle">
+          <option value="monthly">月</option><option value="quarterly">季</option>
+          <option value="semi_annual">半年</option><option value="yearly">年</option>
+        </select>
+      </label>
+    </div>
+    <div class="billing-form-row">
+      <label class="billing-fg"><span>起始日期</span><input id="payStart" type="date"></label>
+      <label class="billing-fg"><span>截止日期</span><input id="payEnd" type="date"></label>
+    </div>
+    <div class="billing-qr-box" id="qrBox" style="display:none">
+      <div id="qrCode"></div>
+      <div class="amount" id="qrAmount"></div>
+      <p class="billing-help" style="margin-top:8px">请家属用微信扫码支付</p>
+    </div>
+    <div class="billing-modal-foot">
+      <button class="btn btn-ghost btn-sm" data-billing-action="closePayModal">关闭</button>
+      <button class="btn btn-primary btn-sm" id="paySubmitBtn" data-billing-action="submitPay"><span class="icon-s" data-icon="zap"></span>生成付款码</button>
+    </div>
+  </div>
+</div>
+
+<div class="billing-modal-backdrop" id="renewModal">
+  <div class="billing-modal">
+    <h3><span class="icon-s" data-icon="refresh"></span>续费</h3>
+    <div class="billing-form-row">
+      <label class="billing-fg"><span>入住老人ID *</span><input id="renewAdmId" placeholder="adm_xxxxx"></label>
+      <label class="billing-fg"><span>金额(元) *</span><input id="renewAmount" type="number" placeholder="3000"></label>
+    </div>
+    <div class="billing-form-row">
+      <label class="billing-fg"><span>费用类别</span>
+        <select id="renewCat">
+          <option value="care">护理费</option><option value="bed">床位费</option>
+          <option value="meal">餐饮费</option><option value="other">其他</option>
+        </select>
+      </label>
+      <label class="billing-fg"><span>缴费周期</span>
+        <select id="renewCycle">
+          <option value="monthly">月</option><option value="quarterly">季</option>
+          <option value="semi_annual">半年</option><option value="yearly">年</option>
+        </select>
+      </label>
+    </div>
+    <div class="billing-form-row">
+      <label class="billing-fg"><span>续费周期数</span><input id="renewNum" type="number" value="1" min="1" max="24"></label>
+      <label class="billing-fg"><span>支付方式</span>
+        <select id="renewMethod">
+          <option value="cash">现金</option><option value="wechat">微信</option>
+          <option value="bank_transfer">银行转账</option><option value="alipay">支付宝</option>
+        </select>
+      </label>
+    </div>
+    <div class="billing-modal-foot">
+      <button class="btn btn-ghost btn-sm" data-billing-action="closeRenewModal">取消</button>
+      <button class="btn btn-primary btn-sm" data-billing-action="submitRenew"><span class="icon-s" data-icon="check"></span>确认续费</button>
+    </div>
+  </div>
+</div>
+
+<div class="billing-modal-backdrop" id="stdModal">
+  <div class="billing-modal">
+    <h3><span class="icon-s" data-icon="settings"></span>收费标准</h3>
+    <div class="billing-form-row">
+      <label class="billing-fg"><span>名称 *</span><input id="stdName" placeholder="如：单人间床位费"></label>
+      <label class="billing-fg"><span>费用类别 *</span>
+        <select id="stdCat">
+          <option value="bed">床位费</option><option value="care">护理费</option>
+          <option value="meal">餐饮费</option><option value="medical">医疗费</option>
+          <option value="supplies">耗材费</option><option value="service">增值服务</option>
+          <option value="other">其他</option>
+        </select>
+      </label>
+    </div>
+    <div class="billing-form-row">
+      <label class="billing-fg"><span>单价(元) *</span><input id="stdPrice" type="number" placeholder="3000"></label>
+      <label class="billing-fg"><span>计费周期</span>
+        <select id="stdCycle">
+          <option value="monthly">月</option><option value="quarterly">季</option>
+          <option value="semi_annual">半年</option><option value="yearly">年</option>
+        </select>
+      </label>
+    </div>
+    <div class="billing-form-row">
+      <label class="billing-fg"><span>适用护理等级</span><input id="stdLevel" placeholder="如 level_2（空=不限）"></label>
+      <label class="billing-fg"><span>适用房型</span><input id="stdRoom" placeholder="如 单人间（空=不限）"></label>
+    </div>
+    <div class="billing-form-row">
+      <label class="billing-fg billing-fg-full"><span>说明</span><input id="stdDesc" placeholder="可选描述"></label>
+    </div>
+    <div class="billing-modal-foot">
+      <button class="btn btn-ghost btn-sm" data-billing-action="closeStdModal">取消</button>
+      <button class="btn btn-primary btn-sm" data-billing-action="submitStd"><span class="icon-s" data-icon="check"></span>保存</button>
+    </div>
+  </div>
+</div>
 
 <!-- PWA banner -->
 <div id="pwaBanner" class="pwa-banner">
@@ -1097,9 +1543,17 @@ function animateNumber(id, val){
 /* ═══════════ TABS ═══════════ */
 function switchTab(tab){
   document.querySelectorAll('.nav-tab').forEach(b=>b.classList.toggle('active', b.dataset.tab===tab));
-  ['add','list','archive','dec','hist','audit','users','roles'].forEach(t=>{
+  ['add','list','archive','dec','hist','audit','users','roles','billing'].forEach(t=>{
     const el = document.getElementById('tab-'+t);
-    if(el) el.style.display = (t===tab ? 'block' : 'none');
+    if(!el) return;
+    // billing tab 用 .active 类驱动（避免直接改 display 导致内部子 panel 也被
+    // 当成 inline 样式覆盖）。其它 tab 仍走原来的 display:block/none。
+    if(t === 'billing'){
+      el.classList.toggle('active', t === tab);
+      el.style.display = (t === tab ? 'block' : 'none');
+    }else{
+      el.style.display = (t === tab ? 'block' : 'none');
+    }
   });
   curTab = tab;
   if(tab==='list') loadPatients();
@@ -1108,6 +1562,14 @@ function switchTab(tab){
   else if(tab==='audit') loadAuditLog();
   else if(tab==='users') { loadRolesForUserForm(); loadUsers(); }
   else if(tab==='roles') loadRoles();
+  else if(tab==='billing'){
+    // 第一次进入时由 Billing.activate() 全量加载数据；之后只刷新最常变动的
+    // 总览/到期提醒，避免每次切换 tab 都把 5 个接口全部打一遍。
+    if(window.Billing){
+      Billing.bindSubtabs(document.getElementById('tab-billing'));
+      Billing.activate();
+    }
+  }
 }
 document.addEventListener('DOMContentLoaded', ()=>{
   // Restore token and check auth status
@@ -1119,6 +1581,23 @@ document.addEventListener('DOMContentLoaded', ()=>{
   document.querySelectorAll('.nav-tab').forEach(b=>{
     b.addEventListener('click', ()=>switchTab(b.dataset.tab));
   });
+
+  /* ── Hash 路由 ──
+     支持 / 和 /#billing、/#users 等深链接，让"/billing 旧入口"和侧栏外链
+     都能直接落到对应 tab。同时挂 hashchange，浏览器前进/后退也会切换。 */
+  const _validTabs = ['add','list','archive','dec','hist','audit','users','roles','billing'];
+  function _applyHashTab(){
+    const h = (location.hash || '').replace(/^#/, '').trim();
+    if(h && _validTabs.indexOf(h) !== -1) switchTab(h);
+  }
+  _applyHashTab();
+  window.addEventListener('hashchange', _applyHashTab);
+
+  /* ── 提前预加载缴费提醒数（仅 badge），让用户进首页就能看到红点。
+        失败静默：缴费 API 返回 401 时不影响其它 tab。 */
+  if(window.Billing && typeof window.Billing.loadAlerts === 'function'){
+    setTimeout(() => { try { window.Billing.loadAlerts(); } catch(_){} }, 200);
+  }
 
   /* ── 手机抽屉侧栏 ── */
   const mq = window.matchMedia('(max-width: 960px)');
@@ -2120,7 +2599,7 @@ switchTab = function(t){
   _origSwitchTab(t);
   if(window.ZhPet){
     // 根据 tab 给宠物不同反应
-    const map = { add: 'idle', list: 'idle', archive: 'idle', dec: 'talk', hist: 'idle', audit: 'idle', users: 'idle', roles: 'idle' };
+    const map = { add: 'idle', list: 'idle', archive: 'idle', dec: 'talk', hist: 'idle', audit: 'idle', users: 'idle', roles: 'idle', billing: 'idle' };
     const act = map[t];
     if(act === 'talk') window.ZhPet.say('准备好帮你写护理建议啦～', { title: '提示', duration: 2200 });
     else window.ZhPet.react('jump');

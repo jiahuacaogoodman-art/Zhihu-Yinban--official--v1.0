@@ -1,4 +1,13 @@
 <!DOCTYPE html>
+<!--
+  独立缴费管理页（兼容旧入口 /billing）。
+  现在管理端首页 / 已经把"缴费管理"做成了内嵌 tab，推荐从那里进入。
+  这里保留是为了：
+    1) 兼容老书签 / 老培训文档里写死的 /billing
+    2) 二级账号（只开了缴费权限的财务）只想看缴费时的最小入口
+  正文 DOM 与 index.html 内嵌版完全相同（同一份 billing.js 渲染），
+  唯一区别是这里有自己的 <body>/<head> 与一个返回链接。
+-->
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
@@ -18,15 +27,16 @@ body{font-family:var(--font-ui);background:var(--bg-base,#f0f4f8);min-height:100
 .billing-header h1{font-size:24px;font-weight:600;display:flex;align-items:center;gap:10px}
 .billing-header h1 i{color:var(--accent)}
 .billing-header .actions{display:flex;gap:8px;flex-wrap:wrap}
-.tab-bar{display:flex;gap:4px;margin-bottom:20px;overflow-x:auto;padding-bottom:4px}
-.tab-btn{padding:10px 18px;border-radius:10px;border:1px solid rgba(15,23,42,0.08);background:#fff;cursor:pointer;font-size:14px;font-weight:500;color:var(--ink-3);transition:all .2s;white-space:nowrap;display:flex;align-items:center;gap:6px}
-.tab-btn:hover{border-color:var(--accent);color:var(--accent)}
-.tab-btn.active{background:var(--accent);color:#fff;border-color:var(--accent);box-shadow:0 4px 12px rgba(14,165,164,0.25)}
-.tab-btn .badge{background:rgba(255,255,255,0.3);padding:2px 7px;border-radius:99px;font-size:11px;font-weight:600}
-.tab-btn.active .badge{background:rgba(255,255,255,0.3)}
-.tab-btn:not(.active) .badge{background:rgba(239,68,68,0.1);color:#ef4444}
-.panel{display:none}
-.panel.active{display:block}
+/* 复用 index.html 嵌入版的样式（billing-tabs/.billing-panel）；
+   这里 .tab-bar/.panel 名字保留只为不破坏旧 CSS 选择器（暗灰指针等）。 */
+.billing-tabs{display:flex;gap:4px;margin-bottom:20px;overflow-x:auto;padding-bottom:4px}
+.billing-tab-btn{padding:10px 18px;border-radius:10px;border:1px solid rgba(15,23,42,0.08);background:#fff;cursor:pointer;font-size:14px;font-weight:500;color:var(--ink-3);transition:all .2s;white-space:nowrap;display:flex;align-items:center;gap:6px}
+.billing-tab-btn:hover{border-color:var(--accent);color:var(--accent)}
+.billing-tab-btn.active{background:var(--accent);color:#fff;border-color:var(--accent);box-shadow:0 4px 12px rgba(14,165,164,0.25)}
+.billing-tab-btn .badge{background:rgba(255,255,255,0.3);padding:2px 7px;border-radius:99px;font-size:11px;font-weight:600}
+.billing-tab-btn:not(.active) .badge{background:rgba(239,68,68,0.1);color:#ef4444}
+.billing-panel{display:none}
+.billing-panel.active{display:block}
 .card{background:#fff;border-radius:16px;border:1px solid rgba(15,23,42,0.06);padding:24px;margin-bottom:20px;box-shadow:0 1px 3px rgba(0,0,0,0.04)}
 .card-title{font-size:16px;font-weight:600;margin-bottom:16px;display:flex;align-items:center;gap:8px}
 .card-title i{color:var(--accent)}
@@ -63,6 +73,8 @@ tr:hover td{background:rgba(14,165,164,0.03)}
 .empty-state{text-align:center;padding:48px 20px;color:var(--ink-4)}
 .empty-state i{font-size:48px;margin-bottom:12px;opacity:0.3}
 .empty-state p{font-size:14px}
+/* 嵌入式 tab 上才出现 .empty-title；独立页只显示 <p>，避免重复文案 */
+.empty-state .empty-title{display:none}
 .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:1000;display:none;align-items:center;justify-content:center;padding:20px}
 .modal-backdrop.show{display:flex}
 .modal{background:#fff;border-radius:16px;padding:24px;max-width:520px;width:100%;max-height:80vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.15)}
@@ -91,22 +103,22 @@ th,td{padding:8px 6px}
 <div class="billing-header">
   <h1><i class="fa-solid fa-file-invoice-dollar"></i>缴费管理中心</h1>
   <div class="actions">
-    <button class="btn btn-primary" onclick="openPayModal()"><i class="fa-brands fa-weixin"></i>微信收款</button>
-    <button class="btn btn-outline" onclick="openRenewModal()"><i class="fa-solid fa-rotate"></i>续费</button>
+    <button class="btn btn-primary" data-billing-action="openPayModal"><i class="fa-brands fa-weixin"></i>微信收款</button>
+    <button class="btn btn-outline" data-billing-action="openRenewModal"><i class="fa-solid fa-rotate"></i>续费</button>
   </div>
 </div>
 
-<div class="tab-bar">
-  <button class="tab-btn active" data-panel="overview"><i class="fa-solid fa-chart-pie"></i>缴费总览</button>
-  <button class="tab-btn" data-panel="records"><i class="fa-solid fa-list"></i>缴费记录</button>
-  <button class="tab-btn" data-panel="alerts"><i class="fa-solid fa-bell"></i>到期提醒<span class="badge" id="alertBadge">0</span></button>
-  <button class="tab-btn" data-panel="standards"><i class="fa-solid fa-sliders"></i>收费标准</button>
-  <button class="tab-btn" data-panel="wechat"><i class="fa-brands fa-weixin"></i>微信支付</button>
+<div class="billing-tabs">
+  <button class="billing-tab-btn active" data-billing-subtab="overview"><i class="fa-solid fa-chart-pie"></i>缴费总览</button>
+  <button class="billing-tab-btn" data-billing-subtab="records"><i class="fa-solid fa-list"></i>缴费记录</button>
+  <button class="billing-tab-btn" data-billing-subtab="alerts"><i class="fa-solid fa-bell"></i>到期提醒<span class="badge" id="alertBadge">0</span></button>
+  <button class="billing-tab-btn" data-billing-subtab="standards"><i class="fa-solid fa-sliders"></i>收费标准</button>
+  <button class="billing-tab-btn" data-billing-subtab="wechat"><i class="fa-brands fa-weixin"></i>微信支付</button>
 </div>
 
 <!-- Panel: Overview -->
-<div class="panel active" id="panel-overview">
-  <div class="stats-row" id="statsRow">
+<div class="billing-panel active" data-billing-panel="overview">
+  <div class="stats-row">
     <div class="stat-card normal"><div class="num" id="sNormal">-</div><div class="label">正常缴费</div></div>
     <div class="stat-card warning"><div class="num" id="sExpiring">-</div><div class="label">即将到期</div></div>
     <div class="stat-card danger"><div class="num" id="sOverdue">-</div><div class="label">已欠费</div></div>
@@ -119,19 +131,19 @@ th,td{padding:8px 6px}
 </div>
 
 <!-- Panel: Records -->
-<div class="panel" id="panel-records">
+<div class="billing-panel" data-billing-panel="records">
   <div class="card">
     <div class="card-title"><i class="fa-solid fa-receipt"></i>缴费记录</div>
     <div class="form-row" style="margin-bottom:12px">
-      <div class="form-group"><label>按老人筛选</label><input id="recFilterAdm" placeholder="输入入住ID..." oninput="loadRecords()"></div>
-      <div class="form-group"><label>费用类别</label><select id="recFilterCat" onchange="loadRecords()"><option value="">全部</option><option value="bed">床位费</option><option value="care">护理费</option><option value="meal">餐饮费</option><option value="medical">医疗费</option><option value="other">其他</option></select></div>
+      <div class="form-group"><label>按老人筛选</label><input id="recFilterAdm" placeholder="输入入住ID..."></div>
+      <div class="form-group"><label>费用类别</label><select id="recFilterCat"><option value="">全部</option><option value="bed">床位费</option><option value="care">护理费</option><option value="meal">餐饮费</option><option value="medical">医疗费</option><option value="other">其他</option></select></div>
     </div>
     <div id="recordsTable"><div class="empty-state"><i class="fa-solid fa-spinner fa-spin"></i><p>加载中...</p></div></div>
   </div>
 </div>
 
 <!-- Panel: Alerts -->
-<div class="panel" id="panel-alerts">
+<div class="billing-panel" data-billing-panel="alerts">
   <div class="card">
     <div class="card-title"><i class="fa-solid fa-triangle-exclamation"></i>到期/欠费提醒</div>
     <p style="font-size:13px;color:var(--ink-3);margin-bottom:16px">以下老人的缴费即将到期或已欠费，请及时联系家属续费。</p>
@@ -140,15 +152,15 @@ th,td{padding:8px 6px}
 </div>
 
 <!-- Panel: Fee Standards -->
-<div class="panel" id="panel-standards">
+<div class="billing-panel" data-billing-panel="standards">
   <div class="card">
-    <div class="card-title" style="justify-content:space-between"><span><i class="fa-solid fa-tags"></i>收费标准设置</span><button class="btn btn-primary btn-sm" onclick="openStdModal()"><i class="fa-solid fa-plus"></i>新增标准</button></div>
+    <div class="card-title" style="justify-content:space-between"><span><i class="fa-solid fa-tags"></i>收费标准设置</span><button class="btn btn-primary btn-sm" data-billing-action="openStdModal"><i class="fa-solid fa-plus"></i>新增标准</button></div>
     <div id="standardsTable"><div class="empty-state"><i class="fa-solid fa-spinner fa-spin"></i><p>加载中...</p></div></div>
   </div>
 </div>
 
 <!-- Panel: WeChat Pay -->
-<div class="panel" id="panel-wechat">
+<div class="billing-panel" data-billing-panel="wechat">
   <div class="card">
     <div class="card-title"><i class="fa-brands fa-weixin" style="color:#07c160"></i>微信支付配置状态</div>
     <div id="wechatStatus"><div class="empty-state"><i class="fa-solid fa-spinner fa-spin"></i><p>加载中...</p></div></div>
@@ -179,8 +191,8 @@ th,td{padding:8px 6px}
       <p style="font-size:12px;color:var(--ink-3);margin-top:8px">请家属用微信扫码支付</p>
     </div>
     <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
-      <button class="btn btn-outline" onclick="closePayModal()">关闭</button>
-      <button class="btn btn-primary" id="paySubmitBtn" onclick="submitPay()"><i class="fa-brands fa-weixin"></i>生成付款码</button>
+      <button class="btn btn-outline" data-billing-action="closePayModal">关闭</button>
+      <button class="btn btn-primary" id="paySubmitBtn" data-billing-action="submitPay"><i class="fa-brands fa-weixin"></i>生成付款码</button>
     </div>
   </div>
 </div>
@@ -202,8 +214,8 @@ th,td{padding:8px 6px}
       <div class="form-group"><label>支付方式</label><select id="renewMethod"><option value="cash">现金</option><option value="wechat">微信</option><option value="bank_transfer">银行转账</option><option value="alipay">支付宝</option></select></div>
     </div>
     <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
-      <button class="btn btn-outline" onclick="closeRenewModal()">取消</button>
-      <button class="btn btn-primary" onclick="submitRenew()"><i class="fa-solid fa-check"></i>确认续费</button>
+      <button class="btn btn-outline" data-billing-action="closeRenewModal">取消</button>
+      <button class="btn btn-primary" data-billing-action="submitRenew"><i class="fa-solid fa-check"></i>确认续费</button>
     </div>
   </div>
 </div>
@@ -228,13 +240,21 @@ th,td{padding:8px 6px}
       <div class="form-group" style="grid-column:1/-1"><label>说明</label><input id="stdDesc" placeholder="可选描述"></div>
     </div>
     <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
-      <button class="btn btn-outline" onclick="closeStdModal()">取消</button>
-      <button class="btn btn-primary" onclick="submitStd()"><i class="fa-solid fa-check"></i>保存</button>
+      <button class="btn btn-outline" data-billing-action="closeStdModal">取消</button>
+      <button class="btn btn-primary" data-billing-action="submitStd"><i class="fa-solid fa-check"></i>保存</button>
     </div>
   </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 <script src="/static/billing.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    if (window.Billing) {
+      Billing.bindSubtabs(document);
+      Billing.activate();
+    }
+  });
+</script>
 </body>
 </html>
