@@ -29,7 +29,8 @@ cryptography==43.0.3       # PII 字段 Fernet 加密（id_card / emergency_phon
 python-multipart==0.0.20   # 支持 multipart/form-data
 python-dotenv==1.0.1       # 环境变量管理
 python-dateutil==2.9.0     # 日期计算（relativedelta 用于缴费周期计算）
-weasyprint==66.0           # HTML→PDF 生成（档案卡/收据/交接班单打印）
+reportlab==4.5.1           # 纯 Python PDF 生成（档案卡/收据/交接班单/护理记录），
+                           # 用 Adobe-GB1 CIDFont 渲染中文，无需系统装字体/pango/cairo
 loguru==0.7.3              # 结构化日志
 pyyaml==6.0.2              # 护理协议模板 YAML 热加载（data/protocols.yaml）
 

@@ -40,6 +40,7 @@ jobs:
             numpy \
             chromadb \
             cryptography \
+            reportlab \
             pytest \
             pytest-asyncio
 
