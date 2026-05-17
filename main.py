@@ -63,6 +63,7 @@ from app.routers import beds, care_levels, handovers, incidents, care_records
 from app.routers import admissions
 from app.routers import billing
 from app.routers import wechat_pay
+from app.routers import payment_channels
 from app.services.pii_crypto import is_encryption_enabled
 from app.services.user_store import UserStore
 
@@ -294,6 +295,7 @@ app.include_router(care_records.router, prefix="/api", tags=["Care Records"])
 app.include_router(admissions.router, prefix="/api", tags=["Admission Workflow"])
 app.include_router(billing.router, prefix="/api", tags=["Billing Management"])
 app.include_router(wechat_pay.router, prefix="/api", tags=["WeChat Pay"])
+app.include_router(payment_channels.router, prefix="/api", tags=["Payment Channels"])
 
 # ----------------------------------------------------------------
 # 鉴权中间件：保护 /api/* 和 /uploads/*
