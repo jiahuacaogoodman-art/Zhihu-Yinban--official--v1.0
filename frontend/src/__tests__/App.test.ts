@@ -3,16 +3,15 @@ import { mount, flushPromises } from '@vue/test-utils'
 import App from '../App.vue'
 
 /**
- * Phase 1 冒烟测试 — 唯一目的:让 CI 能跑 `npm run test` 并通过。
+ * Phase 2 冒烟测试 — 验证 App.vue(组件 showcase)能正常渲染。
  * Phase 4 末期开始按 RFC §6.2 加 e2e。
  */
 
 // 让 App.vue 中 import 的 __BUILD_TIME__ 在测试环境里有值
 ;(globalThis as any).__BUILD_TIME__ = '2026-05-17T00:00:00Z'
 
-describe('App.vue (Phase 1 placeholder)', () => {
+describe('App.vue (Phase 2 component showcase)', () => {
   beforeEach(() => {
-    // 测试环境 fetch 默认 mock 成 unreachable;不连真实后端
     vi.stubGlobal(
       'fetch',
       vi.fn(() =>
@@ -25,10 +24,10 @@ describe('App.vue (Phase 1 placeholder)', () => {
     )
   })
 
-  it('renders the Hello v2 banner', () => {
+  it('renders the Phase 2 showcase headline', () => {
     const wrapper = mount(App)
-    expect(wrapper.text()).toContain('Hello v2')
-    expect(wrapper.text()).toContain('Phase 1')
+    expect(wrapper.text()).toContain('基础组件已落地')
+    expect(wrapper.text()).toContain('Phase 2')
   })
 
   it('shows the build time injected by vite define', () => {
@@ -40,5 +39,21 @@ describe('App.vue (Phase 1 placeholder)', () => {
     const wrapper = mount(App)
     await flushPromises()
     expect(wrapper.text()).toContain('ok')
+  })
+
+  it('renders all 6 base component names in chips', () => {
+    const wrapper = mount(App)
+    const names = ['GlassPanel', 'Btn', 'Field', 'Chip', 'Dialog', 'Toast']
+    for (const name of names) {
+      expect(wrapper.text()).toContain(name)
+    }
+  })
+
+  it('renders Btn variants', () => {
+    const wrapper = mount(App)
+    expect(wrapper.text()).toContain('主按钮')
+    expect(wrapper.text()).toContain('Outline')
+    expect(wrapper.text()).toContain('Ghost')
+    expect(wrapper.text()).toContain('删除')
   })
 })
