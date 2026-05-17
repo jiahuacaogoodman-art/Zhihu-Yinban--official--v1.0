@@ -1,17 +1,30 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
+import { createPinia, setActivePinia } from 'pinia'
+import { createRouter, createWebHashHistory } from 'vue-router'
 import App from '../App.vue'
 
 /**
- * Phase 2 冒烟测试 — 验证 App.vue(组件 showcase)能正常渲染。
- * Phase 4 末期开始按 RFC §6.2 加 e2e。
+ * Phase 3 冒烟测试 — App.vue 是 layout + router-view
  */
 
-// 让 App.vue 中 import 的 __BUILD_TIME__ 在测试环境里有值
 ;(globalThis as any).__BUILD_TIME__ = '2026-05-17T00:00:00Z'
 
-describe('App.vue (Phase 2 component showcase)', () => {
+// 最小 router 配置
+function makeRouter() {
+  return createRouter({
+    history: createWebHashHistory(),
+    routes: [
+      { path: '/', redirect: '/beds' },
+      { path: '/beds', component: { template: '<div>beds-stub</div>' } },
+      { path: '/showcase', component: { template: '<div>showcase-stub</div>' } },
+    ],
+  })
+}
+
+describe('App.vue (Phase 3 layout)', () => {
   beforeEach(() => {
+    setActivePinia(createPinia())
     vi.stubGlobal(
       'fetch',
       vi.fn(() =>
@@ -24,36 +37,38 @@ describe('App.vue (Phase 2 component showcase)', () => {
     )
   })
 
-  it('renders the Phase 2 showcase headline', () => {
-    const wrapper = mount(App)
-    expect(wrapper.text()).toContain('基础组件已落地')
-    expect(wrapper.text()).toContain('Phase 2')
+  it('renders the sidebar with brand name', async () => {
+    const router = makeRouter()
+    router.push('/beds')
+    await router.isReady()
+    const wrapper = mount(App, { global: { plugins: [router] } })
+    expect(wrapper.text()).toContain('智护银伴')
+    expect(wrapper.text()).toContain('v2')
   })
 
-  it('shows the build time injected by vite define', () => {
-    const wrapper = mount(App)
-    expect(wrapper.text()).toContain('2026-05-17T00:00:00Z')
+  it('renders navigation links', async () => {
+    const router = makeRouter()
+    router.push('/beds')
+    await router.isReady()
+    const wrapper = mount(App, { global: { plugins: [router] } })
+    expect(wrapper.text()).toContain('床位管理')
+    expect(wrapper.text()).toContain('组件展示')
   })
 
-  it('probes /health and reflects the status', async () => {
-    const wrapper = mount(App)
+  it('renders router-view content', async () => {
+    const router = makeRouter()
+    router.push('/beds')
+    await router.isReady()
+    const wrapper = mount(App, { global: { plugins: [router] } })
     await flushPromises()
-    expect(wrapper.text()).toContain('ok')
+    expect(wrapper.text()).toContain('beds-stub')
   })
 
-  it('renders all 6 base component names in chips', () => {
-    const wrapper = mount(App)
-    const names = ['GlassPanel', 'Btn', 'Field', 'Chip', 'Dialog', 'Toast']
-    for (const name of names) {
-      expect(wrapper.text()).toContain(name)
-    }
-  })
-
-  it('renders Btn variants', () => {
-    const wrapper = mount(App)
-    expect(wrapper.text()).toContain('主按钮')
-    expect(wrapper.text()).toContain('Outline')
-    expect(wrapper.text()).toContain('Ghost')
-    expect(wrapper.text()).toContain('删除')
+  it('has a link back to legacy version', async () => {
+    const router = makeRouter()
+    router.push('/beds')
+    await router.isReady()
+    const wrapper = mount(App, { global: { plugins: [router] } })
+    expect(wrapper.text()).toContain('返回旧版')
   })
 })
