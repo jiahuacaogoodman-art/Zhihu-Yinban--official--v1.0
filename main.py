@@ -341,34 +341,59 @@ else:
     logger.warning(f"未找到静态文件目录: {STATIC_DIR}，前端页面将不可用")
 
 # ----------------------------------------------------------------
-# v2 前端入口（前端重构 Phase 1 起,见 docs/FRONTEND_REFACTOR_RFC.md）
+# Phase 6: 旧版退役 —— / 切到 v2,旧版降到 /legacy/
 # ----------------------------------------------------------------
-# 设计原则（RFC §5.2 / §7）：
-#   - 仅在 static/v2/ 目录存在时挂载;Vite 构建产物缺失时本块整体跳过,
-#     现有 / / /nurse / /billing 完全不受影响 —— 这是回滚预案的一部分。
-#   - 用 StaticFiles(html=True) 让 SPA 内部刷新能命中 index.html
-#     (Phase 3 起加 vue-router 后需要)。
-#   - 暂不修改 / 默认入口;Phase 6 才会把 / 切到 v2,届时本块改为
-#       return FileResponse(V2_DIR / "index.html") 而旧版降到 /legacy/。
+# RFC §6.6 / §7 旧版退役方案:
+#   - / → v2 管理端 SPA (static/v2/index.html)
+#   - /nurse → v2 护工端 SPA (static/v2/nurse.html)
+#   - /legacy/ → 旧版管理端 (static/index.html)
+#   - /legacy/nurse → 旧版护工端 (static/nurse.html)
+#   - /legacy/billing → 旧版缴费端 (static/billing.html)
+#   - /billing → 重定向到 /#/billing(v2 未单独做 billing 页时 fallback /legacy/billing)
+#   - 设计系统 /static/design/* 不动(v2 和旧版共用同一份)
+#   - sw.js 不动(RFC §8: 缓存策略只增不改)
+#   - 所有 /api/* 接口完全不变
+#
+# 回滚方案:revert 本 commit 即恢复到 Phase 5 的状态(/ 仍 serve static/index.html)。
 V2_DIR = STATIC_DIR / "v2"
-if V2_DIR.is_dir():
-    # ── 护工端入口 /v2/nurse/ ──────────────────────────────────────────
-    # Phase 5: Vite 多入口构建产出 static/v2/nurse.html;
-    # 用独立路由 serve 它,让 /v2/nurse/ 或 /v2/nurse 都能命中(SPA hash 模式)。
-    _nurse_html = V2_DIR / "nurse.html"
-    if _nurse_html.is_file():
-        @app.get("/v2/nurse", include_in_schema=False)
-        @app.get("/v2/nurse/", include_in_schema=False)
-        async def v2_nurse():
-            return FileResponse(str(_nurse_html))
-        logger.info(f"v2 护工端入口已挂载: /v2/nurse/")
+_v2_ready = V2_DIR.is_dir() and (V2_DIR / "index.html").is_file()
 
+if _v2_ready:
+    logger.info(f"Phase 6 激活: v2 前端就绪({V2_DIR}),/ 将 serve v2 管理端")
+
+    # /legacy/ → 旧版(三合一入口)
+    @app.get("/legacy", include_in_schema=False)
+    @app.get("/legacy/", include_in_schema=False)
+    async def legacy_frontend():
+        """旧版管理端入口(Phase 6 后保留为 fallback)。"""
+        if INDEX_HTML.is_file():
+            return FileResponse(str(INDEX_HTML))
+        return JSONResponse(status_code=404, content={"message": "旧版管理端未找到"})
+
+    @app.get("/legacy/nurse", include_in_schema=False)
+    async def legacy_nurse():
+        """旧版护工端。"""
+        f = STATIC_DIR / "nurse.html"
+        if f.is_file():
+            return FileResponse(str(f))
+        return JSONResponse(status_code=404, content={"message": "旧版护工端未找到"})
+
+    @app.get("/legacy/billing", include_in_schema=False)
+    async def legacy_billing():
+        """旧版缴费端。"""
+        f = STATIC_DIR / "billing.html"
+        if f.is_file():
+            return FileResponse(str(f))
+        return JSONResponse(status_code=404, content={"message": "旧版缴费端未找到"})
+
+    # v2 SPA 资源目录(JS/CSS/assets)—— StaticFiles 仍需存在让 hash 文件能被访问
     app.mount("/v2", StaticFiles(directory=str(V2_DIR), html=True), name="v2")
-    logger.info(f"v2 前端目录已挂载: {V2_DIR}")
+    logger.info(f"v2 静态资源目录已挂载: /v2/")
 else:
-    logger.info(
-        f"v2 前端尚未构建（{V2_DIR} 不存在）;旧版 / 入口正常工作。"
-        "Vite 构建命令: cd frontend && npm run build"
+    # v2 未构建:保持旧行为(Phase 1-5 的 fallback)
+    logger.warning(
+        f"v2 前端未就绪({V2_DIR} 不存在或缺少 index.html);"
+        f"/ 仍 serve 旧版 static/index.html"
     )
 
 # 病历照片原件访问目录：文件仍保存在本地磁盘，仅在内网服务中按 URL 预览。
@@ -420,52 +445,54 @@ async def global_exception_handler(request: Request, exc: Exception):
     )
 
 # ----------------------------------------------------------------
-# 前端页面入口：使用绝对路径返回 index.html
+# 前端页面入口 —— Phase 6: / 和 /nurse 切到 v2
 # ----------------------------------------------------------------
 @app.get("/", include_in_schema=False)
 async def frontend():
-    """返回前端可视化管理页面。"""
+    """
+    Phase 6: / 默认 serve v2 管理端 SPA。
+    v2 未就绪时 fallback 到旧版 static/index.html。
+    """
+    if _v2_ready:
+        return FileResponse(str(V2_DIR / "index.html"))
     if INDEX_HTML.is_file():
         return FileResponse(str(INDEX_HTML))
     return JSONResponse(
         status_code=404,
-        content={"message": f"前端页面文件未找到，请确认 {INDEX_HTML} 存在"}
+        content={"message": "前端页面文件未找到"}
     )
 
-# 护工端入口
 @app.get("/nurse", include_in_schema=False)
 async def nurse_frontend():
-    """返回护工端页面。"""
-    nurse_html = STATIC_DIR / "nurse.html"
-    if nurse_html.is_file():
-        return FileResponse(str(nurse_html))
+    """
+    Phase 6: /nurse → v2 护工端 SPA。
+    v2 未就绪时 fallback 到旧版 static/nurse.html。
+    """
+    if _v2_ready:
+        nurse_v2 = V2_DIR / "nurse.html"
+        if nurse_v2.is_file():
+            return FileResponse(str(nurse_v2))
+    # fallback: 旧版
+    nurse_old = STATIC_DIR / "nurse.html"
+    if nurse_old.is_file():
+        return FileResponse(str(nurse_old))
     return JSONResponse(
         status_code=404,
-        content={"message": f"护工端页面文件未找到，请确认 {nurse_html} 存在"}
+        content={"message": "护工端页面未找到"}
     )
 
-# 缴费管理端入口
 @app.get("/billing", include_in_schema=False)
 async def billing_frontend():
     """
-    返回缴费管理页面。
-
-    历史路径，向后兼容：原来缴费是独立页 /billing。现在管理端首页 / 已经把
-    缴费做成了内嵌 tab，新的入口是 /#billing。
-
-    保留 /billing 这条路径而不是直接 301 到 /#billing，是因为：
-      1) 如果家属设备/培训资料里写死了 /billing，还能正常访问；
-      2) 财务等"只看缴费"的轻量账号偏好独立窗口，不带左侧栏更清爽。
-
-    /static/billing.html 已经在 DOMContentLoaded 里调用 Billing.bindSubtabs()
-    + Billing.activate()，与嵌入式 tab 共用同一份 billing.js。
+    Phase 6: /billing → v2 尚无独立 billing 页,暂 fallback 到旧版。
+    等后续 Phase 把 billing 做成 v2 视图后再切。
     """
     billing_html = STATIC_DIR / "billing.html"
     if billing_html.is_file():
         return FileResponse(str(billing_html))
     return JSONResponse(
         status_code=404,
-        content={"message": f"缴费管理页面文件未找到，请确认 {billing_html} 存在"}
+        content={"message": "缴费管理页面未找到"}
     )
 
 # 健康检查端点

@@ -46,7 +46,7 @@ const fullBleed = computed(() => route.meta.fullBleed === true)
         </router-link>
       </nav>
       <div class="v2-sidebar-footer">
-        <a href="/" class="v2-nav-item" style="color: var(--ink-4);">返回旧版 →</a>
+        <a href="/legacy" class="v2-nav-item" style="color: var(--ink-4);">旧版入口 →</a>
       </div>
     </aside>
 

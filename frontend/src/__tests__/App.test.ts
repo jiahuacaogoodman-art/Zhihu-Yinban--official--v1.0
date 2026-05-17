@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
-import { createRouter, createWebHashHistory } from 'vue-router'
+import { createRouter, createWebHistory } from 'vue-router'
 import App from '../App.vue'
 
 /**
@@ -13,7 +13,7 @@ import App from '../App.vue'
 // 最小 router 配置(覆盖所有 Phase 4 路由,避免 Vue Router 警告)
 function makeRouter() {
   return createRouter({
-    history: createWebHashHistory(),
+    history: createWebHistory(),
     routes: [
       { path: '/', redirect: '/beds' },
       { path: '/login', component: { template: '<div>login-stub</div>' } },
@@ -74,6 +74,6 @@ describe('App.vue (Phase 3 layout)', () => {
     router.push('/beds')
     await router.isReady()
     const wrapper = mount(App, { global: { plugins: [router] } })
-    expect(wrapper.text()).toContain('返回旧版')
+    expect(wrapper.text()).toContain('旧版入口')
   })
 })

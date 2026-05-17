@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
-import { createRouter, createWebHashHistory } from 'vue-router'
+import { createRouter, createWebHistory } from 'vue-router'
 import Landing from '../views/Landing.vue'
 
 /**
@@ -22,7 +22,7 @@ class IOStub {
 
 function makeRouter() {
   return createRouter({
-    history: createWebHashHistory(),
+    history: createWebHistory(),
     routes: [{ path: '/', component: Landing }],
   })
 }

@@ -30,7 +30,7 @@ export default defineConfig({
       '@design': fileURLToPath(new URL('../static/design', import.meta.url)),
     },
   },
-  base: './',
+  base: '/',
   build: {
     outDir: '../static/v2',
     emptyOutDir: true,

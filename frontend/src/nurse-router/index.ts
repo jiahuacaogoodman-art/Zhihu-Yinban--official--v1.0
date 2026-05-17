@@ -1,13 +1,14 @@
-import { createRouter, createWebHashHistory, type RouteRecordRaw } from 'vue-router'
+import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 
 /**
- * 护工端 Router — 独立于管理端
+ * 护工端 Router — Phase 6: history mode
  *
  * 路由:
- *   / → 老人列表(默认)
- *   /patient/:id → 患者详情 + 任务卡 + AI
+ *   /nurse/ → 老人列表
+ *   /nurse/patient/:id → 患者详情 + 任务卡 + AI
  *
- * 鉴权:同样读 localStorage auth_token
+ * 后端 /nurse 返回 static/v2/nurse.html(SPA),所有子路径
+ * 由 Vue Router 在客户端处理。
  */
 
 const routes: RouteRecordRaw[] = [
@@ -31,7 +32,7 @@ const routes: RouteRecordRaw[] = [
 ]
 
 const router = createRouter({
-  history: createWebHashHistory(),
+  history: createWebHistory('/nurse'),
   routes,
 })
 
@@ -40,8 +41,8 @@ router.beforeEach((to) => {
   const token =
     typeof localStorage !== 'undefined' ? localStorage.getItem('auth_token') : null
   if (!token) {
-    // 护工端没有单独登录页,跳到管理端登录
-    window.location.href = '/v2/#/login'
+    // 跳到管理端登录页
+    window.location.href = '/login'
     return false
   }
   return true

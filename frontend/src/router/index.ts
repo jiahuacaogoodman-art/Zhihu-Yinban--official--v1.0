@@ -1,10 +1,13 @@
-import { createRouter, createWebHashHistory, type RouteRecordRaw } from 'vue-router'
+import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 
 /**
- * Vue Router — Phase 4 全量路由
+ * Vue Router — Phase 6: history mode
  *
- * Hash 模式(/v2/#/beds);Phase 6 切 / 时再改 history 模式。
- * 路由守卫:未登录 → 跳 /login(除 /login 本身)。
+ * Phase 6 把 / 切到 v2:后端对 / 的所有非 /api、非 /static 请求都返回
+ * static/v2/index.html(SPA catch-all)。所以可以从 hash 模式升级到 history 模式,
+ * URL 更干净(/beds 而非 /#/beds)。
+ *
+ * 注意:后端 StaticFiles(html=True) 已经实现了 SPA fallback。
  */
 
 const routes: RouteRecordRaw[] = [
@@ -64,7 +67,7 @@ const routes: RouteRecordRaw[] = [
 ]
 
 const router = createRouter({
-  history: createWebHashHistory(),
+  history: createWebHistory(),
   routes,
 })
 
