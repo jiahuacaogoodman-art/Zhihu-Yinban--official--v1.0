@@ -28,6 +28,7 @@ pydantic==2.10.3
 cryptography==43.0.3       # PII 字段 Fernet 加密（id_card / emergency_phone 等）
 python-multipart==0.0.20   # 支持 multipart/form-data
 python-dotenv==1.0.1       # 环境变量管理
+python-dateutil==2.9.0     # 日期计算（relativedelta 用于缴费周期计算）
 loguru==0.7.3              # 结构化日志
 pyyaml==6.0.2              # 护理协议模板 YAML 热加载（data/protocols.yaml）
 
