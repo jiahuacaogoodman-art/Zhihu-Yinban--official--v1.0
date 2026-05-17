@@ -10,13 +10,18 @@ import App from '../App.vue'
 
 ;(globalThis as any).__BUILD_TIME__ = '2026-05-17T00:00:00Z'
 
-// 最小 router 配置
+// 最小 router 配置(覆盖所有 Phase 4 路由,避免 Vue Router 警告)
 function makeRouter() {
   return createRouter({
     history: createWebHashHistory(),
     routes: [
       { path: '/', redirect: '/beds' },
+      { path: '/login', component: { template: '<div>login-stub</div>' } },
       { path: '/beds', component: { template: '<div>beds-stub</div>' } },
+      { path: '/ehr', component: { template: '<div>ehr-stub</div>' } },
+      { path: '/handovers', component: { template: '<div>handovers-stub</div>' } },
+      { path: '/incidents', component: { template: '<div>incidents-stub</div>' } },
+      { path: '/care-records', component: { template: '<div>care-records-stub</div>' } },
       { path: '/showcase', component: { template: '<div>showcase-stub</div>' } },
     ],
   })

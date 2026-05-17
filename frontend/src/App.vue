@@ -22,6 +22,18 @@ import { Toast } from './components'
         <router-link to="/beds" class="v2-nav-item" active-class="v2-nav-active">
           床位管理
         </router-link>
+        <router-link to="/ehr" class="v2-nav-item" active-class="v2-nav-active">
+          患者档案
+        </router-link>
+        <router-link to="/handovers" class="v2-nav-item" active-class="v2-nav-active">
+          交接班
+        </router-link>
+        <router-link to="/incidents" class="v2-nav-item" active-class="v2-nav-active">
+          异常事件
+        </router-link>
+        <router-link to="/care-records" class="v2-nav-item" active-class="v2-nav-active">
+          护理记录
+        </router-link>
         <router-link to="/showcase" class="v2-nav-item" active-class="v2-nav-active">
           组件展示
         </router-link>
