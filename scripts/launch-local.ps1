@@ -25,6 +25,10 @@
     不自动打开浏览器。
 .PARAMETER AllowNoOllama
     Ollama 未响应时仍继续启动。适合只演示非 AI 业务模块或使用远程 API。
+.PARAMETER RunWizard
+    启动前强制弹出 GUI 配置向导（即使 .env 已经齐全）。
+.PARAMETER NoWizard
+    禁止任何情况下自动弹出向导（CI / 自动化场景使用）。
 #>
 
 [CmdletBinding()]
@@ -33,7 +37,9 @@ param(
     [string]$BindAddress = '127.0.0.1',
     [switch]$SkipInstall,
     [switch]$NoBrowser,
-    [switch]$AllowNoOllama
+    [switch]$AllowNoOllama,
+    [switch]$RunWizard,
+    [switch]$NoWizard
 )
 
 $ErrorActionPreference = 'Stop'
@@ -126,22 +132,82 @@ if (-not $SkipInstall) {
 Write-Step '初始化配置文件'
 $envPath = Join-Path $ProjectDir '.env'
 $envExample = Join-Path $ProjectDir '.env.example'
-if (-not (Test-Path $envPath)) {
+$wizardScript = Join-Path $ScriptDir 'setup-wizard.ps1'
+
+# ── 判断是否需要弹出 GUI 向导 ──
+# 触发条件（任一满足即弹）：
+#   1) 显式传 -RunWizard
+#   2) .env 不存在
+#   3) .env 存在但 AUTH_TOKEN 或 PII_ENCRYPTION_KEY 为空（生产环境绝对不能裸跑）
+# 例外：传了 -NoWizard 就强制不弹（CI / 远程脚本场景）。
+function Test-EnvCompleteness([string]$Path) {
+    if (-not (Test-Path $Path)) { return $false }
+    # 用脚本作用域变量是为了让 ForEach-Object 闭包能写回外层
+    $script:_envHasAuth = $false
+    $script:_envHasPii  = $false
+    Get-Content $Path -Encoding UTF8 | ForEach-Object {
+        $line = $_.Trim()
+        if (-not $line -or $line.StartsWith('#')) { return }
+        $eq = $line.IndexOf('=')
+        if ($eq -lt 1) { return }
+        $key = $line.Substring(0, $eq).Trim()
+        $val = $line.Substring($eq + 1).Trim()
+        if (($val.StartsWith('"') -and $val.EndsWith('"')) -or
+            ($val.StartsWith("'") -and $val.EndsWith("'"))) {
+            $val = $val.Substring(1, $val.Length - 2)
+        }
+        if ($key -eq 'AUTH_TOKEN'         -and $val) { $script:_envHasAuth = $true }
+        if ($key -eq 'PII_ENCRYPTION_KEY' -and $val) { $script:_envHasPii  = $true }
+    }
+    return ($script:_envHasAuth -and $script:_envHasPii)
+}
+
+$needWizard = $false
+if ($RunWizard) {
+    $needWizard = $true
+    Write-Fix '已传 -RunWizard，强制弹出配置向导'
+} elseif (-not (Test-Path $envPath)) {
+    $needWizard = $true
+    Write-Fix '.env 文件不存在，将弹出配置向导让您手动填写'
+} elseif (-not (Test-EnvCompleteness $envPath)) {
+    $needWizard = $true
+    Write-Fix 'AUTH_TOKEN 或 PII_ENCRYPTION_KEY 为空，将弹出配置向导补齐'
+}
+
+if ($needWizard -and -not $NoWizard) {
+    if (-not (Test-Path $wizardScript)) {
+        throw "找不到配置向导脚本：$wizardScript"
+    }
+    Write-Host '  正在打开配置向导（弹窗）...' -ForegroundColor White
+    $wizardArgs = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $wizardScript)
+    $wizardProc = Start-Process -FilePath 'powershell.exe' -ArgumentList $wizardArgs -Wait -PassThru -NoNewWindow
+    if ($wizardProc.ExitCode -ne 0) {
+        if ($wizardProc.ExitCode -eq 2) {
+            throw '用户取消了配置向导，启动中止。'
+        }
+        throw "配置向导异常退出（code=$($wizardProc.ExitCode)）。"
+    }
+    if (-not (Test-EnvCompleteness $envPath)) {
+        throw '配置向导结束后 .env 仍不完整，请重新运行启动器。'
+    }
+    Write-Ok '配置向导完成，.env 已就绪'
+} elseif (-not (Test-Path $envPath)) {
+    # NoWizard 路径下 .env 还不存在 → 退回旧的拷贝逻辑
     if (Test-Path $envExample) {
         Copy-Item $envExample $envPath
-        Write-Fix '.env 不存在，已从 .env.example 复制。首次生产部署请修改 AUTH_TOKEN / PII_ENCRYPTION_KEY 等敏感配置。'
+        Write-Fix '.env 不存在，已从 .env.example 复制（NoWizard 模式跳过弹窗）'
     } else {
         @"
 AUTH_TOKEN=change-me-before-production
 LLM_PROVIDER=ollama
-OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_API_URL=http://localhost:11434/api/generate
 OLLAMA_MODEL_NAME=huatuo_o1_7b
 EMBEDDING_ALLOW_DEGRADED=true
 "@ | Set-Content -Encoding UTF8 $envPath
         Write-Fix '.env.example 不存在，已生成最小 .env。生产部署请务必修改默认密钥。'
     }
 } else {
-    Write-Ok '.env 已存在'
+    Write-Ok '.env 已存在且关键字段完整'
 }
 Load-DotEnv $envPath
 
