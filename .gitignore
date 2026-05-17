@@ -1,0 +1,45 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+.venv/
+*.egg-info/
+dist/
+build/
+
+# Local data & cache (must NOT be committed)
+local_ehr_db/
+local_ehr_uploads/
+*.sqlite3
+*.db
+
+# Environment variables (may contain secrets)
+.env
+.env.*
+!.env.example
+
+# IDE
+.vscode/
+.idea/
+.DS_Store
+
+# Logs
+*.log
+nohup.out
+
+# Model weights (download at runtime)
+# 只忽略仓库根目录的 models/ 和 weights/（用于存放本地大模型权重）
+# 不能直接写 `models/` —— 那样连 app/models/ 里的 Pydantic Schemas 也会被吞掉
+/models/
+/weights/
+*.onnx
+*.gguf
+
+# OS
+Thumbs.db
+ehthumbs.db
+Desktop.ini
