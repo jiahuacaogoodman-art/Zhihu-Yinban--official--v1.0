@@ -1,22 +1,23 @@
 import { createRouter, createWebHashHistory, type RouteRecordRaw } from 'vue-router'
 
 /**
- * Vue Router — Phase 3 起
+ * Vue Router — Phase 4 全量路由
  *
- * 使用 hash 模式 (/v2/#/beds) 而非 history 模式,原因:
- *   1) 后端 /v2 用 StaticFiles(html=True) 挂载;hash 变更不会触发服务端请求,
- *      不需要后端配 fallback catch-all(Phase 6 切 / 时再改 history 模式)。
- *   2) 旧版 / 已经用了 fragment (#billing / #ehr 等),保持同一惯例。
- *
- * 延迟加载视图(懒路由),避免首屏加载全部组件。
+ * Hash 模式(/v2/#/beds);Phase 6 切 / 时再改 history 模式。
+ * 路由守卫:未登录 → 跳 /login(除 /login 本身)。
  */
 
 const routes: RouteRecordRaw[] = [
   {
     path: '/',
     name: 'home',
-    // Phase 3: 首页先 redirect 到 beds(第一个试点视图)
     redirect: '/beds',
+  },
+  {
+    path: '/login',
+    name: 'login',
+    component: () => import('../views/Login.vue'),
+    meta: { title: '登录', guest: true },
   },
   {
     path: '/beds',
@@ -24,10 +25,30 @@ const routes: RouteRecordRaw[] = [
     component: () => import('../views/BedList.vue'),
     meta: { title: '床位管理' },
   },
-  // Phase 3 只做 beds;后续 phase 逐步加其他视图:
-  // { path: '/ehr', ... }
-  // { path: '/billing', ... }
-  // { path: '/handovers', ... }
+  {
+    path: '/ehr',
+    name: 'ehr',
+    component: () => import('../views/EhrList.vue'),
+    meta: { title: '患者档案' },
+  },
+  {
+    path: '/handovers',
+    name: 'handovers',
+    component: () => import('../views/Handovers.vue'),
+    meta: { title: '交接班' },
+  },
+  {
+    path: '/incidents',
+    name: 'incidents',
+    component: () => import('../views/Incidents.vue'),
+    meta: { title: '异常事件' },
+  },
+  {
+    path: '/care-records',
+    name: 'care-records',
+    component: () => import('../views/CareRecords.vue'),
+    meta: { title: '护理记录' },
+  },
   {
     path: '/showcase',
     name: 'showcase',
@@ -44,6 +65,17 @@ const routes: RouteRecordRaw[] = [
 const router = createRouter({
   history: createWebHashHistory(),
   routes,
+})
+
+// 路由守卫:未登录跳 /login
+router.beforeEach((to) => {
+  if (to.meta.guest) return true
+  const token =
+    typeof localStorage !== 'undefined' ? localStorage.getItem('auth_token') : null
+  if (!token && to.name !== 'login') {
+    return { name: 'login' }
+  }
+  return true
 })
 
 // 更新 document.title
