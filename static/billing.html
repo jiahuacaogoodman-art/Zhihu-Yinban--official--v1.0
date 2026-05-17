@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>智护银伴 · 缴费管理</title>
+<meta name="theme-color" content="#0EA5A4">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.2/css/all.min.css">
+<link rel="stylesheet" href="/static/design/tokens.css">
+<link rel="stylesheet" href="/static/design/glass.css">
+<link rel="stylesheet" href="/static/design/ui.css">
+<link rel="stylesheet" href="/static/design/mobile.css">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-ui);background:var(--bg-base,#f0f4f8);min-height:100vh;color:var(--ink-1)}
+.billing-shell{max-width:1200px;margin:0 auto;padding:24px 20px}
+.billing-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px}
+.billing-header h1{font-size:24px;font-weight:600;display:flex;align-items:center;gap:10px}
+.billing-header h1 i{color:var(--accent)}
+.billing-header .actions{display:flex;gap:8px;flex-wrap:wrap}
+.tab-bar{display:flex;gap:4px;margin-bottom:20px;overflow-x:auto;padding-bottom:4px}
+.tab-btn{padding:10px 18px;border-radius:10px;border:1px solid rgba(15,23,42,0.08);background:#fff;cursor:pointer;font-size:14px;font-weight:500;color:var(--ink-3);transition:all .2s;white-space:nowrap;display:flex;align-items:center;gap:6px}
+.tab-btn:hover{border-color:var(--accent);color:var(--accent)}
+.tab-btn.active{background:var(--accent);color:#fff;border-color:var(--accent);box-shadow:0 4px 12px rgba(14,165,164,0.25)}
+.tab-btn .badge{background:rgba(255,255,255,0.3);padding:2px 7px;border-radius:99px;font-size:11px;font-weight:600}
+.tab-btn.active .badge{background:rgba(255,255,255,0.3)}
+.tab-btn:not(.active) .badge{background:rgba(239,68,68,0.1);color:#ef4444}
+.panel{display:none}
+.panel.active{display:block}
+.card{background:#fff;border-radius:16px;border:1px solid rgba(15,23,42,0.06);padding:24px;margin-bottom:20px;box-shadow:0 1px 3px rgba(0,0,0,0.04)}
+.card-title{font-size:16px;font-weight:600;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.card-title i{color:var(--accent)}
+.stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:20px}
+.stat-card{padding:16px;border-radius:12px;text-align:center;border:1px solid rgba(15,23,42,0.06)}
+.stat-card.normal{background:rgba(16,185,129,0.06);border-color:rgba(16,185,129,0.15)}
+.stat-card.warning{background:rgba(245,158,11,0.06);border-color:rgba(245,158,11,0.15)}
+.stat-card.danger{background:rgba(239,68,68,0.06);border-color:rgba(239,68,68,0.15)}
+.stat-card .num{font-size:28px;font-weight:700;font-variant-numeric:tabular-nums}
+.stat-card.normal .num{color:#10b981}
+.stat-card.warning .num{color:#f59e0b}
+.stat-card.danger .num{color:#ef4444}
+.stat-card .label{font-size:12px;color:var(--ink-3);margin-top:4px}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{text-align:left;padding:10px 12px;background:rgba(15,23,42,0.03);font-weight:600;color:var(--ink-2);border-bottom:1px solid rgba(15,23,42,0.08)}
+td{padding:10px 12px;border-bottom:1px solid rgba(15,23,42,0.05)}
+tr:hover td{background:rgba(14,165,164,0.03)}
+.status-tag{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:99px;font-size:12px;font-weight:500}
+.status-tag.normal{background:rgba(16,185,129,0.1);color:#059669}
+.status-tag.expiring{background:rgba(245,158,11,0.1);color:#d97706}
+.status-tag.overdue{background:rgba(239,68,68,0.1);color:#dc2626}
+.form-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:16px}
+.form-group{display:flex;flex-direction:column;gap:4px}
+.form-group label{font-size:12px;font-weight:500;color:var(--ink-3)}
+.form-group input,.form-group select{height:38px;padding:0 12px;border:1px solid rgba(15,23,42,0.12);border-radius:8px;font-size:14px;outline:none;transition:border-color .2s}
+.form-group input:focus,.form-group select:focus{border-color:var(--accent)}
+.btn{padding:8px 16px;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;border:none;transition:all .2s;display:inline-flex;align-items:center;gap:6px}
+.btn-primary{background:var(--accent);color:#fff;box-shadow:0 2px 8px rgba(14,165,164,0.2)}
+.btn-primary:hover{opacity:0.9;box-shadow:0 4px 12px rgba(14,165,164,0.3)}
+.btn-outline{background:#fff;border:1px solid rgba(15,23,42,0.12);color:var(--ink-2)}
+.btn-outline:hover{border-color:var(--accent);color:var(--accent)}
+.btn-danger{background:#ef4444;color:#fff}
+.btn-sm{padding:5px 10px;font-size:12px}
+.empty-state{text-align:center;padding:48px 20px;color:var(--ink-4)}
+.empty-state i{font-size:48px;margin-bottom:12px;opacity:0.3}
+.empty-state p{font-size:14px}
+.modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:1000;display:none;align-items:center;justify-content:center;padding:20px}
+.modal-backdrop.show{display:flex}
+.modal{background:#fff;border-radius:16px;padding:24px;max-width:520px;width:100%;max-height:80vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.15)}
+.modal h3{font-size:18px;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.modal h3 i{color:var(--accent)}
+.qr-box{text-align:center;padding:20px;background:rgba(14,165,164,0.04);border-radius:12px;margin:16px 0}
+.qr-box img,.qr-box canvas{max-width:200px;margin:0 auto;display:block}
+.qr-box .amount{font-size:24px;font-weight:700;color:var(--accent);margin-top:12px}
+.back-link{display:inline-flex;align-items:center;gap:6px;color:var(--ink-3);text-decoration:none;font-size:14px;margin-bottom:16px}
+.back-link:hover{color:var(--accent)}
+@media(max-width:640px){
+.billing-shell{padding:16px 12px}
+.billing-header h1{font-size:20px}
+.form-row{grid-template-columns:1fr}
+.stats-row{grid-template-columns:repeat(2,1fr)}
+table{font-size:12px}
+th,td{padding:8px 6px}
+}
+</style>
+</head>
+<body>
+<div class="billing-shell">
+
+<a href="/" class="back-link"><i class="fa-solid fa-arrow-left"></i>返回管理端</a>
+
+<div class="billing-header">
+  <h1><i class="fa-solid fa-file-invoice-dollar"></i>缴费管理中心</h1>
+  <div class="actions">
+    <button class="btn btn-primary" onclick="openPayModal()"><i class="fa-brands fa-weixin"></i>微信收款</button>
+    <button class="btn btn-outline" onclick="openRenewModal()"><i class="fa-solid fa-rotate"></i>续费</button>
+  </div>
+</div>
+
+<div class="tab-bar">
+  <button class="tab-btn active" data-panel="overview"><i class="fa-solid fa-chart-pie"></i>缴费总览</button>
+  <button class="tab-btn" data-panel="records"><i class="fa-solid fa-list"></i>缴费记录</button>
+  <button class="tab-btn" data-panel="alerts"><i class="fa-solid fa-bell"></i>到期提醒<span class="badge" id="alertBadge">0</span></button>
+  <button class="tab-btn" data-panel="standards"><i class="fa-solid fa-sliders"></i>收费标准</button>
+  <button class="tab-btn" data-panel="wechat"><i class="fa-brands fa-weixin"></i>微信支付</button>
+</div>
+
+<!-- Panel: Overview -->
+<div class="panel active" id="panel-overview">
+  <div class="stats-row" id="statsRow">
+    <div class="stat-card normal"><div class="num" id="sNormal">-</div><div class="label">正常缴费</div></div>
+    <div class="stat-card warning"><div class="num" id="sExpiring">-</div><div class="label">即将到期</div></div>
+    <div class="stat-card danger"><div class="num" id="sOverdue">-</div><div class="label">已欠费</div></div>
+    <div class="stat-card" style="background:rgba(99,102,241,0.06);border-color:rgba(99,102,241,0.15)"><div class="num" style="color:#6366f1" id="sTotalPaid">-</div><div class="label">累计收款(元)</div></div>
+  </div>
+  <div class="card">
+    <div class="card-title"><i class="fa-solid fa-users"></i>在住老人缴费状态</div>
+    <div id="overviewTable"><div class="empty-state"><i class="fa-solid fa-spinner fa-spin"></i><p>加载中...</p></div></div>
+  </div>
+</div>
+
+<!-- Panel: Records -->
+<div class="panel" id="panel-records">
+  <div class="card">
+    <div class="card-title"><i class="fa-solid fa-receipt"></i>缴费记录</div>
+    <div class="form-row" style="margin-bottom:12px">
+      <div class="form-group"><label>按老人筛选</label><input id="recFilterAdm" placeholder="输入入住ID..." oninput="loadRecords()"></div>
+      <div class="form-group"><label>费用类别</label><select id="recFilterCat" onchange="loadRecords()"><option value="">全部</option><option value="bed">床位费</option><option value="care">护理费</option><option value="meal">餐饮费</option><option value="medical">医疗费</option><option value="other">其他</option></select></div>
+    </div>
+    <div id="recordsTable"><div class="empty-state"><i class="fa-solid fa-spinner fa-spin"></i><p>加载中...</p></div></div>
+  </div>
+</div>
+
+<!-- Panel: Alerts -->
+<div class="panel" id="panel-alerts">
+  <div class="card">
+    <div class="card-title"><i class="fa-solid fa-triangle-exclamation"></i>到期/欠费提醒</div>
+    <p style="font-size:13px;color:var(--ink-3);margin-bottom:16px">以下老人的缴费即将到期或已欠费，请及时联系家属续费。</p>
+    <div id="alertsTable"><div class="empty-state"><i class="fa-solid fa-spinner fa-spin"></i><p>加载中...</p></div></div>
+  </div>
+</div>
+
+<!-- Panel: Fee Standards -->
+<div class="panel" id="panel-standards">
+  <div class="card">
+    <div class="card-title" style="justify-content:space-between"><span><i class="fa-solid fa-tags"></i>收费标准设置</span><button class="btn btn-primary btn-sm" onclick="openStdModal()"><i class="fa-solid fa-plus"></i>新增标准</button></div>
+    <div id="standardsTable"><div class="empty-state"><i class="fa-solid fa-spinner fa-spin"></i><p>加载中...</p></div></div>
+  </div>
+</div>
+
+<!-- Panel: WeChat Pay -->
+<div class="panel" id="panel-wechat">
+  <div class="card">
+    <div class="card-title"><i class="fa-brands fa-weixin" style="color:#07c160"></i>微信支付配置状态</div>
+    <div id="wechatStatus"><div class="empty-state"><i class="fa-solid fa-spinner fa-spin"></i><p>加载中...</p></div></div>
+  </div>
+</div>
+
+</div><!-- /billing-shell -->
+
+<!-- Modal: WeChat Pay -->
+<div class="modal-backdrop" id="payModal">
+  <div class="modal">
+    <h3><i class="fa-brands fa-weixin" style="color:#07c160"></i>微信扫码收款</h3>
+    <div class="form-row">
+      <div class="form-group"><label>入住老人ID *</label><input id="payAdmId" placeholder="adm_xxxxx"></div>
+      <div class="form-group"><label>金额(元) *</label><input id="payAmount" type="number" placeholder="3000"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>费用类别</label><select id="payCat"><option value="care">护理费</option><option value="bed">床位费</option><option value="meal">餐饮费</option><option value="other">其他</option></select></div>
+      <div class="form-group"><label>缴费周期</label><select id="payCycle"><option value="monthly">月</option><option value="quarterly">季</option><option value="semi_annual">半年</option><option value="yearly">年</option></select></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>起始日期</label><input id="payStart" type="date"></div>
+      <div class="form-group"><label>截止日期</label><input id="payEnd" type="date"></div>
+    </div>
+    <div class="qr-box" id="qrBox" style="display:none">
+      <div id="qrCode"></div>
+      <div class="amount" id="qrAmount"></div>
+      <p style="font-size:12px;color:var(--ink-3);margin-top:8px">请家属用微信扫码支付</p>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
+      <button class="btn btn-outline" onclick="closePayModal()">关闭</button>
+      <button class="btn btn-primary" id="paySubmitBtn" onclick="submitPay()"><i class="fa-brands fa-weixin"></i>生成付款码</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Renew -->
+<div class="modal-backdrop" id="renewModal">
+  <div class="modal">
+    <h3><i class="fa-solid fa-rotate"></i>续费</h3>
+    <div class="form-row">
+      <div class="form-group"><label>入住老人ID *</label><input id="renewAdmId" placeholder="adm_xxxxx"></div>
+      <div class="form-group"><label>金额(元) *</label><input id="renewAmount" type="number" placeholder="3000"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>费用类别</label><select id="renewCat"><option value="care">护理费</option><option value="bed">床位费</option><option value="meal">餐饮费</option><option value="other">其他</option></select></div>
+      <div class="form-group"><label>缴费周期</label><select id="renewCycle"><option value="monthly">月</option><option value="quarterly">季</option><option value="semi_annual">半年</option><option value="yearly">年</option></select></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>续费周期数</label><input id="renewNum" type="number" value="1" min="1" max="24"></div>
+      <div class="form-group"><label>支付方式</label><select id="renewMethod"><option value="cash">现金</option><option value="wechat">微信</option><option value="bank_transfer">银行转账</option><option value="alipay">支付宝</option></select></div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
+      <button class="btn btn-outline" onclick="closeRenewModal()">取消</button>
+      <button class="btn btn-primary" onclick="submitRenew()"><i class="fa-solid fa-check"></i>确认续费</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Fee Standard -->
+<div class="modal-backdrop" id="stdModal">
+  <div class="modal">
+    <h3><i class="fa-solid fa-tags"></i>收费标准</h3>
+    <div class="form-row">
+      <div class="form-group"><label>名称 *</label><input id="stdName" placeholder="如：单人间床位费"></div>
+      <div class="form-group"><label>费用类别 *</label><select id="stdCat"><option value="bed">床位费</option><option value="care">护理费</option><option value="meal">餐饮费</option><option value="medical">医疗费</option><option value="supplies">耗材费</option><option value="service">增值服务</option><option value="other">其他</option></select></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>单价(元) *</label><input id="stdPrice" type="number" placeholder="3000"></div>
+      <div class="form-group"><label>计费周期</label><select id="stdCycle"><option value="monthly">月</option><option value="quarterly">季</option><option value="semi_annual">半年</option><option value="yearly">年</option></select></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>适用护理等级</label><input id="stdLevel" placeholder="如 level_2（空=不限）"></div>
+      <div class="form-group"><label>适用房型</label><input id="stdRoom" placeholder="如 单人间（空=不限）"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group" style="grid-column:1/-1"><label>说明</label><input id="stdDesc" placeholder="可选描述"></div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
+      <button class="btn btn-outline" onclick="closeStdModal()">取消</button>
+      <button class="btn btn-primary" onclick="submitStd()"><i class="fa-solid fa-check"></i>保存</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+<script src="/static/billing.js"></script>
+</body>
+</html>

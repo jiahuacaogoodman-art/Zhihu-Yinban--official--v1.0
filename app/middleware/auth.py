@@ -62,7 +62,7 @@ from app.services.user_store import User, UserStore, ROLE_ADMIN
 
 # ── 路径规则 ────────────────────────────────────────────
 _PROTECTED_PREFIXES = ("/api/", "/uploads/")
-_ALWAYS_ALLOW = ("/health",)
+_ALWAYS_ALLOW = ("/health", "/api/pay/wechat/notify")
 
 
 def _is_protected(path: str) -> bool:

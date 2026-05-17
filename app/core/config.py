@@ -78,6 +78,16 @@ OPENAI_MODEL: str = os.getenv("OPENAI_MODEL", "")
 # 留空 / 不设置 → 鉴权关闭（仅供开发环境，生产环境禁止留空）。
 AUTH_TOKEN: str = os.getenv("AUTH_TOKEN", "")
 
+# --- 微信支付配置 ---
+# 微信支付 V3 API 参数。全部留空时系统自动进入"模拟模式"（可正常测试流程但不会真正扣款）。
+# 生产环境需到微信商户平台申请并填入以下参数。
+WECHAT_PAY_MCH_ID: str = os.getenv("WECHAT_PAY_MCH_ID", "")            # 商户号
+WECHAT_PAY_APP_ID: str = os.getenv("WECHAT_PAY_APP_ID", "")            # 公众号/小程序 AppID
+WECHAT_PAY_API_KEY_V3: str = os.getenv("WECHAT_PAY_API_KEY_V3", "")    # APIv3 密钥（32字节）
+WECHAT_PAY_SERIAL_NO: str = os.getenv("WECHAT_PAY_SERIAL_NO", "")      # 商户API证书序列号
+WECHAT_PAY_PRIVATE_KEY_PATH: str = os.getenv("WECHAT_PAY_PRIVATE_KEY_PATH", "")  # 商户私钥文件路径
+WECHAT_PAY_NOTIFY_URL: str = os.getenv("WECHAT_PAY_NOTIFY_URL", "")    # 支付回调通知地址
+
 # --- PII 字段加密 ---
 # 高敏感字段（id_card / emergency_phone 等）写入 ChromaDB 前 Fernet 对称加密。
 # 留空 → 加密关闭（仅限开发/测试环境，生产必须设置）。

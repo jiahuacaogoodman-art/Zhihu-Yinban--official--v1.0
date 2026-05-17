@@ -62,6 +62,7 @@ from app.routers import ehr, nursing
 from app.routers import beds, care_levels, handovers, incidents, care_records
 from app.routers import admissions
 from app.routers import billing
+from app.routers import wechat_pay
 from app.services.pii_crypto import is_encryption_enabled
 from app.services.user_store import UserStore
 
@@ -292,6 +293,7 @@ app.include_router(incidents.router, prefix="/api", tags=["Incident Report"])
 app.include_router(care_records.router, prefix="/api", tags=["Care Records"])
 app.include_router(admissions.router, prefix="/api", tags=["Admission Workflow"])
 app.include_router(billing.router, prefix="/api", tags=["Billing Management"])
+app.include_router(wechat_pay.router, prefix="/api", tags=["WeChat Pay"])
 
 # ----------------------------------------------------------------
 # 鉴权中间件：保护 /api/* 和 /uploads/*
@@ -405,6 +407,18 @@ async def nurse_frontend():
     return JSONResponse(
         status_code=404,
         content={"message": f"护工端页面文件未找到，请确认 {nurse_html} 存在"}
+    )
+
+# 缴费管理端入口
+@app.get("/billing", include_in_schema=False)
+async def billing_frontend():
+    """返回缴费管理页面。"""
+    billing_html = STATIC_DIR / "billing.html"
+    if billing_html.is_file():
+        return FileResponse(str(billing_html))
+    return JSONResponse(
+        status_code=404,
+        content={"message": f"缴费管理页面文件未找到，请确认 {billing_html} 存在"}
     )
 
 # 健康检查端点
