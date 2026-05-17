@@ -171,10 +171,7 @@ class WechatPayService:
             or {"error": True, "message": "..."}
         """
         if not self._enabled:
-            # 模拟模式：返回一个假的 code_url
-            fake_url = f"weixin://wxpay/bizpayurl?mock={out_trade_no}"
-            logger.info(f"[模拟] Native支付: {out_trade_no}, {total_amount}分")
-            return {"code_url": fake_url, "out_trade_no": out_trade_no, "mock": True}
+            return {"error": True, "message": "微信支付未配置，请管理员在支付渠道设置中完成配置后再使用"}
 
         body = {
             "appid": self._app_id,
@@ -217,19 +214,7 @@ class WechatPayService:
             {"prepay_id": "...", "pay_params": {...}} 前端直接使用 pay_params 调起支付
         """
         if not self._enabled:
-            logger.info(f"[模拟] JSAPI支付: {out_trade_no}, {total_amount}分, openid={openid}")
-            return {
-                "prepay_id": f"mock_prepay_{out_trade_no}",
-                "pay_params": {
-                    "appId": self._app_id or "wx_mock",
-                    "timeStamp": str(int(time.time())),
-                    "nonceStr": uuid.uuid4().hex,
-                    "package": f"prepay_id=mock_prepay_{out_trade_no}",
-                    "signType": "RSA",
-                    "paySign": "mock_sign",
-                },
-                "mock": True,
-            }
+            return {"error": True, "message": "微信支付未配置，请管理员在支付渠道设置中完成配置后再使用"}
 
         body = {
             "appid": self._app_id,
@@ -276,7 +261,7 @@ class WechatPayService:
     def query_order(self, out_trade_no: str) -> dict:
         """查询订单状态。"""
         if not self._enabled:
-            return {"trade_state": "MOCK", "out_trade_no": out_trade_no, "mock": True}
+            return {"error": True, "message": "微信支付未配置，无法查询订单"}
         url_path = f"/v3/pay/transactions/out-trade-no/{out_trade_no}?mchid={self._mch_id}"
         return self._request("GET", url_path)
 
@@ -303,13 +288,7 @@ class WechatPayService:
             reason: 退款原因
         """
         if not self._enabled:
-            logger.info(f"[模拟] 退款: {out_trade_no}, 退{refund_amount}分")
-            return {
-                "refund_id": f"mock_refund_{out_refund_no}",
-                "out_refund_no": out_refund_no,
-                "status": "SUCCESS",
-                "mock": True,
-            }
+            return {"error": True, "message": "微信支付未配置，无法退款"}
 
         body = {
             "out_trade_no": out_trade_no,

@@ -311,26 +311,25 @@ class TestPaymentChannelStore:
         assert "alipay" not in enabled
 
 
-class TestWechatPayMockMode:
-    """微信支付模拟模式测试"""
+class TestWechatPayNotConfigured:
+    """微信支付未配置时应直接报错不可用"""
 
-    def test_mock_native_order(self):
-        """测试模拟模式下单"""
+    def test_native_order_unavailable(self):
+        """未配置时下单应返回错误"""
         from app.services.wechat_pay import WechatPayService
         svc = WechatPayService()
-        assert svc.is_enabled is False  # 未配置
+        assert svc.is_enabled is False
 
         result = svc.create_native_order(
             out_trade_no="TEST001",
             description="测试订单",
             total_amount=100,
         )
-        assert result.get("mock") is True
-        assert "code_url" in result
-        assert result["out_trade_no"] == "TEST001"
+        assert result.get("error") is True
+        assert "未配置" in result.get("message", "")
 
-    def test_mock_jsapi_order(self):
-        """测试模拟 JSAPI 下单"""
+    def test_jsapi_order_unavailable(self):
+        """未配置时 JSAPI 下单应返回错误"""
         from app.services.wechat_pay import WechatPayService
         svc = WechatPayService()
 
@@ -340,21 +339,19 @@ class TestWechatPayMockMode:
             total_amount=200,
             openid="test_openid",
         )
-        assert result.get("mock") is True
-        assert "pay_params" in result
-        assert result["pay_params"]["appId"] is not None
+        assert result.get("error") is True
+        assert "未配置" in result.get("message", "")
 
-    def test_mock_query(self):
-        """测试模拟查询"""
+    def test_query_unavailable(self):
+        """未配置时查询应返回错误"""
         from app.services.wechat_pay import WechatPayService
         svc = WechatPayService()
 
         result = svc.query_order("TEST001")
-        assert result.get("mock") is True
-        assert result["trade_state"] == "MOCK"
+        assert result.get("error") is True
 
-    def test_mock_refund(self):
-        """测试模拟退款"""
+    def test_refund_unavailable(self):
+        """未配置时退款应返回错误"""
         from app.services.wechat_pay import WechatPayService
         svc = WechatPayService()
 
@@ -364,8 +361,7 @@ class TestWechatPayMockMode:
             total_amount=100,
             refund_amount=50,
         )
-        assert result.get("mock") is True
-        assert result["status"] == "SUCCESS"
+        assert result.get("error") is True
 
     def test_generate_trade_no(self):
         """测试订单号生成唯一性"""
