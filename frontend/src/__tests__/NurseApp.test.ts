@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
-import { createRouter, createWebHashHistory } from 'vue-router'
+import { createRouter, createWebHistory } from 'vue-router'
 import NurseApp from '../nurse-views/NurseApp.vue'
 
 /**
@@ -12,7 +12,7 @@ import NurseApp from '../nurse-views/NurseApp.vue'
 
 function makeRouter() {
   return createRouter({
-    history: createWebHashHistory(),
+    history: createWebHistory(),
     routes: [
       { path: '/', component: { template: '<div>patient-list-stub</div>' } },
       { path: '/patient/:id', component: { template: '<div>patient-detail-stub</div>' } },

@@ -19,7 +19,7 @@ import { Toast } from '../components'
         <span class="title-s">智护银伴</span>
         <span class="meta">护工端</span>
       </div>
-      <a href="/v2/" class="btn btn-ghost btn-sm" style="margin-left: auto;">
+      <a href="/" class="btn btn-ghost btn-sm" style="margin-left: auto;">
         管理端
       </a>
     </header>

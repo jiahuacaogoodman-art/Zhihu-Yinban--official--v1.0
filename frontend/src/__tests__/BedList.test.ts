@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
-import { createRouter, createWebHashHistory } from 'vue-router'
+import { createRouter, createWebHistory } from 'vue-router'
 import BedList from '../views/BedList.vue'
 
 /**
@@ -45,7 +45,7 @@ const MOCK_BEDS = [
 
 function makeRouter() {
   return createRouter({
-    history: createWebHashHistory(),
+    history: createWebHistory(),
     routes: [{ path: '/', component: BedList }],
   })
 }
