@@ -30,6 +30,32 @@
 #   通过 dpkg-architecture 自动探测多架构库路径，不再写死 x86_64。
 # ============================================================
 
+# ── Stage 0: frontend-builder (Vite + Vue 3) ────────────────
+# 仅产出 static/v2/(占位页 + 后续逐步迁入的视图),见 docs/FRONTEND_REFACTOR_RFC.md。
+# 为什么独立一阶段:Vite 只在构建期需要 Node;运行期镜像不应背 Node 依赖。
+# 缺失 frontend/ 时本阶段会失败,但这只可能发生在仓库手工损坏的情况;
+# 正常 git checkout 永远有 frontend/。
+FROM node:20-alpine AS frontend-builder
+
+WORKDIR /frontend
+
+# 国内镜像可在 docker build 时通过 --build-arg NPM_REGISTRY=https://registry.npmmirror.com 覆盖
+ARG NPM_REGISTRY=""
+RUN if [ -n "$NPM_REGISTRY" ]; then npm config set registry "$NPM_REGISTRY"; fi
+
+# 拷 manifest 先,利用层缓存 —— 改 src/ 不会触发重装依赖
+COPY frontend/package.json frontend/package-lock.json* ./
+# package-lock.json 不存在时 fallback 到 npm install,保证首次构建不挂
+RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
+
+# 拷源码 + 设计系统(vite 通过 @design 别名 import ../static/design/*)
+COPY frontend/ ./
+COPY static/design /static/design
+# vite.config.ts 别名是 ../static/design,容器里 /frontend 与 /static 相邻即可
+
+RUN npm run build
+# 产物落在 /static/v2/ (vite outDir = ../static/v2,即容器 wd /frontend 的上一层)
+
 # ── Stage 1: builder ────────────────────────────────────────
 FROM python:3.11-slim-bookworm AS builder
 
@@ -100,6 +126,10 @@ RUN groupadd -r yinban && useradd -r -g yinban -d /app -s /bin/false yinban
 
 # 复制应用代码
 COPY --chown=yinban:yinban . .
+
+# 拷入 v2 前端构建产物(Stage 0 frontend-builder 产出)
+# 路径必须与 main.py 中的 STATIC_DIR / "v2" 一致
+COPY --from=frontend-builder --chown=yinban:yinban /static/v2 ./static/v2
 
 # 数据目录（挂载卷）+ HuggingFace/模型缓存目录
 # 注意：容器以非 root yinban 用户运行，所有挂载点和缓存目录必须

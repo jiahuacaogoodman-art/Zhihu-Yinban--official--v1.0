@@ -11,6 +11,12 @@ env/
 dist/
 build/
 
+# Frontend (Vite + Vue 3, see docs/FRONTEND_REFACTOR_RFC.md)
+# 构建产物由 CI / Docker builder 阶段产出,不进 git
+node_modules/
+frontend/dist/
+static/v2/
+
 # Local data & cache (must NOT be committed)
 local_ehr_db/
 local_ehr_uploads/

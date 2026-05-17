@@ -1,0 +1,28 @@
+{
+  "name": "zhihu-yinban-frontend",
+  "private": true,
+  "version": "0.0.1-phase1",
+  "type": "module",
+  "description": "智护银伴 v2 前端 — Vite + Vue 3 (RFC: docs/FRONTEND_REFACTOR_RFC.md, Phase 1 scaffold)",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "vue-tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "vue": "^3.5.13"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "@vitejs/plugin-vue": "^5.2.1",
+    "@vue/test-utils": "^2.4.6",
+    "happy-dom": "^15.11.7",
+    "typescript": "~5.7.2",
+    "vite": "^6.0.7",
+    "vitest": "^2.1.8",
+    "vue-tsc": "^2.2.0"
+  }
+}

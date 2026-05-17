@@ -340,6 +340,26 @@ if STATIC_DIR.is_dir():
 else:
     logger.warning(f"未找到静态文件目录: {STATIC_DIR}，前端页面将不可用")
 
+# ----------------------------------------------------------------
+# v2 前端入口（前端重构 Phase 1 起,见 docs/FRONTEND_REFACTOR_RFC.md）
+# ----------------------------------------------------------------
+# 设计原则（RFC §5.2 / §7）：
+#   - 仅在 static/v2/ 目录存在时挂载;Vite 构建产物缺失时本块整体跳过,
+#     现有 / / /nurse / /billing 完全不受影响 —— 这是回滚预案的一部分。
+#   - 用 StaticFiles(html=True) 让 SPA 内部刷新能命中 index.html
+#     (Phase 3 起加 vue-router 后需要)。
+#   - 暂不修改 / 默认入口;Phase 6 才会把 / 切到 v2,届时本块改为
+#       return FileResponse(V2_DIR / "index.html") 而旧版降到 /legacy/。
+V2_DIR = STATIC_DIR / "v2"
+if V2_DIR.is_dir():
+    app.mount("/v2", StaticFiles(directory=str(V2_DIR), html=True), name="v2")
+    logger.info(f"v2 前端目录已挂载: {V2_DIR}")
+else:
+    logger.info(
+        f"v2 前端尚未构建（{V2_DIR} 不存在）;旧版 / 入口正常工作。"
+        "Vite 构建命令: cd frontend && npm run build"
+    )
+
 # 病历照片原件访问目录：文件仍保存在本地磁盘，仅在内网服务中按 URL 预览。
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads")

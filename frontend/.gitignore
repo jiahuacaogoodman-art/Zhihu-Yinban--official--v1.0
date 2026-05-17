@@ -1,0 +1,12 @@
+# 依赖
+node_modules/
+
+# 本地缓存 / 编辑器
+.DS_Store
+*.log
+.vite/
+.cache/
+
+# 构建产物 —— 输出在仓库根的 static/v2/,根 .gitignore 已覆盖
+# 这里再写一份 frontend 内部的兜底,避免有人误把 dist 放在 frontend/dist
+dist/
