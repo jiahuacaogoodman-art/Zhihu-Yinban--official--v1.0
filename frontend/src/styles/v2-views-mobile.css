@@ -290,18 +290,19 @@
   .pd-view {
     gap: 12px;
   }
-  /* 头像+姓名头部 */
+  /* 头像+姓名头部 — 允许换行避免挤压 */
   .pd-avatar {
-    width: 44px;
-    height: 44px;
-    font-size: 18px;
+    width: 42px;
+    height: 42px;
+    font-size: 17px;
   }
   .pd-header .title-l {
-    font-size: 20px;
+    font-size: 18px;
+    line-height: 1.3;
   }
   .pd-header .meta {
     font-size: 12px;
-    line-height: 1.5;
+    line-height: 1.4;
     word-break: break-all;
   }
   /* 标签组 */
@@ -313,14 +314,14 @@
     height: 22px;
     padding: 0 8px;
   }
-  /* 快速症状标签:手机上两行 wrap，每个 chip 更大 */
+  /* 快速症状标签 */
   .pd-quick-tags {
     gap: 6px;
   }
   .pd-quick-tags .tap-chip {
     font-size: 13px;
-    height: 36px;
-    padding: 0 12px;
+    height: 34px;
+    padding: 0 10px;
   }
   /* 动作按钮区:垂直排列更好按 */
   .pd-actions {
@@ -328,7 +329,7 @@
     gap: 8px;
   }
   .pd-actions .btn {
-    min-height: 46px;
+    min-height: 44px;
     font-size: 15px;
   }
   /* 信息展开区 */
@@ -397,29 +398,48 @@
   }
   /* 卡片:更大触控区、加 active 反馈 */
   .pt-card {
-    min-height: 68px;
-    padding: 14px;
-    border-radius: 12px;
+    min-height: 62px;
+    padding: 12px;
+    border-radius: 10px;
   }
   .pt-card:active {
     background: rgba(20, 184, 166, 0.08);
     transform: scale(0.99);
   }
   .pt-avatar {
-    width: 44px;
-    height: 44px;
-    font-size: 18px;
+    width: 40px;
+    height: 40px;
+    font-size: 16px;
   }
   .pt-name {
-    font-size: 15px;
+    font-size: 14px;
   }
   .pt-sub {
-    font-size: 12px;
-    margin-top: 3px;
+    font-size: 11.5px;
+    margin-top: 2px;
   }
   .pt-level {
     font-size: 10px;
     height: 20px;
+  }
+}
+
+@media (max-width: 380px) {
+  .pt-card {
+    min-height: 56px;
+    padding: 10px;
+    gap: 6px;
+  }
+  .pt-avatar {
+    width: 36px;
+    height: 36px;
+    font-size: 14px;
+  }
+  .pt-name {
+    font-size: 13px;
+  }
+  .pt-sub {
+    font-size: 11px;
   }
 }
 
@@ -473,6 +493,52 @@
   /* 任务打卡按钮改全宽 */
   .task-exec-actions .btn {
     flex: 1 1 100%;
+  }
+  /* 护工端头部进一步紧凑 */
+  .pd-header .title-l {
+    font-size: 17px;
+  }
+  .pd-quick-tags .tap-chip {
+    font-size: 12px;
+    height: 32px;
+    padding: 0 8px;
+  }
+}
+
+/* ============================================================
+   §13b ≤380 超小屏（老旧/低端手机）
+   ============================================================ */
+@media (max-width: 380px) {
+  .handover-header .title-l,
+  .incident-header .title-l,
+  .care-record-header .title-l,
+  .bed-list-header .title-l,
+  .ehr-header .title-l,
+  .pc-header .title-l {
+    font-size: 16px;
+  }
+  .pd-view {
+    gap: 8px;
+  }
+  .pd-header .title-l {
+    font-size: 16px;
+  }
+  .pd-actions .btn {
+    min-height: 42px;
+    font-size: 13px;
+  }
+  .pd-quick-tags .tap-chip {
+    font-size: 11px;
+    height: 28px;
+    padding: 0 6px;
+  }
+  .pd-disclaimer {
+    font-size: 11px;
+    padding: 6px 8px;
+  }
+  /* GlassPanel 在超小屏再收紧 */
+  .vp-glass--card {
+    padding: 10px !important;
   }
 }
 
