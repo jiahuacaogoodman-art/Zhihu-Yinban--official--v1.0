@@ -12,6 +12,8 @@ import '@design/ui.css'
 import '@design/mobile.css'
 // Phase 7 移动端深度适配（与管理端共享同一份 v2-mobile.css）
 import './styles/v2-mobile.css'
+// Phase 8 子页面移动端美学优化（卡片光泽、色条、微动效、视觉层次）
+import './styles/v2-views-aesthetic.css'
 
 const app = createApp(NurseApp)
 app.use(createPinia())

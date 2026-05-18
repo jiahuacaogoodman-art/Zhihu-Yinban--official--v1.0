@@ -13,6 +13,8 @@ import '@design/ui.css'
 import '@design/mobile.css'
 // Phase 7 移动端深度适配 —— 仅作用于 v2 Vue 端组件，不动 design/* 任何文件
 import './styles/v2-mobile.css'
+// Phase 8 子页面移动端美学优化（卡片光泽、色条、微动效、视觉层次）
+import './styles/v2-views-aesthetic.css'
 
 const app = createApp(App)
 app.use(createPinia())
