@@ -5,15 +5,18 @@ import { fileURLToPath, URL } from 'node:url'
 import { resolve } from 'node:path'
 
 /**
- * Vite 配置 — 单入口 SPA
+ * Vite 配置 — Phase 5 多入口
  *
  * 关键决策（见 RFC §5.1 / §5.3 / §6.5）：
  *   1) build.outDir 指向 ../static/v2/，让 FastAPI 的 StaticFiles 直接挂载即可。
- *   2) base 用 '/'。
+ *   2) base 用 './'（相对路径）。
  *   3) emptyOutDir: true — 每次 build 清空 static/v2/。
- *   4) 合并后只有一个入口 index.html（管理端 + 护工端统一 SPA）。
+ *   4) Phase 5: rollupOptions.input 配置两个入口
+ *      - managers: index.html → 管理端 SPA
+ *      - nurse: nurse.html → 护工端 SPA
  *      构建产物:
- *        static/v2/index.html      (统一 SPA)
+ *        static/v2/index.html      (管理端)
+ *        static/v2/nurse.html      (护工端)
  *        static/v2/assets/...      (共享 chunk)
  */
 export default defineConfig({
@@ -34,7 +37,8 @@ export default defineConfig({
     sourcemap: true,
     rollupOptions: {
       input: {
-        app: resolve(__dirname, 'index.html'),
+        managers: resolve(__dirname, 'index.html'),
+        nurse: resolve(__dirname, 'nurse.html'),
       },
       output: {
         manualChunks: {
