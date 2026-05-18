@@ -5,16 +5,15 @@ import router from './router'
 import { setOnUnauthorized } from './api'
 import { useAuthStore } from './stores/auth'
 
-// Phase 2 起:复用全部静态设计系统。
-// RFC §8 兼容性矩阵明确规定 tokens / glass / ui / mobile.css 0 改动
+// 复用全部静态设计系统(tokens / glass / ui / mobile.css 0 改动)
 import '@design/tokens.css'
 import '@design/glass.css'
 import '@design/ui.css'
 import '@design/mobile.css'
-// Phase 7 移动端深度适配 —— 仅作用于 v2 Vue 端组件，不动 design/* 任何文件
-import './styles/v2-mobile.css'
-// Phase 8 子页面移动端专项优化（GlassPanel 卡片、列表触控、各 View 内部排版）
-import './styles/v2-views-mobile.css'
+// 应用壳层移动端样式(layout / drawer / bottom-tab / dialog / toast / safe-area)
+import './styles/app-shell.css'
+// 子页面移动端专项优化(GlassPanel 卡片、列表触控、各 View 内部排版)
+import './styles/views-mobile.css'
 
 const app = createApp(App)
 app.use(createPinia())

@@ -1,7 +1,7 @@
-/* === 智护银伴 v2 · Vue 端深度移动端适配 ====================================
-   静态 design/mobile.css 的规则全部围绕"旧版 HTML 的 class"(.app-shell /
-   .sidebar / .nav-tab / .bn-item …)，这些 class 在 Vite/Vue 重写后 100% 不再
-   存在。所以必须为 v2 自建一套对位规则，覆盖：
+/* === 智护银伴 · 应用壳层移动端样式 =========================================
+   静态 design/mobile.css 的规则围绕"老版 HTML 的 class"(.app-shell /
+   .sidebar / .nav-tab / .bn-item …)写,这些 class 在 Vite/Vue 重写后已不存在。
+   所以为 SPA 自建一套对位规则,覆盖：
 
    1) 安全区变量(viewport-fit=cover 已在 index.html / nurse.html 设置)
    2) 全局触摸热区(.btn / .field / .tap-chip)在 ≤ 640 提到 ≥ 44px
@@ -9,19 +9,19 @@
    4) Dialog 在 ≤ 640 自动转 bottom sheet(顶部圆角 + drag handle + safe-area)
    5) Toast 在移动端居顶部、避开手指操作区
    6) 取消 hover translate(避免 sticky hover)、点击高亮、长按菜单
-   7) 给 .v2-* 容器留出底部 nav-bar 高度
+   7) 给 .app-* 容器留出底部 nav-bar 高度
    ========================================================================== */
 
 :root {
-  --v2-sab: env(safe-area-inset-bottom, 0px);
-  --v2-sat: env(safe-area-inset-top, 0px);
-  --v2-sal: env(safe-area-inset-left, 0px);
-  --v2-sar: env(safe-area-inset-right, 0px);
+  --app-sab: env(safe-area-inset-bottom, 0px);
+  --app-sat: env(safe-area-inset-top, 0px);
+  --app-sal: env(safe-area-inset-left, 0px);
+  --app-sar: env(safe-area-inset-right, 0px);
 
   /* 给底部 tab 栏 + 安全区预留高度，所有页面靠 padding-bottom 让出空间。
-     桌面端不留(变量被 .v2-layout 覆盖)。 */
-  --v2-bottom-nav-h: 0px;
-  --v2-bottom-pad: 0px;
+     桌面端不留(变量被 .app-layout 覆盖)。 */
+  --app-bottom-nav-h: 0px;
+  --app-bottom-pad: 0px;
 }
 
 /* ────────── iOS 输入字号 ≥ 16px(防止聚焦自动缩放) ────────── */
@@ -86,10 +86,10 @@
     -webkit-touch-callout: none;
   }
   /* 内部滚动容器走原生惯性 */
-  .v2-sidebar,
-  .v2-main,
+  .app-sidebar,
+  .app-main,
   .dialog,
-  .v2-bottom-nav {
+  .app-bottom-nav {
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
   }
@@ -106,9 +106,9 @@
     width: 100% !important;
     max-height: 88dvh;
     border-radius: 22px 22px 0 0 !important;
-    padding: var(--sp-3) var(--sp-4) calc(var(--sp-4) + var(--v2-sab)) !important;
+    padding: var(--sp-3) var(--sp-4) calc(var(--sp-4) + var(--app-sab)) !important;
     overflow-y: auto;
-    animation: v2-dialog-sheet-in 280ms var(--ease-spring);
+    animation: dialog-sheet-in 280ms var(--ease-spring);
   }
   /* drag handle (注入到 dialog 顶部,不依赖结构改) */
   .dialog::before {
@@ -120,7 +120,7 @@
     border-radius: 999px;
     background: rgba(15, 23, 42, 0.18);
   }
-  @keyframes v2-dialog-sheet-in {
+  @keyframes dialog-sheet-in {
     from {
       opacity: 0;
       transform: translateY(40px);
@@ -151,8 +151,8 @@
     max-height: 100dvh !important;
     height: 100dvh;
     border-radius: 0 !important;
-    padding: calc(var(--v2-sat) + var(--sp-3)) var(--sp-4)
-      calc(var(--v2-sab) + var(--sp-4)) !important;
+    padding: calc(var(--app-sat) + var(--sp-3)) var(--sp-4)
+      calc(var(--app-sab) + var(--sp-4)) !important;
   }
   .dialog.dialog--fullsheet::before {
     display: none;
@@ -162,7 +162,7 @@
 /* ────────── Toast 移动端定位:顶部居中、宽屏 ────────── */
 @media (max-width: 640px) {
   .toast-wrap {
-    top: calc(var(--v2-sat) + 12px) !important;
+    top: calc(var(--app-sat) + 12px) !important;
     right: 12px !important;
     left: 12px !important;
     align-items: stretch !important;
@@ -174,40 +174,40 @@
   }
 }
 
-/* ────────── 给所有 .v2-main 留底部 tab 栏空间 ────────── */
+/* ────────── 给所有 .app-main 留底部 tab 栏空间 ────────── */
 @media (max-width: 960px) {
   :root {
-    --v2-bottom-nav-h: 64px;
-    --v2-bottom-pad: calc(var(--v2-bottom-nav-h) + var(--v2-sab) + 8px);
+    --app-bottom-nav-h: 64px;
+    --app-bottom-pad: calc(var(--app-bottom-nav-h) + var(--app-sab) + 8px);
   }
 }
 
 /* ────────── 通用工具类 ────────── */
-.v2-sticky-top {
+.app-sticky-top {
   position: sticky;
   top: 0;
   z-index: 30;
 }
-.v2-only-mobile {
+.app-only-mobile {
   display: none;
 }
-.v2-only-desktop {
+.app-only-desktop {
   display: initial;
 }
 @media (max-width: 960px) {
-  .v2-only-mobile {
+  .app-only-mobile {
     display: initial;
   }
-  .v2-only-desktop {
+  .app-only-desktop {
     display: none !important;
   }
 }
 
 /* FAB:右下浮动操作按钮 */
-.v2-fab {
+.app-fab {
   position: fixed;
   right: 16px;
-  bottom: calc(var(--v2-bottom-pad) + 8px);
+  bottom: calc(var(--app-bottom-pad) + 8px);
   z-index: 40;
   width: 56px;
   height: 56px;
@@ -226,22 +226,22 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.45);
   transition: transform 120ms var(--ease), box-shadow 120ms var(--ease);
 }
-.v2-fab:hover {
+.app-fab:hover {
   transform: translateY(-2px);
   box-shadow: 0 16px 32px rgba(20, 184, 166, 0.45),
     0 6px 10px rgba(20, 184, 166, 0.3),
     inset 0 1px 0 rgba(255, 255, 255, 0.55);
 }
-.v2-fab:active {
+.app-fab:active {
   transform: translateY(0);
 }
-.v2-fab:focus-visible {
+.app-fab:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 3px;
 }
 @media (min-width: 961px) {
   /* 桌面端 FAB 隐藏（用顶部按钮代替） */
-  .v2-fab {
+  .app-fab {
     display: none;
   }
 }
@@ -259,8 +259,8 @@
     transition: transform 80ms var(--ease, ease);
   }
   .tap-chip:active,
-  .v2-bottom-item:active,
-  .v2-drawer-item:active,
+  .app-bottom-item:active,
+  .app-drawer-item:active,
   .nb-item:active:not(:disabled),
   .nurse-sheet-action:active {
     transform: scale(0.97);
@@ -284,9 +284,9 @@
 /* ────────── 焦点可见:键盘 / a11y ────────── */
 .btn:focus-visible,
 .tap-chip:focus-visible,
-.v2-nav-item:focus-visible,
-.v2-drawer-item:focus-visible,
-.v2-bottom-item:focus-visible,
+.app-nav-item:focus-visible,
+.app-drawer-item:focus-visible,
+.app-bottom-item:focus-visible,
 .nb-item:focus-visible,
 .nurse-sheet-action:focus-visible,
 .field:focus-visible {
@@ -300,15 +300,15 @@
   /* 按钮 / chip:仅响应 tap,不让浏览器尝试 pan/zoom */
   .btn,
   .tap-chip,
-  .v2-bottom-item,
-  .v2-drawer-item,
-  .v2-nav-item,
+  .app-bottom-item,
+  .app-drawer-item,
+  .app-nav-item,
   .nb-item,
   .nurse-sheet-action {
     touch-action: manipulation;
   }
   /* 列表 / 容器:允许竖向滚动,关闭横向滚动(避免意外水平拖动) */
-  .v2-main,
+  .app-main,
   .nurse-main {
     touch-action: pan-y;
   }
@@ -320,25 +320,25 @@
 
 /* ────────── 软键盘弹出时:隐底栏 + 收 dialog ────────── */
 /* 由 App.vue / NurseApp.vue 监听 visualViewport 后给 body 加 .kb-open */
-body.kb-open .v2-bottom-nav,
+body.kb-open .app-bottom-nav,
 body.kb-open .nurse-bottom {
   /* 用 transform 而非 display:none —— 保留布局以避免输入框抖动 */
   transform: translateY(110%);
   transition: transform 180ms var(--ease, ease);
   pointer-events: none;
 }
-body.kb-open .v2-fab {
+body.kb-open .app-fab {
   transform: translateY(120%);
   pointer-events: none;
 }
-body.kb-open .v2-main,
+body.kb-open .app-main,
 body.kb-open .nurse-main {
   /* 键盘起来后,主内容区按需收紧底部 padding,腾出键盘上方那一点呼吸 */
   padding-bottom: 12px !important;
 }
 body.kb-open .dialog {
   /* 键盘弹出时 sheet 缩高 + 上推,确保 actions 区可见 */
-  max-height: calc(100dvh - var(--v2-keyboard-h, 0px) - 24px) !important;
+  max-height: calc(100dvh - var(--app-kb-h, 0px) - 24px) !important;
 }
 
 /* ────────── 选中文字色:与品牌色一致 ────────── */
@@ -377,11 +377,11 @@ body.kb-open .dialog {
   /* 主体可读区可选,操作控件不可选 */
   .btn,
   .tap-chip,
-  .v2-nav-item,
-  .v2-drawer-item,
-  .v2-bottom-item,
-  .v2-appbar,
-  .v2-drawer-brand,
+  .app-nav-item,
+  .app-drawer-item,
+  .app-bottom-item,
+  .app-appbar,
+  .app-drawer-brand,
   .nurse-bottom,
   .nurse-appbar,
   .nb-item,
@@ -405,15 +405,15 @@ body.kb-open .dialog {
 /* NetworkBanner 是 fixed top:0 z-index:100,高约 36px。
    appbar 是 sticky top:0,需要下推 top 值,否则会被 banner 遮挡。
    用 top 而非 margin-top —— margin 会导致页面整体布局跳动。 */
-body.netbanner-on .v2-appbar,
+body.netbanner-on .app-appbar,
 body.netbanner-on .nurse-appbar {
   top: 36px;
 }
 
 /* ────────── 减弱动效 ────────── */
 @media (prefers-reduced-motion: reduce) {
-  .v2-drawer,
-  .v2-scrim,
+  .app-drawer,
+  .app-scrim,
   .nurse-sheet,
   .nurse-scrim,
   .ptr-content {
@@ -424,21 +424,21 @@ body.netbanner-on .nurse-appbar {
 
 /* ────────── 横屏紧凑(移动横屏 / 平板分屏) ────────── */
 @media (max-width: 960px) and (orientation: landscape) and (max-height: 480px) {
-  .v2-bottom-nav,
+  .app-bottom-nav,
   .nurse-bottom {
     /* 横屏腾出更多内容区 */
     padding-top: 4px;
     padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 2px);
   }
-  .v2-bottom-item,
+  .app-bottom-item,
   .nb-item {
     min-height: 42px;
   }
-  .v2-bottom-item .lb,
+  .app-bottom-item .lb,
   .nb-item .lb {
     font-size: 10px;
   }
-  .v2-bottom-item .ic,
+  .app-bottom-item .ic,
   .nb-item .ic {
     font-size: 18px;
   }
@@ -458,7 +458,7 @@ body.netbanner-on .nurse-appbar {
 
 /* ────────── iOS Safari "弹性滚动"修正 ────────── */
 @supports (-webkit-touch-callout: none) {
-  .v2-main,
+  .app-main,
   .nurse-main {
     /* 让顶部回弹时背景色仍是页面色,而不是黑底白字 */
     background-color: var(--page-bg, #f0fbfb);
@@ -466,7 +466,7 @@ body.netbanner-on .nurse-appbar {
 }
 
 /* ────────── 底部固定动作栏(护工端 patient detail 用) ────────── */
-.v2-bottom-actions {
+.app-bottom-actions {
   position: sticky;
   bottom: 0;
   z-index: 5;
@@ -483,19 +483,19 @@ body.netbanner-on .nurse-appbar {
   -webkit-backdrop-filter: blur(14px);
   margin: 0 -14px -14px;
 }
-.v2-bottom-actions .btn {
+.app-bottom-actions .btn {
   flex: 1;
   min-height: 44px;
 }
 @media (min-width: 961px) {
-  .v2-bottom-actions {
+  .app-bottom-actions {
     position: static;
     margin: 0;
     padding: 0;
     background: transparent;
     backdrop-filter: none;
   }
-  .v2-bottom-actions .btn {
+  .app-bottom-actions .btn {
     flex: 0 0 auto;
   }
 }

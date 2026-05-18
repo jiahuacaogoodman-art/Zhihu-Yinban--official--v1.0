@@ -41,14 +41,14 @@ describe('App.vue (mobile mode)', () => {
   it('renders appbar with hamburger button on mobile', async () => {
     const router = makeRouter(); router.push('/beds'); await router.isReady()
     const wrapper = mount(App, { global: { plugins: [router] } })
-    expect(wrapper.find('.v2-appbar').exists()).toBe(true)
-    expect(wrapper.find('.v2-appbar-btn').exists()).toBe(true)
+    expect(wrapper.find('.app-appbar').exists()).toBe(true)
+    expect(wrapper.find('.app-appbar-btn').exists()).toBe(true)
   })
 
   it('renders bottom tab navigation', async () => {
     const router = makeRouter(); router.push('/beds'); await router.isReady()
     const wrapper = mount(App, { global: { plugins: [router] } })
-    expect(wrapper.find('.v2-bottom-nav').exists()).toBe(true)
+    expect(wrapper.find('.app-bottom-nav').exists()).toBe(true)
     const text = wrapper.text()
     expect(text).toContain('AI')
     expect(text).toContain('档案')
@@ -60,15 +60,15 @@ describe('App.vue (mobile mode)', () => {
   it('does not render desktop sidebar on mobile', async () => {
     const router = makeRouter(); router.push('/beds'); await router.isReady()
     const wrapper = mount(App, { global: { plugins: [router] } })
-    expect(wrapper.find('.v2-sidebar').exists()).toBe(false)
+    expect(wrapper.find('.app-sidebar').exists()).toBe(false)
   })
 
   it('opens drawer when hamburger clicked', async () => {
     const router = makeRouter(); router.push('/beds'); await router.isReady()
     const wrapper = mount(App, { global: { plugins: [router] }, attachTo: document.body })
-    expect(document.body.querySelector('.v2-drawer--open')).toBeNull()
-    await wrapper.find('.v2-appbar-btn').trigger('click')
-    expect(document.body.querySelector('.v2-drawer--open')).not.toBeNull()
+    expect(document.body.querySelector('.app-drawer--open')).toBeNull()
+    await wrapper.find('.app-appbar-btn').trigger('click')
+    expect(document.body.querySelector('.app-drawer--open')).not.toBeNull()
     wrapper.unmount()
   })
 })

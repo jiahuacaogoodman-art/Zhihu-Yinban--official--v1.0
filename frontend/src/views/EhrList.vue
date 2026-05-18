@@ -565,7 +565,7 @@ onMounted(fetchRecords)
     <!-- ─── 移动端 FAB:新增档案 ─── -->
     <button
       type="button"
-      class="v2-fab"
+      class="app-fab"
       aria-label="新增档案"
       @click="startCreate"
     >

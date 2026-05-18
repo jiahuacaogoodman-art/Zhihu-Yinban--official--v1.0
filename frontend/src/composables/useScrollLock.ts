@@ -3,7 +3,7 @@ import { onBeforeUnmount, watch, type Ref } from 'vue'
 /**
  * useScrollLock — 抽屉/对话框打开时锁住背景滚动
  *
- * 之所以 v2 自己封一个而不是直接 document.documentElement.style.overflow = 'hidden':
+ * 之所以自己封一个而不是直接 document.documentElement.style.overflow = 'hidden':
  *   1) iOS Safari 仅 overflow:hidden 不够,手指还能拖动整页(地址栏弹出/收起会
  *      触发 viewport 重排,造成"抽屉打开期间内容跳动 + 抽屉错位")。需要再固
  *      定 body position: fixed + top = -scrollTop。

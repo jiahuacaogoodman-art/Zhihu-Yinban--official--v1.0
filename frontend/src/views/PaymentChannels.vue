@@ -22,7 +22,7 @@ import { ApiError } from '../api/types'
  *      则保持当前值"。提交时会过滤掉空 password 字段不发到后端。
  *   2) 后端 update_channel 收到空字符串会"删除字段"。所以普通 text 字段为空也
  *      不发(避免误删已有配置)。
- *   3) FontAwesome 在 v2 没加载，因此用 emoji 兜底渲染图标。
+ *   3) FontAwesome 没加载，因此用 emoji 兜底渲染图标。
  */
 
 interface ConfigField {

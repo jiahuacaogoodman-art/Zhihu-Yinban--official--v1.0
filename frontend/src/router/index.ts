@@ -1,16 +1,16 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 
 /**
- * 管理端 Router — 保留双端架构，管理端补齐全部功能页。
- * 护工端仍然是独立入口 nurse.html → nurse-main.ts → nurse-router。
+ * 管理端 Router。
+ * 护工端是独立入口 nurse.html → nurse-main.ts → nurse-router。
  */
 
 const routes: RouteRecordRaw[] = [
   {
+    // 管理端默认页:已登录 → /beds;未登录 → auth guard 拦回 /login。
     path: '/',
     name: 'home',
-    component: () => import('../views/Landing.vue'),
-    meta: { title: '首页', guest: true, fullBleed: true },
+    redirect: '/beds',
   },
   {
     path: '/login',

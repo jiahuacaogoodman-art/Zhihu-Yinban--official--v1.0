@@ -47,7 +47,7 @@ jobs:
       - name: Run smoke tests
         run: pytest -v --tb=short
 
-  # ── 前端构建 (Vite + Vue 3, RFC Phase 1 起) ──────────────────
+  # ── 前端构建 (Vite + Vue 3) ─────────────────────────────────
   # 仅在修改了 frontend/ / static/design/ 或 docker / CI 配置本身时跑,
   # 改 app/* / main.py 不会触发本 job。如果想强制跑,可以临时去掉 paths 过滤。
   frontend-build:
@@ -66,8 +66,6 @@ jobs:
 
       - name: Install dependencies
         working-directory: frontend
-        # 没有 lockfile 时 fallback 到 npm install —— Phase 1 PR 第一次落地时
-        # lock 还没生成;后续 PR 必须带 lockfile,否则 cache 失效
         run: |
           if [ -f package-lock.json ]; then
             npm ci
@@ -88,11 +86,12 @@ jobs:
         run: npm run build
 
       - name: Verify build artifact
-        # Phase 1 Done 定义之一:产物里能找到 index.html
+        # Build done definition: 产物里能找到 index.html (管理端) 和 nurse.html (护工端)
         run: |
-          test -f static/v2/index.html
-          echo "OK: static/v2/index.html present"
-          ls -la static/v2/
+          test -f static/dist/index.html
+          test -f static/dist/nurse.html
+          echo "OK: SPA artifacts present"
+          ls -la static/dist/
 
   # ── Docker 镜像构建验证（不推送）────────────────────────────
   docker-build:

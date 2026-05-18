@@ -7,7 +7,7 @@ import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
  *   /nurse/ → 老人列表
  *   /nurse/patient/:id → 患者详情 + 任务卡 + AI
  *
- * 后端 /nurse 返回 static/v2/nurse.html(SPA),所有子路径
+ * 后端 /nurse 返回 static/dist/nurse.html(SPA),所有子路径
  * 由 Vue Router 在客户端处理。
  */
 

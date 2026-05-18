@@ -44,7 +44,7 @@ watch(
   keyboardHeight,
   (h) => {
     if (typeof document === 'undefined') return
-    document.documentElement.style.setProperty('--v2-keyboard-h', `${h}px`)
+    document.documentElement.style.setProperty('--app-kb-h', `${h}px`)
   },
   { immediate: true },
 )
@@ -214,11 +214,6 @@ function goToTask() {
           <a href="/" class="nurse-sheet-action">
             <span class="ic">🖥</span>
             <span>切换到管理端</span>
-            <span class="arrow">→</span>
-          </a>
-          <a href="/legacy" class="nurse-sheet-action">
-            <span class="ic">🗂</span>
-            <span>使用旧版界面</span>
             <span class="arrow">→</span>
           </a>
         </div>

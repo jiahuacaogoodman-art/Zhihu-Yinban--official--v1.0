@@ -99,7 +99,7 @@ npm install
 npm run dev          # http://localhost:5173, api proxy → 8000
 npm run typecheck    # vue-tsc strict
 npm run test         # vitest
-npm run build        # → ../static/v2/ (index.html + nurse.html)
+npm run build        # → ../static/dist/ (index.html + nurse.html)
 ```
 
 ---

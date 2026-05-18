@@ -7,7 +7,7 @@ import { useFocusTrap } from '../composables/useFocusTrap'
  * Dialog — 对话框 / Bottom Sheet / Full Sheet
  *
  * 直接套用 ui.css 的 .dialog-ov / .dialog / .dialog-title / .dialog-body /
- * .dialog-actions；移动端的 bottom-sheet 形态由 v2-mobile.css 接管。
+ * .dialog-actions；移动端的 bottom-sheet 形态由 app-shell.css 接管。
  *
  * Phase 7 移动端深度适配的关键变化:
  *   1) 不再用 inline `documentElement.style.overflow='hidden'` —— 改用
