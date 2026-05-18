@@ -353,11 +353,13 @@ onMounted(fetchPatient)
   margin: 0 auto;
   /* 给底部 tab + 安全区留出空间，避免最后一行被遮挡 */
   padding-bottom: 16px;
+  width: 100%;
 }
 .pd-header :deep(.vp-glass__header) {
   display: flex;
   align-items: center;
   gap: var(--sp-3, 12px);
+  flex-wrap: wrap;
 }
 .pd-avatar {
   width: 52px;
@@ -435,13 +437,48 @@ onMounted(fetchPatient)
 }
 
 @media (max-width: 640px) {
+  .pd-view {
+    gap: 12px;
+    padding-bottom: 12px;
+  }
   .pd-info-grid { grid-template-columns: 1fr; }
-  .pd-actions { grid-template-columns: 1fr; }
-  .pd-actions .btn { height: 46px; font-size: 15px; }
-  .pd-avatar { width: 44px; height: 44px; font-size: 18px; }
-  .pd-tags .chip { font-size: 11px; height: 22px; }
-  .pd-quick-tags .tap-chip { font-size: 13px; height: 36px; }
-  /* 任务执行三个按钮平铺 */
+  .pd-actions {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .pd-actions .btn { height: 44px; font-size: 14px; }
+  .pd-avatar { width: 42px; height: 42px; font-size: 17px; }
+  .pd-tags {
+    gap: 4px;
+    margin-top: 6px;
+  }
+  .pd-tags .chip { font-size: 11px; height: 22px; padding: 0 8px; }
+  .pd-quick-tags {
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+  .pd-quick-tags .tap-chip { font-size: 13px; height: 34px; padding: 0 10px; }
+  .pd-header :deep(.vp-glass__header) {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .pd-header :deep(.vp-glass__header) .title-l {
+    font-size: 18px;
+  }
+  .pd-header :deep(.vp-glass__header) .meta {
+    font-size: 12px;
+    line-height: 1.4;
+    word-break: break-all;
+  }
+  .pd-details summary {
+    font-size: 13px;
+    padding: 6px 0;
+  }
+  .pd-info-grid {
+    font-size: 12px;
+    gap: 4px;
+  }
+  /* 任务执行三个按钮横排 */
   .task-exec-actions {
     display: flex;
     flex-wrap: wrap;
@@ -450,20 +487,47 @@ onMounted(fetchPatient)
   }
   .task-exec-actions .btn {
     flex: 1 1 calc(33% - 4px);
-    min-height: 38px;
-    padding: 0 8px;
-    font-size: 13px;
+    min-height: 36px;
+    padding: 0 6px;
+    font-size: 12px;
   }
-  .task-check { width: 32px; height: 32px; }
-  .task-text { font-size: 14px; }
-  .progress { height: 8px; }
-  .pd-disclaimer { font-size: 12px; }
+  .task-check { width: 30px; height: 30px; font-size: 13px; }
+  .task-text { font-size: 13px; line-height: 1.4; }
+  .progress { height: 7px; margin-top: 6px; }
+  .pd-disclaimer { font-size: 11px; padding: 6px 10px; }
+  .pd-symptom :deep(.vp-glass__header) {
+    margin-bottom: 6px;
+  }
 }
 
 @media (max-width: 480px) {
-  .pd-actions .btn { height: 48px; font-size: 15px; }
-  .task-exec-actions .btn { flex: 1 1 100%; min-height: 40px; }
-  .pd-info-grid { font-size: 12px; }
+  .pd-view {
+    gap: 10px;
+  }
+  .pd-actions .btn { height: 44px; font-size: 14px; }
+  .task-exec-actions .btn { flex: 1 1 100%; min-height: 38px; font-size: 13px; }
+  .pd-info-grid { font-size: 11px; }
+  .pd-avatar { width: 38px; height: 38px; font-size: 16px; }
+  .pd-header :deep(.vp-glass__header) .title-l {
+    font-size: 17px;
+  }
+  .pd-quick-tags .tap-chip { font-size: 12px; height: 32px; padding: 0 8px; }
+}
+
+@media (max-width: 380px) {
+  .pd-view {
+    gap: 8px;
+  }
+  .pd-actions .btn { height: 42px; font-size: 13px; }
+  .pd-header :deep(.vp-glass__header) .title-l {
+    font-size: 16px;
+  }
+  .pd-header :deep(.vp-glass__header) .meta {
+    font-size: 11px;
+  }
+  .pd-quick-tags .tap-chip { font-size: 11px; height: 30px; padding: 0 6px; }
+  .task-text { font-size: 12px; }
+  .task-check { width: 28px; height: 28px; font-size: 12px; }
 }
 
 /* 通用任务执行按钮布局(桌面+移动) */
