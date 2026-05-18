@@ -254,13 +254,13 @@ function goToTask() {
 .nurse-layout {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
-  min-height: 100dvh;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden; /* 防止 body 出现滚动条 */
 }
 
 .nurse-appbar {
-  position: sticky;
-  top: 0;
+  flex-shrink: 0; /* appbar 不被压缩 */
   z-index: 30;
   display: flex;
   align-items: center;
@@ -335,6 +335,7 @@ function goToTask() {
 
 .nurse-main {
   flex: 1;
+  min-height: 0; /* 关键：让 flex item 的 overflow-y 生效 */
   padding: 12px 12px calc(env(safe-area-inset-bottom, 0px) + 76px);
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;

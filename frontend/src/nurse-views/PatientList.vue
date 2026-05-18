@@ -163,15 +163,47 @@ async function handleRefresh(done: () => void) {
 
 @media (max-width: 640px) {
   .pt-card {
-    padding: 14px;
-    min-height: 64px;
+    grid-template-columns: 44px 1fr auto;
+    padding: 12px;
+    min-height: 60px;
+    gap: 10px;
   }
   .pt-avatar {
     width: 44px;
     height: 44px;
     font-size: 18px;
   }
-  .pt-name { font-size: 15px; }
-  .pt-sub { font-size: 12.5px; }
+  .pt-name { font-size: 14px; }
+  .pt-sub { font-size: 12px; }
+}
+
+@media (max-width: 480px) {
+  .pt-card {
+    grid-template-columns: 38px 1fr auto;
+    padding: 10px;
+    gap: 8px;
+  }
+  .pt-avatar {
+    width: 38px;
+    height: 38px;
+    font-size: 16px;
+  }
+  .pt-name { font-size: 13px; }
+  .pt-sub { font-size: 11px; }
+}
+
+@media (max-width: 380px) {
+  .pt-card {
+    grid-template-columns: 34px 1fr auto;
+    padding: 8px;
+    gap: 6px;
+  }
+  .pt-avatar {
+    width: 34px;
+    height: 34px;
+    font-size: 14px;
+  }
+  .pt-name { font-size: 12px; }
+  .pt-sub { font-size: 10.5px; }
 }
 </style>
