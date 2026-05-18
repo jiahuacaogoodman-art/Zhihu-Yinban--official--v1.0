@@ -31,7 +31,6 @@ export function useSwipeBack(onBack: () => void, opts: SwipeBackOptions = {}) {
   let startX = 0
   let startY = 0
   let tracking = false
-  let target: EventTarget | null = null
 
   function shouldIgnore(t: EventTarget | null): boolean {
     if (!t || !(t instanceof Element)) return false
@@ -51,7 +50,6 @@ export function useSwipeBack(onBack: () => void, opts: SwipeBackOptions = {}) {
     startX = t.clientX
     startY = t.clientY
     tracking = true
-    target = e.target
   }
 
   function onTouchMove(e: TouchEvent) {
@@ -74,12 +72,10 @@ export function useSwipeBack(onBack: () => void, opts: SwipeBackOptions = {}) {
     if (dx >= threshold && dy < threshold) {
       onBack()
     }
-    target = null
   }
 
   function onTouchCancel() {
     tracking = false
-    target = null
   }
 
   onMounted(() => {

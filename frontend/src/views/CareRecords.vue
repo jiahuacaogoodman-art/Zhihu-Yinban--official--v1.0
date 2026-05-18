@@ -97,6 +97,7 @@ onMounted(fetchRecords)
 .care-record-header { display: flex; align-items: center; gap: var(--sp-3); }
 
 @media (max-width: 640px) {
+  .care-record-view { gap: 12px; }
   .care-record-header { flex-wrap: wrap; }
   .care-record-header .title-l { font-size: 22px; }
 }
