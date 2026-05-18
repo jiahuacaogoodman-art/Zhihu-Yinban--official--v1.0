@@ -385,4 +385,16 @@ onMounted(fetchChannels)
   border: 1px solid rgba(245, 158, 11, 0.25);
   font: 400 var(--fz-sm, 13px) / 1.5 var(--font-ui);
 }
+
+@media (max-width: 640px) {
+  .pc-header { flex-wrap: wrap; }
+  .pc-header .title-l { font-size: 22px; }
+  .pc-grid { grid-template-columns: 1fr; gap: 10px; }
+  .pc-card { padding: 14px !important; }
+  .pc-actions { flex-wrap: wrap; }
+  .pc-actions .btn {
+    flex: 1 1 calc(50% - 4px);
+    min-width: 0;
+  }
+}
 </style>

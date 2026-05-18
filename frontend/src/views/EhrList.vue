@@ -437,7 +437,11 @@ onMounted(fetchRecords)
     </div>
 
     <!-- ────────────── 档案详情 ────────────── -->
-    <Dialog v-model="detailOpen" :title="detailRecord?.name ? `档案 · ${detailRecord.name}` : '档案详情'">
+    <Dialog
+      v-model="detailOpen"
+      :title="detailRecord?.name ? `档案 · ${detailRecord.name}` : '档案详情'"
+      full-sheet
+    >
       <div v-if="detailLoading" class="empty">
         <div class="skel" style="height: 240px; width: 100%;"></div>
       </div>
@@ -494,6 +498,7 @@ onMounted(fetchRecords)
     <Dialog
       v-model="formOpen"
       :title="formMode === 'create' ? '新增患者档案' : `编辑档案 · ${form.name || form.patient_id}`"
+      full-sheet
     >
       <form class="ehr-form" @submit.prevent="submitForm">
         <div class="ehr-form-grid">
@@ -556,6 +561,16 @@ onMounted(fetchRecords)
         </Btn>
       </template>
     </Dialog>
+
+    <!-- ─── 移动端 FAB:新增档案 ─── -->
+    <button
+      type="button"
+      class="v2-fab"
+      aria-label="新增档案"
+      @click="startCreate"
+    >
+      +
+    </button>
   </div>
 </template>
 
@@ -647,9 +662,33 @@ onMounted(fetchRecords)
 }
 
 @media (max-width: 640px) {
+  .ehr-header {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  /* 移动端隐藏 header 里的"新增"按钮(改用右下 FAB,见模板末尾) */
+  .ehr-header > .btn { display: none; }
+  .ehr-header .title-l { font-size: 22px; }
+
+  .ehr-filters { padding: 10px !important; }
+  .ehr-filters :deep(.field) {
+    max-width: none !important;
+    width: 100%;
+  }
+
+  .ehr-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .ehr-card { padding: 14px !important; }
+  .ehr-meta { font-size: 14px; }
+  .ehr-meta div { grid-template-columns: 60px 1fr; }
+
   .ehr-detail-grid,
   .ehr-form-grid { grid-template-columns: 1fr; }
   .ehr-detail-grid div { grid-template-columns: 80px 1fr; }
   .ehr-export-care { grid-template-columns: 1fr; }
+  .ehr-export-actions .btn { width: 100%; }
+  .ehr-export-care .btn { width: 100%; height: 44px; }
 }
 </style>

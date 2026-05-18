@@ -82,6 +82,11 @@ onMounted(fetchRecords)
 
       <div v-if="records.length === 0" class="empty">
         <p class="empty-title">暂无护理记录</p>
+        <p class="empty-sub">
+          v2 暂为只读视图。请前往
+          <a href="/legacy" style="color: var(--accent-ink, #0f766e);">旧版界面</a>
+          或<a href="/nurse" style="color: var(--accent-ink, #0f766e);">护工端</a>录入。
+        </p>
       </div>
     </div>
   </div>
@@ -90,4 +95,9 @@ onMounted(fetchRecords)
 <style scoped>
 .care-record-view { display: grid; gap: var(--sp-4, 16px); }
 .care-record-header { display: flex; align-items: center; gap: var(--sp-3); }
+
+@media (max-width: 640px) {
+  .care-record-header { flex-wrap: wrap; }
+  .care-record-header .title-l { font-size: 22px; }
+}
 </style>

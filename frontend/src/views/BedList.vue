@@ -48,6 +48,13 @@ const buildings = computed(() => {
   return [...set].sort()
 })
 
+// 已有患者(用作分配 dialog 的 datalist 选项,避免新人不知道 patient_id 是啥)
+const occupiedPatients = computed(() => {
+  return bedStore.beds
+    .map((b) => ({ id: b.patient_id, name: b.patient_name }))
+    .filter((x): x is { id: string; name: string } => !!x.id)
+})
+
 const statusMap: Record<BedStatus, { label: string; tone: 'success' | 'danger' | 'warning' | 'info' }> = {
   available: { label: '空闲', tone: 'success' },
   occupied: { label: '已入住', tone: 'danger' },
@@ -192,8 +199,15 @@ async function doRelease(bed: Bed) {
         v-model="assignPatientId"
         label="老人 ID"
         required
-        placeholder="输入患者档案 ID"
+        placeholder="例如 P001 (在'患者档案'页可查到)"
+        hint="可输入档案 ID,或在下方建议项中选择已有老人"
+        list="bed-patient-options"
       />
+      <datalist id="bed-patient-options">
+        <option v-for="p in occupiedPatients" :key="p.id" :value="p.id">
+          {{ p.name }}
+        </option>
+      </datalist>
       <template #actions>
         <Btn variant="ghost" @click="assignDialogOpen = false">取消</Btn>
         <Btn variant="primary" :disabled="!assignPatientId.trim()" @click="confirmAssign">确认分配</Btn>
@@ -240,5 +254,37 @@ async function doRelease(bed: Bed) {
 .bed-meta dd {
   margin: 0;
   color: var(--ink-1, #0f172a);
+}
+
+@media (max-width: 640px) {
+  .bed-list-header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .bed-list-header > .row-s {
+    margin-left: 0 !important;
+    flex-wrap: wrap;
+  }
+  .bed-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .bed-card {
+    padding: 14px !important;
+  }
+  .bed-meta {
+    font-size: 14px;
+  }
+  .bed-meta div {
+    grid-template-columns: 70px 1fr;
+  }
+  .bed-filters .row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .bed-filters .row > * {
+    max-width: none !important;
+  }
 }
 </style>

@@ -33,10 +33,16 @@ const props = defineProps<{
   name?: string
   rows?: number
   multiple?: boolean
+  /** 关联 <datalist id="..."> 自动补全(仅 text/email/tel/date 类型生效) */
+  list?: string
+  inputmode?: 'text' | 'numeric' | 'decimal' | 'tel' | 'email' | 'search' | 'url'
+  autocomplete?: string
 }>()
 
 defineEmits<{
   'update:modelValue': [value: ModelValue]
+  focus: [event: FocusEvent]
+  blur: [event: FocusEvent]
 }>()
 
 const id = useId()
@@ -60,6 +66,8 @@ const inputType = computed(() => props.type ?? 'text')
       :rows="rows ?? 4"
       :required="required || undefined"
       @input="$emit('update:modelValue', ($event.target as HTMLTextAreaElement).value)"
+      @focus="$emit('focus', $event)"
+      @blur="$emit('blur', $event)"
     />
 
     <select
@@ -72,6 +80,8 @@ const inputType = computed(() => props.type ?? 'text')
       :multiple="multiple"
       :required="required || undefined"
       @change="$emit('update:modelValue', ($event.target as HTMLSelectElement).value)"
+      @focus="$emit('focus', $event)"
+      @blur="$emit('blur', $event)"
     >
       <slot />
     </select>
@@ -86,7 +96,12 @@ const inputType = computed(() => props.type ?? 'text')
       :disabled="disabled"
       :name="name"
       :required="required || undefined"
+      :list="list"
+      :inputmode="inputmode"
+      :autocomplete="autocomplete"
       @input="$emit('update:modelValue', ($event.target as HTMLInputElement).value)"
+      @focus="$emit('focus', $event)"
+      @blur="$emit('blur', $event)"
     />
 
     <p v-if="error" class="field-hint" role="alert" style="color: var(--red, #dc2626)">
