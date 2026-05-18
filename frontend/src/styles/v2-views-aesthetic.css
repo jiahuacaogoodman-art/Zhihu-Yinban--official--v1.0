@@ -1,0 +1,400 @@
+/* === 智护银伴 v2 · 子页面美学优化层 =========================================
+   在 v2-mobile.css（壳层）和 v2-views-mobile.css（布局适配）之后加载。
+   本文件**只做视觉美学**，不改布局/间距/触控区——那些已经由前两层解决。
+
+   设计语言：
+     - 液态玻璃（glassmorphism）: 半透明 + blur + specular highlight
+     - 薄荷青主色调渐变 + 淡紫/天青辅助色点缀
+     - 微动效：入场渐现、状态色脉冲、进度条呼吸光
+     - 卡片层次：顶部光泽线 + 底部柔阴影 + 状态色左侧条
+
+   ⚠️ 文字排列原则（防止上下挤压）：
+     - 标题 + chip 换行时保证 gap ≥ 8px
+     - SBAR 段落间距 gap ≥ 10px，行高 ≥ 1.65
+     - 时间线/色条等装饰不压缩正文水平空间（用 position:absolute）
+     - 所有 ::before/::after 装饰都是 pointer-events:none + position:absolute
+       不占文档流、不影响文字排列
+
+   命名约定：无额外 class 前缀，全部通过已有 class 选择器精确匹配。
+   ========================================================================== */
+
+/* ============================================================
+   §1 通用卡片美学增强
+   ============================================================ */
+
+@media (max-width: 640px) {
+  /* 卡片顶部光泽线 —— absolute 定位，不影响内容布局 */
+  .vp-glass--card {
+    position: relative;
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.85) inset,
+      0 8px 32px -8px rgba(15, 23, 42, 0.08),
+      0 2px 8px -2px rgba(20, 184, 166, 0.06);
+  }
+  .vp-glass--card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 12px;
+    right: 12px;
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.9) 20%,
+      rgba(94, 234, 212, 0.35) 50%,
+      rgba(255, 255, 255, 0.9) 80%,
+      transparent 100%
+    );
+    border-radius: 1px;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  /* 卡片 header 标题渐变 —— 仅变色，不改字号/间距 */
+  .vp-glass__header .title-s {
+    background: linear-gradient(135deg, var(--ink-1) 0%, var(--accent-ink) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  /* ⚠️ 关键：不给 footer 加 ::before 分隔线（之前版本加了会挤压文字）
+     改用 border-top 替代伪元素，不占额外高度 */
+  .vp-glass__footer {
+    border-top: 1px solid rgba(20, 184, 166, 0.08);
+    padding-top: 8px;
+  }
+
+  /* Chip 微光泽（不改尺寸） */
+  .chip {
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), 0 1px 3px rgba(15, 23, 42, 0.04);
+  }
+}
+
+/* ============================================================
+   §2 交接班（Handovers）—— SBAR 彩色字母徽章
+   SBAR 字母用内联徽章，行高保持 1.7 防止挤压
+   ============================================================ */
+
+/* SBAR 字母徽章 —— 所有尺寸生效（提高可读性） */
+.sbar strong {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  font-size: 10px;
+  font-weight: 700;
+  margin-right: 8px;
+  flex-shrink: 0;
+  color: #fff;
+  vertical-align: middle;
+}
+
+/* S=红, B=蓝, A=琥珀, R=绿 —— 医疗界 SBAR 标准色 */
+.sbar div:nth-child(1) strong { background: linear-gradient(135deg, #f87171, #ef4444); }
+.sbar div:nth-child(2) strong { background: linear-gradient(135deg, #60a5fa, #3b82f6); }
+.sbar div:nth-child(3) strong { background: linear-gradient(135deg, #fbbf24, #f59e0b); }
+.sbar div:nth-child(4) strong { background: linear-gradient(135deg, #34d399, #10b981); }
+
+/* 交接班卡片左侧渐变装饰条 —— absolute，不挤压正文 */
+@media (max-width: 640px) {
+  .handover-card {
+    position: relative;
+  }
+  .handover-card::after {
+    content: '';
+    position: absolute;
+    top: 12px;
+    left: 0;
+    bottom: 12px;
+    width: 3px;
+    border-radius: 0 3px 3px 0;
+    background: linear-gradient(180deg, var(--accent) 0%, rgba(20, 184, 166, 0.3) 100%);
+    pointer-events: none;
+  }
+}
+
+/* ============================================================
+   §3 异常事件（Incidents）—— 左侧严重度色条
+   absolute 定位，不影响文字水平空间
+   ============================================================ */
+
+@media (max-width: 640px) {
+  .incident-card {
+    position: relative;
+  }
+  .incident-card::after {
+    content: '';
+    position: absolute;
+    top: 12px;
+    left: 0;
+    bottom: 12px;
+    width: 3px;
+    border-radius: 0 3px 3px 0;
+    background: var(--amber);
+    opacity: 0.8;
+    pointer-events: none;
+  }
+}
+
+/* ============================================================
+   §4 护理记录（CareRecords）—— 时间线视觉
+   ⚠️ 不用 padding-left 挤压正文，改用 margin-left + absolute 竖线
+   ============================================================ */
+
+@media (max-width: 640px) {
+  .care-record-list .vp-glass {
+    position: relative;
+    margin-left: 14px;
+  }
+  /* 时间线竖线 —— 在卡片左外侧 */
+  .care-record-list .vp-glass::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -10px;
+    bottom: 0;
+    width: 2px;
+    background: linear-gradient(180deg, rgba(20, 184, 166, 0.25) 0%, rgba(20, 184, 166, 0.05) 100%);
+    pointer-events: none;
+  }
+  /* 时间线节点圆点 */
+  .care-record-list .vp-glass::after {
+    content: '';
+    position: absolute;
+    top: 20px;
+    left: -14px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: 2px solid #fff;
+    box-shadow: 0 2px 6px rgba(20, 184, 166, 0.3);
+    pointer-events: none;
+  }
+  .care-record-list .vp-glass:last-child::before {
+    bottom: auto;
+    height: 26px;
+  }
+}
+
+/* ============================================================
+   §5 床位管理（BedList）—— 状态色顶部装饰弧
+   ============================================================ */
+
+@media (max-width: 640px) {
+  .bed-card {
+    position: relative;
+    overflow: hidden;
+  }
+  .bed-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    pointer-events: none;
+    background: var(--ink-5);
+    opacity: 0.4;
+  }
+  /* :has() 选择器按状态 chip 着色 */
+  .bed-card:has(.chip-success)::before { background: var(--green); opacity: 0.7; }
+  .bed-card:has(.chip-danger)::before { background: var(--red); opacity: 0.6; }
+  .bed-card:has(.chip-warning)::before { background: var(--amber); opacity: 0.6; }
+  .bed-card:has(.chip-info)::before { background: var(--blue); opacity: 0.6; }
+}
+
+/* ============================================================
+   §6 患者档案（EhrList）—— 卡片柔光 + 提示文字呼吸
+   ============================================================ */
+
+@media (max-width: 640px) {
+  .ehr-card-hint {
+    animation: va-breathe 3s ease-in-out infinite;
+  }
+}
+
+@keyframes va-breathe {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+/* ============================================================
+   §7 护工端详情（PatientDetail）—— 进度条流光 + 打卡动画
+   ============================================================ */
+
+@media (max-width: 640px) {
+  /* 进度条发光效果 */
+  .progress-bar {
+    background: linear-gradient(90deg, var(--accent) 0%, var(--accent-glow, #5eead4) 50%, var(--accent) 100%);
+    background-size: 200% 100%;
+    animation: va-progress-shimmer 2.5s ease-in-out infinite;
+    box-shadow: 0 0 8px rgba(20, 184, 166, 0.35);
+  }
+
+  /* 任务打卡圆圈完成/异常动画 */
+  .task-check.done {
+    animation: va-check-pop 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
+    box-shadow: 0 3px 10px rgba(16, 185, 129, 0.3);
+  }
+  .task-check.abnormal {
+    animation: va-check-pop 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
+    box-shadow: 0 3px 10px rgba(239, 68, 68, 0.3);
+  }
+
+  /* 快速症状标签美化边框 */
+  .pd-quick-tags .tap-chip {
+    border-color: rgba(20, 184, 166, 0.2);
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(240, 251, 251, 0.9) 100%);
+  }
+
+  /* AI 建议卡片渐变顶部装饰 */
+  .pd-ai-card {
+    position: relative;
+    overflow: hidden;
+  }
+  .pd-ai-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--accent) 0%, var(--accent-2) 50%, var(--accent-3) 100%);
+    pointer-events: none;
+  }
+
+  /* 免责声明 —— 左侧色条代替满底色，减少挤压感 */
+  .pd-disclaimer {
+    border-left: 3px solid var(--amber);
+    background: linear-gradient(135deg, rgba(217, 119, 6, 0.05) 0%, transparent 100%);
+  }
+}
+
+@keyframes va-progress-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+@keyframes va-check-pop {
+  0% { transform: scale(0.85); }
+  50% { transform: scale(1.12); }
+  100% { transform: scale(1); }
+}
+
+/* ============================================================
+   §8 护工端老人列表（PatientList）—— 头像光环 + 入场动画
+   ============================================================ */
+
+@media (max-width: 640px) {
+  .pt-avatar {
+    box-shadow:
+      0 0 0 2px rgba(20, 184, 166, 0.12),
+      0 4px 12px -2px rgba(20, 184, 166, 0.15);
+  }
+
+  /* 列表入场动画 —— 交错渐入 */
+  .pt-cards .pt-card {
+    animation: va-card-in 300ms ease backwards;
+  }
+  .pt-cards .pt-card:nth-child(1) { animation-delay: 0ms; }
+  .pt-cards .pt-card:nth-child(2) { animation-delay: 40ms; }
+  .pt-cards .pt-card:nth-child(3) { animation-delay: 80ms; }
+  .pt-cards .pt-card:nth-child(4) { animation-delay: 120ms; }
+  .pt-cards .pt-card:nth-child(5) { animation-delay: 160ms; }
+  .pt-cards .pt-card:nth-child(n+6) { animation-delay: 200ms; }
+}
+
+@keyframes va-card-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ============================================================
+   §9 支付渠道（PaymentChannels）—— 图标光晕 + 启用对比
+   ============================================================ */
+
+@media (max-width: 640px) {
+  .pc-icon {
+    box-shadow: 0 4px 12px -2px currentColor;
+  }
+
+  /* 已启用卡片顶部渐变装饰线 */
+  .pc-card--enabled {
+    position: relative;
+    overflow: hidden;
+  }
+  .pc-card--enabled::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--accent) 0%, var(--accent-glow, #5eead4) 50%, var(--accent-2) 100%);
+    pointer-events: none;
+  }
+
+  /* 未启用渠道降低饱和度 */
+  .pc-card:not(.pc-card--enabled) {
+    filter: saturate(0.75);
+    opacity: 0.85;
+  }
+}
+
+/* ============================================================
+   §10 全局 —— 标题渐变下划线 + 空态装饰
+   ⚠️ 下划线用 padding-bottom 撑开空间，防止和下方内容挤压
+   ============================================================ */
+
+@media (max-width: 640px) {
+  .handover-header .title-l,
+  .incident-header .title-l,
+  .care-record-header .title-l,
+  .bed-list-header .title-l,
+  .ehr-header .title-l,
+  .pc-header .title-l {
+    position: relative;
+    padding-bottom: 10px;
+  }
+  .handover-header .title-l::after,
+  .incident-header .title-l::after,
+  .care-record-header .title-l::after,
+  .bed-list-header .title-l::after,
+  .ehr-header .title-l::after,
+  .pc-header .title-l::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 36px;
+    height: 3px;
+    border-radius: 3px;
+    background: var(--gradient-accent);
+    box-shadow: 0 2px 6px rgba(20, 184, 166, 0.25);
+  }
+
+  /* 空态背景 */
+  .empty {
+    background: linear-gradient(180deg, rgba(240, 251, 251, 0.5) 0%, transparent 100%);
+    border-radius: var(--r-m, 12px);
+  }
+}
+
+/* ============================================================
+   §11 prefers-reduced-motion 降级
+   ============================================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  .progress-bar,
+  .ehr-card-hint,
+  .pt-cards .pt-card,
+  .task-check.done,
+  .task-check.abnormal {
+    animation: none !important;
+  }
+}
