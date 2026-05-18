@@ -22,6 +22,7 @@ function makeRouter() {
       { path: '/handovers', component: { template: '<div>handovers-stub</div>' } },
       { path: '/incidents', component: { template: '<div>incidents-stub</div>' } },
       { path: '/care-records', component: { template: '<div>care-records-stub</div>' } },
+      { path: '/payment-channels', component: { template: '<div>payment-channels-stub</div>' } },
       { path: '/showcase', component: { template: '<div>showcase-stub</div>' } },
     ],
   })

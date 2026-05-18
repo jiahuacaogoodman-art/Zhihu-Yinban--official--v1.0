@@ -48,6 +48,7 @@ from typing import Any
 
 from loguru import logger
 
+from app.services import db as _db
 from app.services.branching import ensure_branching_columns
 
 
@@ -84,17 +85,11 @@ class AuditLog:
             ensure_branching_columns(c, full=(), branch_only=("audit_log",))
 
     def _conn(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(
-            self._path,
-            check_same_thread=False,
-            isolation_level=None,
-        )
-        conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute("PRAGMA synchronous=NORMAL")
-        conn.row_factory = sqlite3.Row
-        return conn
+        # 统一走 db.connect()：自带 PRAGMA busy_timeout=5000
+        return _db.connect(self._path)
 
     # ── 写 ──────────────────────────────────────────────────
+    @_db.with_db_retry(max_attempts=3)
     def log(
         self,
         action: str,

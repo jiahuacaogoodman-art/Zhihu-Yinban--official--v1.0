@@ -130,6 +130,25 @@ def _retrieve_context(collection, embedding_function, patient_id: str, query: st
     return legacy_context_string(evidence)
 
 
+async def _retrieve_context_async(
+    collection, embedding_function, patient_id: str, query: str, n_results: int = 3,
+) -> str:
+    """
+    _retrieve_context 的 async 版本。
+
+    检索本身是 CPU/IO 密集的同步代码（Chroma + sentence-transformers），直接
+    在 async 路由里调会阻塞 event loop。这个 wrapper 把它丢到默认线程池，
+    让单 worker 部署里 RAG 慢的时候健康检查 / 登录 / 缴费都不被拖死。
+    """
+    retriever = HybridRetriever(collection, embedding_function)
+    evidence = await retriever.retrieve_async(
+        patient_id=patient_id, query=query, top_k=max(n_results, 3),
+    )
+    if not evidence:
+        return f"（未检索到 patient_id='{patient_id}' 的相关档案，请先录入档案）"
+    return legacy_context_string(evidence)
+
+
 def _retrieve_evidence(
     collection,
     embedding_function,
@@ -474,7 +493,8 @@ async def optimize_prompt(payload: PromptOptimizeRequest):
     logger.info(f"提示词优化: patient_id={payload.patient_id}")
 
     try:
-        context = _retrieve_context(
+        # async 版本：检索期间 event loop 不被 Chroma + ST encode 阻塞
+        context = await _retrieve_context_async(
             collection, embedding_function,
             payload.patient_id, payload.raw_symptom, n_results=3
         )
@@ -993,7 +1013,7 @@ def _build_task_card(payload: TaskCardGenerateRequest, context: str) -> dict:
 async def generate_task_card(payload: TaskCardGenerateRequest):
     collection, embedding_function = _get_state()
     try:
-        context = _retrieve_context(
+        context = await _retrieve_context_async(
             collection,
             embedding_function,
             payload.patient_id,

@@ -4,6 +4,7 @@ local_ehr_uploads/
 local_auth/
 local_audit_log/
 local_nursing_events/
+local_backups/
 
 # Python venvs / caches
 __pycache__/

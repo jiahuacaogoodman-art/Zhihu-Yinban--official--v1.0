@@ -29,6 +29,7 @@ from typing import Optional
 
 from loguru import logger
 
+from app.services import db as _db
 from app.services.branching import ensure_branching_columns
 
 
@@ -436,12 +437,8 @@ class CareStore:
                 raise
 
     def _connect(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(self._path, check_same_thread=False, isolation_level=None)
-        conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute("PRAGMA synchronous=NORMAL")
-        conn.execute("PRAGMA foreign_keys=ON")
-        conn.row_factory = sqlite3.Row
-        return conn
+        # 统一走 db.connect()：自带 PRAGMA busy_timeout=5000
+        return _db.connect(self._path, foreign_keys=True)
 
     @staticmethod
     def _now() -> str:
@@ -523,6 +520,7 @@ class CareStore:
                 raise ValueError(f"床位编号 '{data.get('bed_number')}' 已存在")
         return self.get_bed(bed_id)
 
+    @_db.with_db_retry()
     def assign_bed(self, bed_id: str, patient_id: str, patient_name: str = "") -> Optional[dict]:
         now = self._now()
         with self._lock, self._connect() as conn:
@@ -544,6 +542,7 @@ class CareStore:
             conn.execute("COMMIT")
         return self.get_bed(bed_id)
 
+    @_db.with_db_retry()
     def release_bed(self, bed_id: str) -> Optional[dict]:
         now = self._now()
         with self._lock, self._connect() as conn:
@@ -683,6 +682,7 @@ class CareStore:
     # ================================================================
     # 交接班
     # ================================================================
+    @_db.with_db_retry()
     def create_handover(self, data: dict) -> dict:
         handover_id = self._gen_id("hov")
         now = self._now()
@@ -742,6 +742,7 @@ class CareStore:
     # ================================================================
     # 异常事件上报
     # ================================================================
+    @_db.with_db_retry()
     def create_incident(self, data: dict) -> dict:
         incident_id = self._gen_id("inc")
         now = self._now()
@@ -837,6 +838,7 @@ class CareStore:
     # ================================================================
     # 护理记录留痕
     # ================================================================
+    @_db.with_db_retry()
     def create_care_record(self, data: dict) -> dict:
         record_id = self._gen_id("rec")
         now = self._now()
@@ -892,6 +894,7 @@ class CareStore:
             (admission_id, self._now(), action, operator, detail),
         )
 
+    @_db.with_db_retry()
     def create_admission(self, data: dict, operator: str = "") -> dict:
         admission_id = self._gen_id("adm")
         now = self._now()
@@ -1081,6 +1084,7 @@ class CareStore:
         return [dict(r) for r in rows]
 
     # ── 缴费 ──
+    @_db.with_db_retry()
     def create_payment(self, admission_id: str, data: dict, operator: str = "") -> dict:
         payment_id = self._gen_id("pay")
         now = self._now()
@@ -1126,6 +1130,7 @@ class CareStore:
         return [dict(r) for r in rows]
 
     # ── 办理入住（原子操作：床位分配 + 状态更新在同一事务内） ──
+    @_db.with_db_retry()
     def move_in(self, admission_id: str, bed_id: str, care_level_key: Optional[str] = None,
                 patient_id: Optional[str] = None, admission_date: Optional[str] = None,
                 operator: str = "") -> Optional[dict]:
@@ -1189,6 +1194,7 @@ class CareStore:
         return self.get_admission(admission_id)
 
     # ── 离院（原子操作：状态更新 + 床位释放 + 财务数据在同一事务内） ──
+    @_db.with_db_retry()
     def discharge(self, admission_id: str, data: dict, operator: str = "") -> Optional[dict]:
         now = self._now()
         admission = self.get_admission(admission_id)
