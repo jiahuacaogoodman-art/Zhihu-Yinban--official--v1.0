@@ -13,6 +13,7 @@
 """
 from __future__ import annotations
 
+import asyncio
 import re
 import math
 from collections import Counter
@@ -328,6 +329,50 @@ class HybridRetriever:
                 },
             ))
         return out
+
+    async def retrieve_async(
+        self,
+        patient_id: str,
+        query: str,
+        top_k: int = 5,
+        dense_k: int = 12,
+        bm25_k: int = 12,
+        rrf_k: int = 60,
+        include_source_types: Iterable[str] | None = None,
+        exclude_source_types: Iterable[str] | None = None,
+    ) -> list[Evidence]:
+        """
+        async 入口：把 retrieve() 整体丢到默认线程池执行。
+
+        为什么需要这个:
+          retrieve() 内部依次做：collection.get / sentence-transformers encode /
+          collection.query。每一步都是 CPU/IO 密集的同步调用,
+          直接 `def x(): retriever.retrieve(...)` 在 async 路由里跑会
+          阻塞整个 event loop——单 worker 时 RAG 一慢，所有别的
+          请求（健康检查、登录、缴费）一并卡住。
+
+          asyncio.to_thread 把它放到默认 executor（ThreadPoolExecutor，
+          默认线程数 = min(32, os.cpu_count() + 4)），event loop 在
+          检索期间还能继续接受别的请求。
+
+        BM25 的对象 + 缓存仍是进程级共享，跨线程访问由内部
+        threading.Lock 保护，所以这里不需要额外同步。
+        """
+        # 注意: include_source_types 是 Iterable，传进 to_thread 前
+        # 物化成 list，避免一次性生成器被多线程消费完
+        inc = list(include_source_types) if include_source_types is not None else None
+        exc = list(exclude_source_types) if exclude_source_types is not None else None
+        return await asyncio.to_thread(
+            self.retrieve,
+            patient_id,
+            query,
+            top_k,
+            dense_k,
+            bm25_k,
+            rrf_k,
+            inc,
+            exc,
+        )
 
 
 # ── 把证据列表变成 Prompt 引用块 ─────────────────────────────

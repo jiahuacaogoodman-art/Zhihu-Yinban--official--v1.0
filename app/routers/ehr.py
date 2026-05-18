@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import shutil
 import uuid
 from datetime import datetime
@@ -28,6 +29,7 @@ from app.models.schemas import (
     EHRListResponse, EHRRecord
 )
 from app.services.ocr_service import LocalOCRService
+from app.services.file_store import get_file_store
 
 router = APIRouter()
 ocr_service = LocalOCRService()
@@ -47,7 +49,9 @@ META_FIELDS = [
     "primary_nurse", "medical_history", "allergy", "diet_restriction", "notes", "doc_type",
     "record_type", "original_filename", "stored_filename", "file_path", "file_url",
     "ocr_text_path", "ocr_status", "ocr_engine", "ocr_error", "uploaded_at",
-    "content_type", "file_size", "manual_text"
+    "content_type", "file_size", "manual_text",
+    # CAS 元数据 (Phase 1.2 起): 存储原图的 sha256 用于完整性校验和备份对账
+    "file_sha256",
 ]
 
 PROFILE_DOC_TYPE = "patient_profile"
@@ -406,6 +410,7 @@ async def upload_medical_records(
 
     patient_name = name or _find_patient_name(collection, patient_id) or ""
     root = _patient_upload_dir(patient_id)
+    file_store = get_file_store(EHR_UPLOAD_DIR)
     saved = []
     max_bytes = MAX_UPLOAD_SIZE_MB * 1024 * 1024
 
@@ -420,18 +425,27 @@ async def upload_medical_records(
             raise HTTPException(status_code=413, detail=f"单个文件不能超过 {MAX_UPLOAD_SIZE_MB}MB")
 
         doc_id = f"{patient_id}_record_{uuid.uuid4().hex[:10]}"
-        stored_name = f"{doc_id}{suffix}"
-        photo_path = root / "photos" / stored_name
-        with open(photo_path, "wb") as f:
-            f.write(content)
 
-        ocr = ocr_service.extract_text(photo_path)
+        # ── CAS: 内容寻址写入 ─────────────────────────
+        # 同内容自动 dedup（同一份化验单被两个老人上传时只占一份磁盘空间）；
+        # sha256 存进 metadata，后续冷备恢复后能逐条校验文件完整性。
+        # FileStore.put() 是同步 IO，丢到线程池避免阻塞 event loop。
+        stored = await asyncio.to_thread(
+            file_store.put, content, suffix=suffix,
+        )
+        photo_path = stored.path
+        rel_file_url = stored.rel_url
+        stored_name = photo_path.name
+
+        # OCR 文本仍按 patient 维度存放，方便人工排查; OCR 是 CPU 密集，同样上线程池
+        ocr = await asyncio.to_thread(ocr_service.extract_text, photo_path)
         uploaded_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         ocr_txt_name = f"{doc_id}.txt"
         ocr_txt_path = root / "ocr" / ocr_txt_name
+        ocr_txt_path.parent.mkdir(parents=True, exist_ok=True)
         ocr_txt_path.write_text(ocr.text or "", encoding="utf-8")
 
-        rel_file_url = f"/uploads/{_safe_filename(patient_id)}/photos/{stored_name}"
+        rel_file_url = stored.rel_url
         meta = {
             "patient_id": patient_id,
             "name": patient_name,
@@ -443,6 +457,7 @@ async def upload_medical_records(
             "stored_filename": stored_name,
             "file_path": str(photo_path),
             "file_url": rel_file_url,
+            "file_sha256": stored.sha256,           # ← CAS 完整性校验依据
             "ocr_text_path": str(ocr_txt_path),
             "ocr_status": ocr.status,
             "ocr_engine": ocr.engine,
@@ -456,8 +471,10 @@ async def upload_medical_records(
         try:
             _add_document_to_collection(collection, embedding_function, doc_id, document, metadata)
         except Exception:
-            # 保持事务性：向量库写失败则删除已保存文件。
-            photo_path.unlink(missing_ok=True)
+            # 保持事务性：向量库写失败时回滚副作用文件。
+            # 注意：CAS 物理文件可能被其他记录共享（同 sha 的去重命中），
+            # 不能直接 unlink。这里只删 OCR txt（一对一），CAS 物理文件
+            # 留待后续基于引用计数的清理流程（不在本 PR 范围）。
             ocr_txt_path.unlink(missing_ok=True)
             raise
 
