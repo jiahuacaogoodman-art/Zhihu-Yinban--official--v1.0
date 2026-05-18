@@ -24,17 +24,16 @@
 
 <p align="center">
   <a href="#-功能总览">功能总览</a> ·
-  <a href="#-前端架构-v2">前端架构</a> ·
+  <a href="#-前端架构">前端架构</a> ·
   <a href="#-快速开始">快速开始</a> ·
   <a href="#-配置说明">配置说明</a> ·
   <a href="#-api-参考">API 参考</a> ·
-  <a href="#-系统架构">架构</a> ·
-  <a href="#-重构路线图">路线图</a>
+  <a href="#-系统架构">架构</a>
 </p>
 
 ---
 
-## 🌱 为什么做这个
+## 为什么做这个
 
 基层养老院面对的真实矛盾是：
 
@@ -46,107 +45,97 @@
 
 ---
 
-## ✨ 功能总览
+## 功能总览
 
 ### 核心业务
 
 | 模块 | 功能 | 说明 |
 |---|---|---|
-| **老人档案管理** | 增删改查 | 21 个字段（姓名、年龄、病史、过敏、床位、护理等级等） |
-| **床位管理** | 分配/释放/状态筛选 | 按楼栋/状态查看，实时统计空闲/占用 |
-| **病历照片 OCR** | 上传 → 本地识别 → 向量化 | RapidOCR (ONNX) + Tesseract 双引擎，纯本地运行 |
 | **AI 护理决策** | 混合检索 + LLM 推理 | Dense + BM25 + RRF 融合，带源类型加权和引用标注 |
 | **护理任务卡** | 结构化 JSON 输出 | 可打卡清单 + 复测计划 + 禁止事项 + SBAR 交接单 |
+| **老人档案管理** | 增删改查 | 21 个字段（姓名、年龄、病史、过敏、床位、护理等级等） |
+| **病历照片 OCR** | 上传 → 本地识别 → 向量化 | RapidOCR (ONNX) + Tesseract 双引擎，纯本地运行 |
+| **床位管理** | 分配/释放/状态筛选 | 按楼栋/状态查看，实时统计空闲/占用 |
 | **SBAR 交接班** | 结构化记录 + 确认流程 | Situation / Background / Assessment / Recommendation |
 | **异常事件上报** | 4 级严重度 + 全流程跟踪 | 跌倒/误吸/走失，从上报到根因分析全程可追溯 |
 | **护理记录** | 8 大类留痕 | 生命体征/用药/饮食/活动/观察/特护 |
+| **缴费管理** | 总览/记录/到期提醒/收费标准 | 续费 + 微信扫码收款 |
 | **决策记忆 (L4)** | 自动写回 + 结果回填 | AI 看得到"上次对同一个老人怎么处理、效果如何" |
-| **SSE 流式输出** | 逐 token 推送 | 护工端实时看到生成过程 |
+| **SSE 流式输出** | 逐 token 推送 | 实时看到 AI 生成过程 |
 
 ### 安全与合规
 
 | 模块 | 说明 |
 |---|---|
-| **多用户认证** | admin / nurse / caregiver 三种角色 + 多 API Key |
+| **多用户认证** | admin / nurse / caregiver 三种角色 + 自定义角色 + 多 API Key |
 | **PII 字段加密** | Fernet 对称加密 10 个高敏字段（写入前自动加密） |
 | **操作审计日志** | 全部写操作留痕，带 diff 且 PII 自动脱敏 |
-| **占位符写回防御** | 密钥缺失时拒绝写入，防止解密失败污染数据库 |
+| **用户/角色管理** | 可视化配置角色与权限点 |
 
 ---
 
-## 🖥️ 前端架构 (v2)
+## 前端架构
 
-> 基于 [docs/FRONTEND_REFACTOR_RFC.md](./docs/FRONTEND_REFACTOR_RFC.md) (PR #8) 完成的 **6 阶段渐进式重构**。
+统一的单页应用（SPA），管理端和护工端合并在同一个入口，不再分散。
 
 ### 技术栈
 
-| 层 | 选型 | 说明 |
+| 层 | 选型 |
+|---|---|
+| 构建 | Vite 6 — 单入口 code-split，< 2s 冷构建 |
+| 框架 | Vue 3.5 + Composition API + TypeScript 5.7 |
+| 路由 | vue-router 4 (history mode，懒加载) |
+| 状态 | Pinia (setup store) |
+| 动效 | anime.js 4.4（仅 Landing 页） |
+| 设计系统 | tokens.css + glass.css + ui.css + mobile.css |
+| 测试 | Vitest + @vue/test-utils (16 个冒烟测试) |
+
+### 页面清单
+
+| 路径 | 页面 | 说明 |
 |---|---|---|
-| 构建 | **Vite 6** | 多入口 (管理端 + 护工端)，code-split，< 2s 冷启动 |
-| 框架 | **Vue 3.5** + Composition API | `<script setup>` + TypeScript |
-| 路由 | **vue-router 4** | history 模式，懒加载 |
-| 状态 | **Pinia** | setup store 语法 |
-| 类型 | **TypeScript 5.7** | vue-tsc strict typecheck |
-| 动效 | **anime.js 4.4** | 逐字入场 / 数字滚动 / stagger / timeline / 粒子系统 |
-| 设计系统 | `tokens.css` + `glass.css` + `ui.css` + `mobile.css` | 0 改动复用旧版 |
-| 测试 | **Vitest** + @vue/test-utils | 15 个冒烟测试 |
+| `/` | Landing | 首页（anime.js 动效） |
+| `/login` | Login | Token 登录 |
+| `/nursing-decision` | AI 护理建议 | 选老人 → 输入症状 → SSE 流式建议 + 决策记忆 + 结果回填 |
+| `/ehr/add` | 录入档案 | 21 字段完整表单 |
+| `/ehr` | 患者档案 | 老人列表 + 详情 + 导出 |
+| `/ehr/upload` | 病历上传 | 多图 OCR 上传 + 已上传列表管理 |
+| `/beds` | 床位管理 | 分配/释放/状态筛选 |
+| `/handovers` | 交接班 | SBAR 结构化记录 |
+| `/incidents` | 异常事件 | 上报 + 跟踪 |
+| `/care-records` | 护理记录 | 8 大类留痕 |
+| `/billing` | 缴费管理 | 总览/记录/到期提醒/收费标准/续费 |
+| `/payment-channels` | 支付渠道 | 微信支付配置 |
+| `/users` | 用户管理 | 创建用户 + 签发 Token + 角色权限 |
+| `/audit` | 审计日志 | 按操作类型/patient_id 筛选 |
+| `/nurse` | 护工端-老人列表 | 移动端优先的老人列表 |
+| `/nurse/patient/:id` | 护工端-患者详情 | 症状输入 + 任务卡生成 + 打卡执行 |
 
 ### 目录结构
 
 ```
 frontend/
-├── index.html              ← 管理端入口
-├── nurse.html              ← 护工端入口
-├── vite.config.ts          ← 多入口 rollup 配置
-├── vitest.config.ts
-├── tsconfig.json
-├── package.json            ← vue 3 + vue-router + pinia + animejs
-└── src/
-    ├── main.ts             ← 管理端 bootstrap
-    ├── nurse-main.ts       ← 护工端 bootstrap
-    ├── App.vue             ← 管理端 layout (sidebar + router-view)
-    ├── router/index.ts     ← 管理端路由 (history mode)
-    ├── nurse-router/       ← 护工端路由 (history mode, base=/nurse)
-    ├── stores/             ← Pinia stores (beds, auth)
-    ├── api/                ← typed fetch client + types
-    ├── components/         ← 6 个基础组件 (GlassPanel/Btn/Field/Chip/Dialog/Toast)
-    ├── composables/        ← useToast 等
-    ├── views/              ← 管理端视图 (Landing/BedList/EhrList/Handovers/...)
-    ├── nurse-views/        ← 护工端视图 (NurseApp/PatientList/PatientDetail)
-    └── __tests__/          ← Vitest 冒烟测试
+├── index.html               ← 唯一入口
+├── vite.config.ts           ← 单入口构建
+├── src/
+│   ├── main.ts              ← bootstrap
+│   ├── App.vue              ← 统一 layout (侧栏 + 底部 tab + 抽屉)
+│   ├── router/index.ts      ← 全部路由
+│   ├── stores/              ← Pinia stores (beds, auth)
+│   ├── api/                 ← typed fetch client
+│   ├── components/          ← 6 个基础组件
+│   ├── composables/         ← useToast / useMediaQuery / useViewport ...
+│   ├── views/               ← 14 个页面视图
+│   ├── nurse-views/         ← 护工端视图 (PatientList + PatientDetail)
+│   └── __tests__/           ← Vitest 冒烟测试
+└── package.json
 ```
-
-### 6 个基础组件
-
-| 组件 | 对应 ui.css | Props |
-|---|---|---|
-| `GlassPanel` | 通用玻璃容器 | variant: panel / card |
-| `Btn` | `.btn-*` | variant, size, loading, disabled |
-| `Field` | `.field` + `.field-group` | v-model, label, type, hint, error |
-| `Chip` | `.chip-*` | tone: neutral / accent / danger / warning / success / info |
-| `Dialog` | `.dialog-ov` + `.dialog` | v-model, title, ESC/overlay close |
-| `Toast` | `.toast-wrap` | `useToast().push({ tone, text })` |
-
-### Landing 页动效 (anime.js v4)
-
-打开 `/` 即可看到：
-
-1. **Hero 标题**逐字 `rotateX(-90° → 0)` + 渐变扫光循环
-2. **18 个飘浮粒子**随机路径 + spring 永动
-3. **数字看板**从 0 滚动到目标值 (anime `onUpdate`)
-4. **6 张功能卡** `outBack` stagger 入场 (IntersectionObserver)
-5. **路线图** `scaleX` 连线 + 节点 pop-in
-6. **CTA 卡片** `outExpo` 上浮
-
-所有动画用 `createScope()` 管理，组件卸载时 `revert()` 清理；`prefers-reduced-motion` 用户仅淡入。
 
 ---
 
-## 🚀 快速开始
+## 快速开始
 
-### 一键部署（3 行搞定）
-
-#### 🐧 Linux / 🍎 macOS
+### 一键部署
 
 ```bash
 git clone https://github.com/jiahuacaogoodman-art/Zhihu-Yinban--official--v1.0.git
@@ -154,7 +143,7 @@ cd Zhihu-Yinban--official--v1.0
 chmod +x scripts/setup.sh && ./scripts/setup.sh
 ```
 
-#### 🪟 Windows (PowerShell)
+Windows PowerShell：
 
 ```powershell
 git clone https://github.com/jiahuacaogoodman-art/Zhihu-Yinban--official--v1.0.git
@@ -164,13 +153,12 @@ powershell -ExecutionPolicy Bypass -File .\scripts\setup.ps1
 
 约 10 分钟后看到 `部署成功！` + 管理员 Token。
 
-| 页面 | 地址 | 说明 |
-|---|---|---|
-| 首页 (Landing) | http://localhost:8000/ | anime.js 动效展示页 |
-| 管理端 | http://localhost:8000/#/beds | 登录后进入 |
-| 护工端 | http://localhost:8000/nurse | 移动端优先 |
-| 旧版 (fallback) | http://localhost:8000/legacy | 保留入口 |
-| 健康检查 | http://localhost:8000/health | k8s/systemd 探针 |
+| 页面 | 地址 |
+|---|---|
+| 首页 | http://localhost:8000/ |
+| AI 护理建议 | http://localhost:8000/nursing-decision |
+| 护工端 | http://localhost:8000/nurse |
+| 健康检查 | http://localhost:8000/health |
 
 ### 前端开发
 
@@ -179,13 +167,13 @@ cd frontend
 npm install
 npm run dev          # http://localhost:5173，api 自动 proxy 到 8000
 npm run typecheck    # vue-tsc strict
-npm run test         # vitest (15 cases)
-npm run build        # 产物 → ../static/v2/ (index.html + nurse.html)
+npm run test         # vitest (16 cases)
+npm run build        # 产物 → ../static/v2/index.html
 ```
 
 ---
 
-## ⚙️ 配置说明
+## 配置说明
 
 所有配置通过 `.env` 或环境变量设置：
 
@@ -209,178 +197,91 @@ npm run build        # 产物 → ../static/v2/ (index.html + nurse.html)
 
 ---
 
-## 🔌 API 参考
+## API 参考
 
 所有接口在 `/api/*` 下，请求头需带 `X-Auth-Token`。
 
-### 认证 `/api/auth/*`
-
-| 方法 | 路径 | 说明 |
-|---|---|---|
-| `GET` | `/api/auth/me` | 当前身份 |
-| `POST` | `/api/auth/users` | 创建用户 (admin) |
-| `POST` | `/api/auth/tokens` | 签发 API Key (admin) |
-
-### 档案 `/api/ehr/*`
-
-| 方法 | 路径 | 说明 |
-|---|---|---|
-| `POST` | `/api/ehr/patients` | 新增老人 |
-| `GET` | `/api/ehr/patients` | 列出所有老人 |
-| `POST` | `/api/ehr/records/upload` | 上传病历照片 (OCR) |
-| `GET` | `/api/ehr/audit` | 审计日志 (admin) |
-
-### 床位 `/api/beds`
-
-| 方法 | 路径 | 说明 |
-|---|---|---|
-| `GET` | `/api/beds` | 列表 + 筛选 |
-| `POST` | `/api/beds/{id}/assign` | 分配 |
-| `POST` | `/api/beds/{id}/release` | 释放 |
-
-### 护理决策 `/api/nursing/*`
-
-| 方法 | 路径 | 说明 |
-|---|---|---|
-| `POST` | `/api/nursing/decision` | RAG 推理 (引用 + 记忆) |
-| `POST` | `/api/nursing/decision/stream` | SSE 流式 |
-| `POST` | `/api/nursing/taskcard` | 生成护理任务卡 |
-| `PATCH` | `/api/nursing/decisions/{id}/outcome` | 回填执行结果 |
-
-### 交接班 / 事件 / 记录
-
-| 路径 | 说明 |
-|---|---|
-| `/api/handovers` | SBAR 交接班 |
-| `/api/incidents` | 异常事件上报 |
-| `/api/care-records` | 护理记录留痕 |
-| `/api/care-levels` | 护理等级定义 |
+| 模块 | 方法 | 路径 | 说明 |
+|---|---|---|---|
+| 认证 | `GET` | `/api/auth/me` | 当前身份 |
+| 认证 | `POST` | `/api/auth/users` | 创建用户 (admin) |
+| 认证 | `POST` | `/api/auth/tokens` | 签发 API Key |
+| 认证 | `GET` | `/api/auth/roles` | 角色列表 |
+| 认证 | `GET` | `/api/auth/permissions` | 权限点清单 |
+| 档案 | `POST` | `/api/ehr/patients` | 新增老人 |
+| 档案 | `GET` | `/api/ehr/patients` | 列出所有老人 |
+| 档案 | `PUT` | `/api/ehr/patients/{id}` | 编辑老人 |
+| 档案 | `DELETE` | `/api/ehr/patients/{id}` | 删除老人 |
+| 档案 | `POST` | `/api/ehr/records/upload` | 上传病历照片 (OCR) |
+| 档案 | `GET` | `/api/ehr/records/{pid}` | 查看已上传病历 |
+| 档案 | `GET` | `/api/ehr/audit` | 审计日志 (admin) |
+| 床位 | `GET` | `/api/beds` | 列表 + 筛选 |
+| 床位 | `POST` | `/api/beds` | 新增床位 |
+| 床位 | `POST` | `/api/beds/{id}/assign` | 分配 |
+| 床位 | `POST` | `/api/beds/{id}/release` | 释放 |
+| 护理 | `POST` | `/api/nursing/decision` | RAG 推理 |
+| 护理 | `POST` | `/api/nursing/decision/stream` | SSE 流式 |
+| 护理 | `POST` | `/api/nursing/taskcard` | 生成护理任务卡 |
+| 护理 | `GET` | `/api/nursing/decisions` | 决策记忆列表 |
+| 护理 | `PATCH` | `/api/nursing/decisions/{id}/outcome` | 回填执行结果 |
+| 交接 | `POST/GET` | `/api/handovers` | SBAR 交接班 |
+| 事件 | `POST/GET` | `/api/incidents` | 异常事件上报 |
+| 记录 | `POST/GET` | `/api/care-records` | 护理记录 |
+| 缴费 | `GET` | `/api/billing/overview` | 缴费总览 |
+| 缴费 | `GET` | `/api/billing/records` | 缴费记录 |
+| 缴费 | `GET` | `/api/billing/alerts` | 到期提醒 |
+| 缴费 | `POST` | `/api/billing/renew` | 续费 |
+| 支付 | `GET` | `/api/payment/channels` | 支付渠道配置 |
 
 ---
 
-## 🧱 系统架构
+## 系统架构
 
 ```
-                    ┌──────────────────────────────────────────────────────────────┐
-                    │                     FastAPI + Uvicorn                        │
- 管理端 (Vue 3 SPA)│  /api/auth/*  /api/ehr/*  /api/nursing/*  /api/beds/*       │
- 护工端 (Vue 3 SPA)│  /api/handovers  /api/incidents  /api/care-records          │
- Landing (anime.js)│                                                              │
-                    └─────────┬──────────────┬──────────────┬─────────────────────┘
-                              │              │              │
-                              ▼              ▼              ▼
-                    ┌──────────────┐  ┌──────────┐  ┌──────────────────┐
-                    │HybridRetriever│  │ OCR 服务  │  │  Ollama (本地)    │
-                    │Dense+BM25+RRF│  │RapidOCR  │  │  HuatuoGPT-o1-7B │
-                    └──────┬───────┘  │Tesseract │  │  JSON 任务卡      │
-                           │          └────┬─────┘  └──────┬───────────┘
-                           ▼               ▼               ▼
-              ┌─────────────────────────────────────────────────────────┐
-              │  ChromaDB (本地磁盘) — patient / medical / decision     │
-              ├─────────────────────────────────────────────────────────┤
-              │  SQLite (WAL)                                           │
-              │    users.db · audit.db · events.db · care_store.db     │
-              └─────────────────────────────────────────────────────────┘
-                           ↑
-                 PII 加密层 (Fernet) — 写入前加密 / 读出后解密
-
-              ┌─────────────────────────────────────────────────────────┐
-              │  前端构建 (Vite 6 多入口)                                │
-              │    index.html → Vue 3 管理端 SPA                        │
-              │    nurse.html → Vue 3 护工端 SPA                        │
-              │    共享: vue / vue-router / pinia / components chunk    │
-              │    动效: anime.js 4.4 (仅 Landing 页 code-split)        │
-              └─────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────┐
+│              Vue 3 统一 SPA (Vite 6 构建)                │
+│   管理端 14 页 + 护工端 2 页  │  anime.js Landing 动效   │
+└──────────────────────┬──────────────────────────────────┘
+                       │ fetch /api/*
+                       ▼
+┌─────────────────────────────────────────────────────────┐
+│              FastAPI + Uvicorn (main.py)                  │
+│   14 个 Router 模块  │  Auth 中间件  │  SSE 流式         │
+└───────┬──────────────┬──────────────┬───────────────────┘
+        │              │              │
+        ▼              ▼              ▼
+┌────────────┐  ┌──────────┐  ┌──────────────────┐
+│  检索引擎   │  │ OCR 服务  │  │  Ollama (本地)    │
+│Dense+BM25  │  │RapidOCR  │  │  HuatuoGPT-o1-7B │
+│+RRF 融合   │  │Tesseract │  │  JSON 任务卡      │
+└─────┬──────┘  └────┬─────┘  └──────┬───────────┘
+      │               │               │
+      ▼               ▼               ▼
+┌─────────────────────────────────────────────────────────┐
+│  ChromaDB (本地磁盘) — patient / medical / decision      │
+├─────────────────────────────────────────────────────────┤
+│  SQLite (WAL) — users / audit / events / care_store      │
+└─────────────────────────────────────────────────────────┘
+                 ↑
+       PII 加密层 (Fernet)
 ```
 
-### 完整技术栈
-
-| 层 | 选型 | 用途 |
-|---|---|---|
-| **前端构建** | Vite 6 | 多入口 code-split，< 2s 冷构建 |
-| **前端框架** | Vue 3.5 + TypeScript 5.7 | 组件化 SPA |
-| **状态管理** | Pinia | setup store |
-| **路由** | vue-router 4 | history mode |
-| **动效** | anime.js 4.4 | Landing 页 5 层动画 |
-| **测试** | Vitest + @vue/test-utils | 15 冒烟测试 |
-| **后端框架** | FastAPI + Uvicorn | REST + SSE + 静态托管 |
-| **数据校验** | Pydantic v2 | 请求/响应 Schema |
-| **向量库** | ChromaDB | 档案 / 病历 / 决策日志 |
-| **Embedding** | `BAAI/bge-small-zh-v1.5` | 中文轻量，CPU 可跑 |
-| **OCR** | RapidOCR → Tesseract 兜底 | 病历照片文字识别 |
-| **LLM** | Ollama + HuatuoGPT-o1-7B | 护理建议 / 任务卡 |
-| **加密** | cryptography (Fernet) | PII 字段透明加密 |
-| **存储** | SQLite WAL | 用户/审计/事件 |
-| **容器** | Docker 多阶段构建 | node:20-alpine(前端) + python:3.11-slim(后端) |
-
----
-
-## 📁 目录结构
+### 后端目录
 
 ```
-.
-├── frontend/                       # ← 新 v2 前端 (Vite + Vue 3 + TS)
-│   ├── src/
-│   │   ├── components/            # 6 个基础组件
-│   │   ├── views/                 # 管理端 8 个视图 (Landing/Login/Beds/...)
-│   │   ├── nurse-views/           # 护工端 3 个视图
-│   │   ├── stores/                # Pinia (beds, auth)
-│   │   ├── api/                   # typed fetch + types
-│   │   ├── router/                # 管理端路由
-│   │   ├── nurse-router/          # 护工端路由
-│   │   └── composables/           # useToast
-│   ├── index.html                 # 管理端入口
-│   ├── nurse.html                 # 护工端入口
-│   └── vite.config.ts             # 多入口构建
-├── app/
-│   ├── core/config.py             # 配置
-│   ├── middleware/auth.py         # 三模式鉴权
-│   ├── models/                    # Pydantic schemas
-│   ├── routers/                   # 14 个路由模块
-│   └── services/                  # 16 个服务模块
-├── static/
-│   ├── design/                    # 设计系统 (tokens/glass/ui/mobile.css)
-│   ├── v2/                        # ← Vite 构建产物 (不进 git)
-│   ├── index.html                 # 旧版管理端 → /legacy
-│   ├── nurse.html                 # 旧版护工端 → /legacy/nurse
-│   └── billing.html               # 旧版缴费端 → /legacy/billing
-├── data/protocols.yaml            # 护理协议模板
-├── docs/FRONTEND_REFACTOR_RFC.md  # 前端重构 RFC
-├── main.py                        # 后端入口 (Phase 6 路由)
-├── Dockerfile                     # 三阶段构建 (node → python → runtime)
-├── docker-compose.yml
-└── .env.example
+app/
+├── core/config.py             # 环境变量 → 配置常量
+├── middleware/auth.py         # 三模式鉴权 (token / user / disabled)
+├── models/                    # Pydantic v2 请求/响应 Schema
+├── routers/                   # 14 个路由模块 (每个模块 < 120 行)
+└── services/                  # 业务逻辑层 (DB / OCR / LLM / 加密 / 检索)
 ```
 
 ---
 
-## 🗺️ 重构路线图
+## 生产部署
 
-基于 [FRONTEND_REFACTOR_RFC.md](./docs/FRONTEND_REFACTOR_RFC.md) (PR #8) 的 6 阶段计划，**全部完成**：
-
-| Phase | PR | 内容 | 状态 |
-|-------|----|----|------|
-| 1 — Vite 骨架 | [#9](../../pull/9) | Vite + Vue 3 + TS + CI + `/v2/` 占位页 | ✅ |
-| 2 — 设计系统 | [#10](../../pull/10) | 6 基础组件，0 改动包装 ui.css | ✅ |
-| 3 — 试点视图 | [#11](../../pull/11) | vue-router + pinia + api client + 床位管理 | ✅ |
-| 4 — 全量迁移 | [#12](../../pull/12) | EHR / 交接班 / 事件 / 护理记录 + auth 守卫 | ✅ |
-| 5 — 护工端 | [#14](../../pull/14) | 多入口构建 + PatientList + PatientDetail + 任务卡 | ✅ |
-| 6 — 旧版退役 | [#15](../../pull/15) | / → v2 SPA，旧版降到 /legacy/ | ✅ |
-| 华丽 Landing | [#13](../../pull/13) | anime.js v4 动效展示页 | ✅ |
-
-### 关键不变量 (贯穿 6 个阶段)
-
-- ❌ 不重写后端、不动 API 契约
-- ❌ 不修改 `sw.js` 缓存策略（只增不改）
-- ❌ 不改设计系统任何 token
-- ✅ 旧版在 `/legacy/` 永久保留
-- ✅ 任意阶段都可以独立回滚 (`git revert` 单个 commit)
-
----
-
-## 🏭 生产部署
-
-### Docker Compose (推荐)
+### Docker Compose
 
 ```bash
 cp .env.example .env
@@ -389,47 +290,40 @@ docker compose --profile ollama up -d
 ```
 
 Dockerfile 使用三阶段构建：
-1. `node:20-alpine` — `npm run build` 产出 `static/v2/`
-2. `python:3.11-slim` — 安装 pip 依赖 + Tesseract
-3. runtime — 合并两阶段产物 + 非 root 用户运行
+1. `node:20-alpine` — 前端 `npm run build` → `static/v2/`
+2. `python:3.11-slim` — 后端依赖 + Tesseract
+3. runtime — 合并产物 + 非 root 运行
 
-### 数据备份
+### GPU 加速
 
 ```bash
-# Docker 卷备份
-docker run --rm \
-  -v zhihu-yinban_ehr_db:/src/ehr_db:ro \
-  -v zhihu-yinban_auth_data:/src/auth_data:ro \
-  -v zhihu-yinban_audit_log:/src/audit_log:ro \
-  -v $(pwd):/dst alpine \
-  tar czf /dst/yinban-backup-$(date +%F).tgz -C /src .
+docker compose -f docker-compose.gpu.yml up -d
 ```
 
 ---
 
-## 🤖 本地大模型
+## 本地大模型
 
-项目默认使用 **HuatuoGPT-o1-7B** (中文医疗大模型，Q4_K_M 约 4.8 GB)：
+默认使用 **HuatuoGPT-o1-7B**（中文医疗大模型，Q4_K_M 约 4.8 GB）：
 
 ```bash
-# 方式 A：Ollama 社区直拉
 ollama pull cliu/HuatuoGPT-o1-7B:latest
-ollama cp cliu/HuatuoGPT-o1-7B:latest huatuo_o1_7b
-
-# 方式 B：换成其他模型
-echo 'OLLAMA_MODEL_NAME=qwen2.5:7b' >> .env
 ```
 
 | 量化 | 体积 | 内存需求 | 场景 |
 |---|---|---|---|
-| Q3_K_M | ~3.9 GB | 8 GB | 极省内存 |
 | Q4_K_M | ~4.8 GB | 12 GB | **推荐** |
-| Q5_K_M | ~5.5 GB | 14 GB | 质量优先 |
-| Q8_0 | ~8.2 GB | 16+ GB | 接近无损 |
+| Q8_0 | ~8.2 GB | 16+ GB | 质量优先 |
+
+换模型只需改环境变量：
+
+```bash
+echo 'OLLAMA_MODEL_NAME=qwen2.5:7b' >> .env
+```
 
 ---
 
-## ⚠️ 边界声明
+## 边界声明
 
 AI 生成的护理建议**仅供护理参考，不替代医生诊断，不构成处方**。
 涉及给药等敏感场景，系统只提示"请负责人核对医嘱"，不会直接生成剂量。
@@ -437,19 +331,18 @@ AI 生成的护理建议**仅供护理参考，不替代医生诊断，不构成
 
 ---
 
-## 📜 License
+## License
 
-本项目采用 **[PolyForm Noncommercial License 1.0.0](./LICENSE)** 授权 —— 仅允许**非商业用途**。
+**[PolyForm Noncommercial License 1.0.0](./LICENSE)** — 仅允许非商业用途。
 
-- ✅ 允许：个人学习 / 研究、教学、公益、非营利医疗机构与养老机构内部使用
-- ❌ 不允许：将本项目用于任何商业用途
-- 📮 **商业授权合作**请联系：[@jiahuacaogoodman-art](https://github.com/jiahuacaogoodman-art)
-- 🏥 **民营养老机构**如有商业合作意向：**jiahuacaogoodman@gmail.com**
+- 允许：个人学习 / 研究、教学、公益、非营利医疗机构与养老机构内部使用
+- 不允许：将本项目用于任何商业用途
+- 商业授权合作请联系：**jiahuacaogoodman@gmail.com**
 
 Copyright (c) 2026 [jiahuaCao](https://github.com/jiahuacaogoodman-art)
 
 ---
 
 <p align="center">
-  如果这个项目帮到了你，请给个 ⭐ — 这是我继续写下去的最大动力。
+  如果这个项目帮到了你，请给个 Star — 这是我继续写下去的最大动力。
 </p>
