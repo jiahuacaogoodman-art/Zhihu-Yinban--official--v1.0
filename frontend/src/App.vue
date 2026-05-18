@@ -41,6 +41,9 @@ const fullBleed = computed(() => route.meta.fullBleed === true)
         <router-link to="/care-records" class="v2-nav-item" active-class="v2-nav-active">
           护理记录
         </router-link>
+        <router-link to="/payment-channels" class="v2-nav-item" active-class="v2-nav-active">
+          支付渠道
+        </router-link>
         <router-link to="/showcase" class="v2-nav-item" active-class="v2-nav-active">
           组件展示
         </router-link>
