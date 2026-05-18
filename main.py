@@ -65,6 +65,7 @@ from app.routers import billing
 from app.routers import wechat_pay
 from app.routers import payment_channels
 from app.routers import export
+from app.routers import backup as backup_router
 from app.services.pii_crypto import is_encryption_enabled
 from app.services.user_store import UserStore
 
@@ -184,10 +185,28 @@ async def lifespan(app: FastAPI):
     else:
         logger.warning("应用以降级模式启动（RAG 不可用）— 基础功能正常")
 
+    # ── 启动备份调度器 (PR#4) ─────────────────────────
+    # 依赖：BACKUP_ENABLED + BACKUP_ENCRYPTION_KEY 必须都配置；任一缺失都会
+    # 自动降级为 disabled（不抛异常，不阻断 startup）。
+    # 调度器只是个 asyncio.Task，stop() 在 shutdown 时被调用一次。
+    try:
+        from app.services.backup_scheduler import init_scheduler, options_from_env
+        backup_options = options_from_env(BASE_DIR)
+        backup_scheduler = init_scheduler(backup_options)
+        backup_scheduler.start()
+    except Exception as e:
+        logger.error(f"备份调度器启动失败（不影响业务）: {e}")
+        backup_scheduler = None
+
     yield
 
     # --- 应用关闭时 ---
     logger.info("应用关闭中...")
+    if backup_scheduler is not None:
+        try:
+            await backup_scheduler.stop()
+        except Exception as e:
+            logger.warning(f"备份调度器关闭异常: {e}")
     app_state.clear()
     logger.info("资源已清理，应用已关闭。")
 
@@ -298,6 +317,7 @@ app.include_router(billing.router, prefix="/api", tags=["Billing Management"])
 app.include_router(wechat_pay.router, prefix="/api", tags=["WeChat Pay"])
 app.include_router(payment_channels.router, prefix="/api", tags=["Payment Channels"])
 app.include_router(export.router, prefix="/api", tags=["PDF Export"])
+app.include_router(backup_router.router, prefix="/api", tags=["Backup / Disaster Recovery"])
 
 # ----------------------------------------------------------------
 # 鉴权中间件：保护 /api/* 和 /uploads/*
