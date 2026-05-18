@@ -112,7 +112,10 @@ class PaymentChannelStore:
             is_enabled      INTEGER NOT NULL DEFAULT 0,
             config_json     TEXT NOT NULL DEFAULT '{}',
             updated_at      TEXT NOT NULL,
-            updated_by      TEXT NOT NULL DEFAULT ''
+            updated_by      TEXT NOT NULL DEFAULT '',
+            -- PR#6: 多租户 / 乐观锁 schema 准备
+            branch_id       TEXT NOT NULL DEFAULT 'main',
+            version_id      INTEGER NOT NULL DEFAULT 1
         );
     """
 
@@ -125,6 +128,9 @@ class PaymentChannelStore:
         Path(self._path).parent.mkdir(parents=True, exist_ok=True)
         with self._connect() as conn:
             conn.executescript(self._CREATE_SQL)
+            # PR#6: 老库幂等加 branch_id + version_id 列
+            from app.services.branching import ensure_branching_columns
+            ensure_branching_columns(conn, full=("payment_channels",))
             # 确保所有渠道都有记录
             for key in CHANNEL_META:
                 conn.execute(

@@ -28,6 +28,8 @@ from typing import Optional
 
 from loguru import logger
 
+from app.services.branching import ensure_branching_columns
+
 
 class BillingStore:
     """缴费管理数据统一存储层。"""
@@ -47,7 +49,10 @@ class BillingStore:
             is_active       INTEGER NOT NULL DEFAULT 1,
             sort_order      INTEGER NOT NULL DEFAULT 0,
             created_at      TEXT NOT NULL,
-            updated_at      TEXT NOT NULL
+            updated_at      TEXT NOT NULL,
+            -- PR#6: 多租户 / 乐观锁 schema 准备(routers 暂不读)
+            branch_id       TEXT NOT NULL DEFAULT 'main',
+            version_id      INTEGER NOT NULL DEFAULT 1
         );
         CREATE INDEX IF NOT EXISTS idx_fee_standards_category ON fee_standards(category);
         CREATE INDEX IF NOT EXISTS idx_fee_standards_active ON fee_standards(is_active);
@@ -70,7 +75,10 @@ class BillingStore:
             payer               TEXT NOT NULL DEFAULT '',
             paid_at             TEXT NOT NULL,
             notes               TEXT NOT NULL DEFAULT '',
-            created_at          TEXT NOT NULL
+            created_at          TEXT NOT NULL,
+            -- PR#6: 多租户 / 乐观锁 schema 准备(routers 暂不读)
+            branch_id           TEXT NOT NULL DEFAULT 'main',
+            version_id          INTEGER NOT NULL DEFAULT 1
         );
         CREATE INDEX IF NOT EXISTS idx_billing_admission ON billing_records(admission_id);
         CREATE INDEX IF NOT EXISTS idx_billing_category ON billing_records(fee_category);
@@ -89,6 +97,12 @@ class BillingStore:
         Path(self._path).parent.mkdir(parents=True, exist_ok=True)
         with self._connect() as conn:
             conn.executescript(self._CREATE_SQL)
+            # PR#6: 给老库加 branch_id (+ version_id) 列;新库的 _CREATE_SQL
+            # 里也声明了同名列,这里是空操作。
+            ensure_branching_columns(
+                conn,
+                full=("fee_standards", "billing_records"),
+            )
         logger.debug(f"BillingStore 初始化完成: {self._path}")
 
     def _connect(self) -> sqlite3.Connection:

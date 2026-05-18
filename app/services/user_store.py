@@ -43,6 +43,8 @@ from typing import Iterable, Optional
 
 from loguru import logger
 
+from app.services.branching import ensure_branching_columns
+
 from app.services.permissions import (
     ALL_PERMISSIONS,
     ALL_PERM_KEYS,
@@ -221,7 +223,10 @@ class UserStore:
             display_name TEXT NOT NULL DEFAULT '',
             role         TEXT NOT NULL,
             active       INTEGER NOT NULL DEFAULT 1,
-            created_at   TEXT NOT NULL
+            created_at   TEXT NOT NULL,
+            -- PR#6: 多租户 / 乐观锁 schema 准备
+            branch_id    TEXT NOT NULL DEFAULT 'main',
+            version_id   INTEGER NOT NULL DEFAULT 1
         );
         CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
 
@@ -234,6 +239,9 @@ class UserStore:
             created_at   TEXT NOT NULL,
             last_used_at TEXT NOT NULL DEFAULT '',
             revoked_at   TEXT NOT NULL DEFAULT '',
+            -- PR#6: 多租户 / 乐观锁 schema 准备
+            branch_id    TEXT NOT NULL DEFAULT 'main',
+            version_id   INTEGER NOT NULL DEFAULT 1,
             FOREIGN KEY (user_id) REFERENCES users(user_id)
         );
         CREATE INDEX IF NOT EXISTS idx_keys_user ON api_keys(user_id);
@@ -247,11 +255,15 @@ class UserStore:
             description  TEXT NOT NULL DEFAULT '',
             system       INTEGER NOT NULL DEFAULT 0,
             created_at   TEXT NOT NULL,
-            updated_at   TEXT NOT NULL DEFAULT ''
+            updated_at   TEXT NOT NULL DEFAULT '',
+            -- PR#6: 多租户 / 乐观锁 schema 准备
+            branch_id    TEXT NOT NULL DEFAULT 'main',
+            version_id   INTEGER NOT NULL DEFAULT 1
         );
         CREATE INDEX IF NOT EXISTS idx_roles_key ON roles(role_key);
 
         -- RBAC：权限点清单（由代码 sync，不由运维手改）
+        -- 全局元数据,不参与多租户切分;无 branch_id / version_id
         CREATE TABLE IF NOT EXISTS permissions (
             perm_key     TEXT PRIMARY KEY,
             category     TEXT NOT NULL,
@@ -259,7 +271,7 @@ class UserStore:
             description  TEXT NOT NULL DEFAULT ''
         );
 
-        -- RBAC：角色 ↔ 权限多对多
+        -- RBAC：角色 ↔ 权限多对多 (join table,不参与多租户切分)
         CREATE TABLE IF NOT EXISTS role_permissions (
             role_id      TEXT NOT NULL,
             perm_key     TEXT NOT NULL,
@@ -283,6 +295,11 @@ class UserStore:
         Path(self._path).parent.mkdir(parents=True, exist_ok=True)
         with self._connect() as conn:
             conn.executescript(self._CREATE_SQL)
+            # PR#6: 老库幂等加 branch_id (+ version_id) 列
+            ensure_branching_columns(
+                conn,
+                full=("users", "api_keys", "roles"),
+            )
         logger.debug(f"UserStore 初始化完成: {self._path}")
 
     def _connect(self) -> sqlite3.Connection:
