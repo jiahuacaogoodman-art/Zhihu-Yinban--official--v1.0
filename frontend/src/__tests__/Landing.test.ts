@@ -23,7 +23,12 @@ class IOStub {
 function makeRouter() {
   return createRouter({
     history: createWebHistory(),
-    routes: [{ path: '/', component: Landing }],
+    routes: [
+      { path: '/', component: Landing },
+      { path: '/beds', component: { template: '<div>beds-stub</div>' } },
+      { path: '/showcase', component: { template: '<div>showcase-stub</div>' } },
+      { path: '/login', component: { template: '<div>login-stub</div>' } },
+    ],
   })
 }
 

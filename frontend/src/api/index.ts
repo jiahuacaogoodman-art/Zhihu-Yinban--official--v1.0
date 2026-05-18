@@ -9,6 +9,13 @@ import { ApiError } from './types'
  *   - X-Auth-Token 从 localStorage 读(Phase 4 的 auth store 负责写入)。
  *   - 全局错误由 interceptor 抛 ApiError;业务侧 try/catch 或让 store 统一处理。
  *   - 不做请求取消(AbortController);Phase 4 对长列表加分页时再加。
+ *
+ * Phase 7 增强(401 自动登出):
+ *   - 任何 401 → 清 localStorage.auth_token + 通知应用层(setOnUnauthorized)
+ *   - 应用层在 main.ts 里挂 router.replace('/login?redirect=...')
+ *   - login 页保留 redirect query,登录成功后跳回原页
+ *
+ *   这里不直接 import router/store —— 避免 api 层环绕依赖 + 让 ssr/单测更轻。
  */
 
 const BASE = '/api'
@@ -16,6 +23,32 @@ const BASE = '/api'
 function getToken(): string | null {
   if (typeof localStorage === 'undefined') return null
   return localStorage.getItem('auth_token')
+}
+
+// ── 401 全局处理钩子 ─────────────────────────────────────
+type UnauthorizedHandler = () => void
+let unauthorizedHandler: UnauthorizedHandler | null = null
+let unauthorizedNotifying = false // 防止短时间内 N 个并发 401 触发 N 次跳转
+
+export function setOnUnauthorized(handler: UnauthorizedHandler | null) {
+  unauthorizedHandler = handler
+}
+
+function notifyUnauthorized() {
+  // 立即清掉 token,避免后续请求继续用废 token
+  if (typeof localStorage !== 'undefined') {
+    localStorage.removeItem('auth_token')
+  }
+  if (unauthorizedNotifying) return
+  unauthorizedNotifying = true
+  try {
+    unauthorizedHandler?.()
+  } finally {
+    // 下一个 tick 解锁,这样如果 handler 没立刻跳路由,后续 401 仍能触发一次
+    setTimeout(() => {
+      unauthorizedNotifying = false
+    }, 800)
+  }
 }
 
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
@@ -40,6 +73,9 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
       detail = json.message ?? json.detail ?? ''
     } catch {
       detail = res.statusText
+    }
+    if (res.status === 401) {
+      notifyUnauthorized()
     }
     throw new ApiError(res.status, detail || `请求失败 (${res.status})`)
   }
@@ -95,6 +131,9 @@ async function download(path: string, fallbackName = 'download.bin'): Promise<vo
       detail = json.message ?? json.detail ?? ''
     } catch {
       detail = res.statusText
+    }
+    if (res.status === 401) {
+      notifyUnauthorized()
     }
     throw new ApiError(res.status, detail || `下载失败 (${res.status})`)
   }

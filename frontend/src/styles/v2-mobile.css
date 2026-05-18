@@ -1,0 +1,247 @@
+/* === 智护银伴 v2 · Vue 端深度移动端适配 ====================================
+   静态 design/mobile.css 的规则全部围绕"旧版 HTML 的 class"(.app-shell /
+   .sidebar / .nav-tab / .bn-item …)，这些 class 在 Vite/Vue 重写后 100% 不再
+   存在。所以必须为 v2 自建一套对位规则，覆盖：
+
+   1) 安全区变量(viewport-fit=cover 已在 index.html / nurse.html 设置)
+   2) 全局触摸热区(.btn / .field / .tap-chip)在 ≤ 640 提到 ≥ 44px
+   3) iOS 输入字号 ≥ 16px 防自动缩放
+   4) Dialog 在 ≤ 640 自动转 bottom sheet(顶部圆角 + drag handle + safe-area)
+   5) Toast 在移动端居顶部、避开手指操作区
+   6) 取消 hover translate(避免 sticky hover)、点击高亮、长按菜单
+   7) 给 .v2-* 容器留出底部 nav-bar 高度
+   ========================================================================== */
+
+:root {
+  --v2-sab: env(safe-area-inset-bottom, 0px);
+  --v2-sat: env(safe-area-inset-top, 0px);
+  --v2-sal: env(safe-area-inset-left, 0px);
+  --v2-sar: env(safe-area-inset-right, 0px);
+
+  /* 给底部 tab 栏 + 安全区预留高度，所有页面靠 padding-bottom 让出空间。
+     桌面端不留(变量被 .v2-layout 覆盖)。 */
+  --v2-bottom-nav-h: 0px;
+  --v2-bottom-pad: 0px;
+}
+
+/* ────────── iOS 输入字号 ≥ 16px(防止聚焦自动缩放) ────────── */
+@media (max-width: 960px) {
+  input.field,
+  textarea.field,
+  select.field {
+    font-size: 16px !important;
+    line-height: 1.45;
+  }
+  /* date 类型的 input 在 iOS 默认高度偏小 + 居中错位，统一拉到 44 */
+  input.field[type='date'],
+  input.field[type='time'],
+  input.field[type='datetime-local'] {
+    min-height: 44px;
+  }
+}
+
+/* ────────── 触摸热区 ────────── */
+@media (max-width: 640px) {
+  .btn {
+    min-height: 44px;
+    padding: 0 18px;
+    font-size: 15px;
+  }
+  .btn-sm {
+    min-height: 38px;
+    padding: 0 14px;
+    font-size: 13px;
+  }
+  .btn-icon {
+    width: 44px;
+    height: 44px;
+  }
+  .field:not(textarea) {
+    min-height: 44px;
+  }
+  textarea.field {
+    min-height: 110px;
+  }
+  .tap-chip {
+    min-height: 38px;
+    padding: 0 14px;
+  }
+  /* 取消移动端 hover 抬升，避免 sticky hover 卡视觉 */
+  .btn:hover:not(:disabled),
+  .tap-chip:hover {
+    transform: none;
+  }
+}
+
+/* ────────── 全局手势 / 选中 / 长按 ────────── */
+@media (max-width: 640px) {
+  html,
+  body {
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    -webkit-tap-highlight-color: transparent;
+  }
+  img {
+    -webkit-touch-callout: none;
+  }
+  /* 内部滚动容器走原生惯性 */
+  .v2-sidebar,
+  .v2-main,
+  .dialog,
+  .v2-bottom-nav {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+}
+
+/* ────────── Dialog 在小屏变 bottom sheet ────────── */
+@media (max-width: 640px) {
+  .dialog-ov {
+    align-items: flex-end !important;
+    padding: 0 !important;
+  }
+  .dialog {
+    max-width: 100% !important;
+    width: 100% !important;
+    max-height: 88dvh;
+    border-radius: 22px 22px 0 0 !important;
+    padding: var(--sp-3) var(--sp-4) calc(var(--sp-4) + var(--v2-sab)) !important;
+    overflow-y: auto;
+    animation: v2-dialog-sheet-in 280ms var(--ease-spring);
+  }
+  /* drag handle (注入到 dialog 顶部,不依赖结构改) */
+  .dialog::before {
+    content: '';
+    display: block;
+    width: 40px;
+    height: 4px;
+    margin: 4px auto 12px;
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.18);
+  }
+  @keyframes v2-dialog-sheet-in {
+    from {
+      opacity: 0;
+      transform: translateY(40px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  .dialog-actions {
+    gap: 8px;
+    flex-direction: column-reverse;
+  }
+  .dialog-actions .btn {
+    width: 100%;
+    flex: none;
+  }
+  /* 标题留出更紧凑的间距 */
+  .dialog-title {
+    font-size: 18px !important;
+    margin-bottom: var(--sp-3) !important;
+  }
+}
+
+/* ────────── 全屏 sheet:超大表单 / 详情专用 ────────── */
+@media (max-width: 640px) {
+  .dialog.dialog--fullsheet {
+    max-height: 100dvh !important;
+    height: 100dvh;
+    border-radius: 0 !important;
+    padding: calc(var(--v2-sat) + var(--sp-3)) var(--sp-4)
+      calc(var(--v2-sab) + var(--sp-4)) !important;
+  }
+  .dialog.dialog--fullsheet::before {
+    display: none;
+  }
+}
+
+/* ────────── Toast 移动端定位:顶部居中、宽屏 ────────── */
+@media (max-width: 640px) {
+  .toast-wrap {
+    top: calc(var(--v2-sat) + 12px) !important;
+    right: 12px !important;
+    left: 12px !important;
+    align-items: stretch !important;
+  }
+  .toast {
+    max-width: 100% !important;
+    width: 100%;
+    font-size: 14px;
+  }
+}
+
+/* ────────── 给所有 .v2-main 留底部 tab 栏空间 ────────── */
+@media (max-width: 960px) {
+  :root {
+    --v2-bottom-nav-h: 64px;
+    --v2-bottom-pad: calc(var(--v2-bottom-nav-h) + var(--v2-sab) + 8px);
+  }
+}
+
+/* ────────── 通用工具类 ────────── */
+.v2-sticky-top {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+}
+.v2-only-mobile {
+  display: none;
+}
+.v2-only-desktop {
+  display: initial;
+}
+@media (max-width: 960px) {
+  .v2-only-mobile {
+    display: initial;
+  }
+  .v2-only-desktop {
+    display: none !important;
+  }
+}
+
+/* FAB:右下浮动操作按钮 */
+.v2-fab {
+  position: fixed;
+  right: 16px;
+  bottom: calc(var(--v2-bottom-pad) + 8px);
+  z-index: 40;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  background: var(--gradient-accent);
+  color: #fff;
+  font-size: 26px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 12px 28px rgba(20, 184, 166, 0.4),
+    0 4px 8px rgba(20, 184, 166, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.45);
+  transition: transform 120ms var(--ease), box-shadow 120ms var(--ease);
+}
+.v2-fab:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 32px rgba(20, 184, 166, 0.45),
+    0 6px 10px rgba(20, 184, 166, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.55);
+}
+.v2-fab:active {
+  transform: translateY(0);
+}
+.v2-fab:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+@media (min-width: 961px) {
+  /* 桌面端 FAB 隐藏（用顶部按钮代替） */
+  .v2-fab {
+    display: none;
+  }
+}

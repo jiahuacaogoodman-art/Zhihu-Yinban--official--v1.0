@@ -152,4 +152,18 @@ onMounted(fetchPatients)
   color: var(--ink-3);
   margin-top: 2px;
 }
+
+@media (max-width: 640px) {
+  .pt-card {
+    padding: 14px;
+    min-height: 64px;
+  }
+  .pt-avatar {
+    width: 44px;
+    height: 44px;
+    font-size: 18px;
+  }
+  .pt-name { font-size: 15px; }
+  .pt-sub { font-size: 12.5px; }
+}
 </style>

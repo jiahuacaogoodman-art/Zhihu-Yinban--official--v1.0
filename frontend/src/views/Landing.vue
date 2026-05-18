@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, onBeforeUnmount, ref, useTemplateRef } from 'vue'
+import { RouterLink } from 'vue-router'
 import { animate, createTimeline, stagger, utils, createScope } from 'animejs'
 import type { Scope } from 'animejs'
 import { Btn, Chip, GlassPanel } from '../components'
@@ -87,8 +88,8 @@ const phases = [
   { id: 2, name: '设计系统', status: 'done', desc: '6 个基础原件零改动包装' },
   { id: 3, name: '试点视图', status: 'done', desc: 'router + pinia + 床位管理' },
   { id: 4, name: '全量迁移', status: 'done', desc: '5 个业务视图 + auth 守卫' },
-  { id: 5, name: '护工端', status: 'todo', desc: '多入口构建 + 移动端体验' },
-  { id: 6, name: '旧版退役', status: 'todo', desc: '/ 切到 v2,旧版降到 /legacy/' },
+  { id: 5, name: '护工端', status: 'done', desc: '多入口构建 + 移动端体验' },
+  { id: 6, name: '旧版退役', status: 'done', desc: '/ 切到 v2，旧版降到 /legacy/' },
 ]
 
 let scope: Scope | null = null
@@ -329,8 +330,12 @@ onBeforeUnmount(() => {
         </p>
 
         <div class="hero-cta">
-          <Btn tag="a" variant="primary" href="#/beds">进入管理端</Btn>
-          <Btn tag="a" variant="outline" href="#/showcase">查看组件库</Btn>
+          <RouterLink to="/beds" custom v-slot="{ navigate }">
+            <Btn variant="primary" @click="navigate">进入管理端</Btn>
+          </RouterLink>
+          <RouterLink to="/showcase" custom v-slot="{ navigate }">
+            <Btn variant="outline" @click="navigate">查看组件库</Btn>
+          </RouterLink>
           <Btn
             tag="a"
             variant="ghost"
@@ -418,11 +423,14 @@ onBeforeUnmount(() => {
         <div class="cta-inner">
           <h2 class="display display-2">现在就试试</h2>
           <p class="body-l">
-            把你的 AUTH_TOKEN 粘进登录页,马上看到床位卡片在屏上展开。
+            把你的 AUTH_TOKEN 粘进登录页，马上看到床位卡片在屏上展开。
           </p>
           <div class="hero-cta" style="justify-content: center;">
-            <Btn tag="a" variant="primary" href="#/login">登录管理端</Btn>
-            <Btn tag="a" variant="ghost" href="/">回到旧版 →</Btn>
+            <RouterLink to="/login" custom v-slot="{ navigate }">
+              <Btn variant="primary" @click="navigate">登录管理端</Btn>
+            </RouterLink>
+            <Btn tag="a" variant="ghost" href="/nurse">前往护工端 →</Btn>
+            <Btn tag="a" variant="ghost" href="/legacy">回到旧版 →</Btn>
           </div>
         </div>
       </GlassPanel>
@@ -745,6 +753,66 @@ onBeforeUnmount(() => {
 /* ───────── Reduced motion ───────── */
 @media (prefers-reduced-motion: reduce) {
   .hero-mesh { animation: none; }
+}
+
+/* ───────── 移动端 ───────── */
+@media (max-width: 640px) {
+  .landing { --landing-w: calc(100% - 24px); }
+  .hero {
+    min-height: auto;
+    padding: clamp(32px, 12vw, 56px) 0 clamp(24px, 8vw, 36px);
+  }
+  .hero-inner {
+    gap: 14px;
+    padding: 0 4px;
+  }
+  .hero-title {
+    font-size: clamp(40px, 13vw, 64px) !important;
+    letter-spacing: -0.03em;
+  }
+  .hero-lede {
+    font-size: 14px;
+    line-height: 1.65;
+  }
+  .hero-cta {
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+  }
+  .hero-cta > * {
+    width: 100%;
+  }
+  .hero-stats {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    padding: 14px;
+    margin-top: 20px;
+  }
+  .hero-stat-value {
+    font-size: 24px;
+  }
+
+  .landing-section { padding: 56px 0; }
+  .section-header { margin-bottom: 18px; }
+  .section-header h2 { font-size: 22px !important; }
+  .section-header .body-l { font-size: 14px; }
+
+  .feature-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .feature-card {
+    padding: 16px !important;
+  }
+  .feature-icon {
+    width: 44px;
+    height: 44px;
+    font-size: 24px;
+  }
+
+  .cta-card { padding: 22px 14px !important; }
+  .cta-card h2 { font-size: 22px !important; }
+  .cta-card .body-l { font-size: 14px; }
 }
 
 </style>

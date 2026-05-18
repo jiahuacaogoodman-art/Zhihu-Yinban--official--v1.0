@@ -53,11 +53,17 @@ interface TaskItem {
   text: string
   status: 'pending' | 'done' | 'abnormal' | 'skipped'
   priority?: string
+  /** 后端 decision_id —— 任务卡的 outcome 回填要靠它 */
+  decisionId?: string | null
+  /** 标记是否正在保存，避免连点 */
+  saving?: boolean
 }
 const taskItems = ref<TaskItem[]>([])
 const taskLoading = ref(false)
 const taskRiskLevel = ref('')
 const taskTitle = ref('')
+// 整张任务卡背后的 decision_id —— 后端 task-card 接口会在 response 里返回
+const taskDecisionId = ref<string | null>(null)
 
 const quickSymptoms = ['发热', '咳嗽', '头晕', '胸闷', '腹痛', '血压偏高', '血糖异常', '跌倒', '意识异常']
 
@@ -107,10 +113,13 @@ async function generateTaskCard() {
     const card = res
     taskRiskLevel.value = card.risk_level ?? ''
     taskTitle.value = card.event_title ?? '护理任务卡'
+    taskDecisionId.value = card.decision_id ?? null
     taskItems.value = (card.care_tasks ?? []).map((t: any) => ({
       text: typeof t === 'string' ? t : t.description ?? t.text ?? '',
       status: 'pending' as const,
       priority: t.priority,
+      decisionId: card.decision_id ?? null,
+      saving: false,
     }))
     toast({ tone: 'success', text: '任务卡已生成' })
   } catch (e: any) {
@@ -143,8 +152,58 @@ async function askAI() {
 }
 
 // ── Task execution ──
+//
+// Phase 7 起调用后端 PATCH /api/nursing/decisions/{decision_id}/outcome 持久化:
+//   1) UI 立即更新（optimistic）—— 护工"打卡"必须秒响应,不允许等网络
+//   2) 异步上报失败时回滚 + toast 提示,但不会阻塞下一个打卡操作
+//   3) 整张任务卡共享一个 decision_id（生成任务卡时由后端给）。当前后端按
+//      "整张卡 = 一条决策记录"建模,所以任意一项打卡都聚合上报为最近一次
+//      outcome —— 状态选取规则:任意 abnormal → 'ineffective';全 done →
+//      'effective';有 skipped 但没 abnormal → 'partial';否则 'pending'。
+function aggregateOutcome(): 'pending' | 'effective' | 'ineffective' | 'partial' {
+  const list = taskItems.value
+  if (list.length === 0) return 'pending'
+  if (list.some((t) => t.status === 'abnormal')) return 'ineffective'
+  const remaining = list.filter((t) => t.status === 'pending').length
+  if (remaining > 0) return 'pending'
+  if (list.some((t) => t.status === 'skipped')) return 'partial'
+  return 'effective'
+}
+
+async function persistOutcome() {
+  if (!taskDecisionId.value) return // 任务卡可能离线 mock,后端没给 id 就不上报
+  const status = aggregateOutcome()
+  // 拼一个简短的 note,把每项当前状态记录下来
+  const note = taskItems.value
+    .map((t, i) => `${i + 1}. ${t.text} → ${t.status}`)
+    .join('\n')
+  try {
+    await api.patch(`/nursing/decisions/${encodeURIComponent(taskDecisionId.value)}/outcome`, {
+      outcome_status: status,
+      note,
+    })
+  } catch (e: any) {
+    // 这里不弹 error toast 防止刷屏 —— 打卡操作本质是"快速勾选",
+    // 单条上报失败不影响后续操作。仅在 console 提示。
+    console.warn('[outcome] 上报失败', e)
+  }
+}
+
+let outcomeDebounce: number | null = null
+function scheduleOutcomePersist() {
+  if (typeof window === 'undefined') return
+  if (outcomeDebounce !== null) {
+    window.clearTimeout(outcomeDebounce)
+  }
+  outcomeDebounce = window.setTimeout(() => {
+    persistOutcome()
+    outcomeDebounce = null
+  }, 600)
+}
+
 function markTask(index: number, status: TaskItem['status']) {
   taskItems.value[index].status = status
+  scheduleOutcomePersist()
 }
 
 onMounted(fetchPatient)
@@ -292,6 +351,8 @@ onMounted(fetchPatient)
   gap: var(--sp-4, 16px);
   max-width: 720px;
   margin: 0 auto;
+  /* 给底部 tab + 安全区留出空间，避免最后一行被遮挡 */
+  padding-bottom: 16px;
 }
 .pd-header :deep(.vp-glass__header) {
   display: flex;
@@ -376,5 +437,85 @@ onMounted(fetchPatient)
 @media (max-width: 640px) {
   .pd-info-grid { grid-template-columns: 1fr; }
   .pd-actions { grid-template-columns: 1fr; }
+  .pd-actions .btn { height: 46px; font-size: 15px; }
+  /* 任务执行三个按钮平铺 */
+  .task-exec-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 6px;
+  }
+  .task-exec-actions .btn {
+    flex: 1 1 calc(33% - 4px);
+    min-height: 38px;
+    padding: 0 8px;
+    font-size: 13px;
+  }
+}
+
+/* 通用任务执行按钮布局(桌面+移动) */
+.task-exec-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+}
+
+/* ─── progress + task-check styling ─── */
+.progress {
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.06);
+  overflow: hidden;
+  margin-top: 8px;
+}
+.progress-bar {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  transition: width 320ms var(--ease);
+}
+
+.task-check {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 1.5px solid rgba(15, 23, 42, 0.15);
+  background: rgba(255, 255, 255, 0.85);
+  color: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font: 700 14px/1 var(--font-mono);
+  transition: all 160ms var(--ease);
+}
+.task-check.done {
+  background: var(--green, #10b981);
+  border-color: var(--green, #10b981);
+  color: #fff;
+}
+.task-check.abnormal {
+  background: var(--red, #ef4444);
+  border-color: var(--red, #ef4444);
+  color: #fff;
+}
+.task-check.skipped {
+  background: rgba(15, 23, 42, 0.08);
+  border-color: rgba(15, 23, 42, 0.18);
+  color: var(--ink-3);
+}
+.task-text {
+  display: block;
+  font: 500 14px/1.5 var(--font-ui);
+  color: var(--ink-1);
+}
+.task-text.done {
+  text-decoration: line-through;
+  color: var(--ink-4);
+}
+.task-text.skipped {
+  color: var(--ink-4);
 }
 </style>

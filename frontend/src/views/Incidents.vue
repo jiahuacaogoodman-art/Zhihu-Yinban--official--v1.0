@@ -83,6 +83,14 @@ onMounted(fetchIncidents)
 
       <div v-if="incidents.length === 0" class="empty">
         <p class="empty-title">暂无异常事件</p>
+        <p class="empty-sub">
+          没有事件是好事 ✨。新发生的异常请前往
+          <a href="/legacy" style="color: var(--accent-ink, #0f766e);">旧版界面</a>
+          上报。
+        </p>
+        <Btn tag="a" href="/legacy" variant="outline" size="sm" style="margin-top: 12px;">
+          前往旧版上报 →
+        </Btn>
       </div>
     </div>
   </div>
@@ -91,4 +99,9 @@ onMounted(fetchIncidents)
 <style scoped>
 .incident-view { display: grid; gap: var(--sp-4, 16px); }
 .incident-header { display: flex; align-items: center; gap: var(--sp-3); }
+
+@media (max-width: 640px) {
+  .incident-header { flex-wrap: wrap; }
+  .incident-header .title-l { font-size: 22px; }
+}
 </style>

@@ -77,13 +77,16 @@ const router = createRouter({
   routes,
 })
 
-// 路由守卫:未登录跳 /login
+// 路由守卫:未登录跳 /login(带 redirect 参数让登录后跳回原页)
 router.beforeEach((to) => {
   if (to.meta.guest) return true
   const token =
     typeof localStorage !== 'undefined' ? localStorage.getItem('auth_token') : null
   if (!token && to.name !== 'login') {
-    return { name: 'login' }
+    return {
+      name: 'login',
+      query: to.fullPath && to.fullPath !== '/' ? { redirect: to.fullPath } : undefined,
+    }
   }
   return true
 })

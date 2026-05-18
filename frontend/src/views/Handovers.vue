@@ -90,6 +90,14 @@ onMounted(fetchHandovers)
 
       <div v-if="handovers.length === 0" class="empty">
         <p class="empty-title">暂无交接记录</p>
+        <p class="empty-sub">
+          v2 暂为只读视图。新增交接班请前往
+          <a href="/legacy" style="color: var(--accent-ink, #0f766e);">旧版界面</a>
+          录入,完成后这里会自动同步。
+        </p>
+        <Btn tag="a" href="/legacy" variant="outline" size="sm" style="margin-top: 12px;">
+          前往旧版录入 →
+        </Btn>
       </div>
     </div>
   </div>
@@ -100,4 +108,11 @@ onMounted(fetchHandovers)
 .handover-header { display: flex; align-items: center; gap: var(--sp-3); }
 .sbar { display: grid; gap: 6px; font: 400 var(--fz-sm, 13px)/1.6 var(--font-ui); }
 .sbar strong { color: var(--accent-ink, #0f766e); margin-right: 6px; font-weight: 700; }
+
+@media (max-width: 640px) {
+  .handover-header { flex-wrap: wrap; }
+  .handover-header .title-l { font-size: 22px; }
+  .sbar { font-size: 14px; line-height: 1.7; }
+  .sbar strong { display: inline-block; width: 18px; }
+}
 </style>
