@@ -30,6 +30,7 @@ from typing import Optional
 from loguru import logger
 
 from app.services import db as _db
+from app.services.branching import ensure_branching_columns
 
 
 class CareStore:
@@ -50,7 +51,10 @@ class CareStore:
             assigned_at TEXT NOT NULL DEFAULT '',
             notes       TEXT NOT NULL DEFAULT '',
             created_at  TEXT NOT NULL,
-            updated_at  TEXT NOT NULL
+            updated_at  TEXT NOT NULL,
+            -- PR#6: 多租户 / 乐观锁 schema 准备(routers 暂不读)
+            branch_id   TEXT NOT NULL DEFAULT 'main',
+            version_id  INTEGER NOT NULL DEFAULT 1
         );
         CREATE INDEX IF NOT EXISTS idx_beds_number ON beds(bed_number);
         CREATE INDEX IF NOT EXISTS idx_beds_status ON beds(status);
@@ -67,7 +71,10 @@ class CareStore:
             min_nurse_ratio TEXT NOT NULL DEFAULT '',
             sort_order      INTEGER NOT NULL DEFAULT 0,
             created_at      TEXT NOT NULL,
-            updated_at      TEXT NOT NULL
+            updated_at      TEXT NOT NULL,
+            -- PR#6: 多租户 / 乐观锁 schema 准备
+            branch_id       TEXT NOT NULL DEFAULT 'main',
+            version_id      INTEGER NOT NULL DEFAULT 1
         );
         CREATE INDEX IF NOT EXISTS idx_care_levels_key ON care_levels(level_key);
 
@@ -79,6 +86,8 @@ class CareStore:
             reason        TEXT NOT NULL DEFAULT '',
             assessed_by   TEXT NOT NULL DEFAULT '',
             assigned_at   TEXT NOT NULL,
+            -- PR#6: branch_id 用于未来按院区聚合;append-only 不需要 version_id
+            branch_id     TEXT NOT NULL DEFAULT 'main',
             FOREIGN KEY (level_key) REFERENCES care_levels(level_key)
         );
         CREATE INDEX IF NOT EXISTS idx_cla_patient ON care_level_assignments(patient_id);
@@ -99,7 +108,10 @@ class CareStore:
             notes           TEXT NOT NULL DEFAULT '',
             status          TEXT NOT NULL DEFAULT 'pending',
             acknowledged_at TEXT NOT NULL DEFAULT '',
-            created_at      TEXT NOT NULL
+            created_at      TEXT NOT NULL,
+            -- PR#6: 多租户 / 乐观锁 schema 准备
+            branch_id       TEXT NOT NULL DEFAULT 'main',
+            version_id      INTEGER NOT NULL DEFAULT 1
         );
         CREATE INDEX IF NOT EXISTS idx_handovers_patient ON handovers(patient_id);
         CREATE INDEX IF NOT EXISTS idx_handovers_status ON handovers(status);
@@ -126,7 +138,10 @@ class CareStore:
             resolved_at      TEXT NOT NULL DEFAULT '',
             notes            TEXT NOT NULL DEFAULT '',
             created_at       TEXT NOT NULL,
-            updated_at       TEXT NOT NULL
+            updated_at       TEXT NOT NULL,
+            -- PR#6: 多租户 / 乐观锁 schema 准备
+            branch_id        TEXT NOT NULL DEFAULT 'main',
+            version_id       INTEGER NOT NULL DEFAULT 1
         );
         CREATE INDEX IF NOT EXISTS idx_incidents_patient ON incidents(patient_id);
         CREATE INDEX IF NOT EXISTS idx_incidents_severity ON incidents(severity);
@@ -146,7 +161,10 @@ class CareStore:
             shift            TEXT NOT NULL DEFAULT '',
             related_event_id TEXT NOT NULL DEFAULT '',
             notes            TEXT NOT NULL DEFAULT '',
-            created_at       TEXT NOT NULL
+            created_at       TEXT NOT NULL,
+            -- PR#6: 多租户 / 乐观锁 schema 准备
+            branch_id        TEXT NOT NULL DEFAULT 'main',
+            version_id       INTEGER NOT NULL DEFAULT 1
         );
         CREATE INDEX IF NOT EXISTS idx_care_records_patient ON care_records(patient_id);
         CREATE INDEX IF NOT EXISTS idx_care_records_type ON care_records(record_type);
@@ -212,7 +230,11 @@ class CareStore:
             refund_amount           REAL,
 
             created_at              TEXT NOT NULL,
-            updated_at              TEXT NOT NULL
+            updated_at              TEXT NOT NULL,
+
+            -- PR#6: 多租户 / 乐观锁 schema 准备
+            branch_id               TEXT NOT NULL DEFAULT 'main',
+            version_id              INTEGER NOT NULL DEFAULT 1
         );
         CREATE INDEX IF NOT EXISTS idx_admissions_status ON admissions(status);
         CREATE INDEX IF NOT EXISTS idx_admissions_name ON admissions(applicant_name);
@@ -236,6 +258,9 @@ class CareStore:
             assessment_date     TEXT NOT NULL,
             approved            INTEGER NOT NULL DEFAULT 1,
             created_at          TEXT NOT NULL,
+            -- PR#6: 多租户 / 乐观锁 schema 准备
+            branch_id           TEXT NOT NULL DEFAULT 'main',
+            version_id          INTEGER NOT NULL DEFAULT 1,
             FOREIGN KEY (admission_id) REFERENCES admissions(admission_id)
         );
         CREATE INDEX IF NOT EXISTS idx_assessments_admission ON assessments(admission_id);
@@ -259,6 +284,9 @@ class CareStore:
             signed_at               TEXT NOT NULL DEFAULT '',
             status                  TEXT NOT NULL DEFAULT 'active',
             created_at              TEXT NOT NULL,
+            -- PR#6: 多租户 / 乐观锁 schema 准备
+            branch_id               TEXT NOT NULL DEFAULT 'main',
+            version_id              INTEGER NOT NULL DEFAULT 1,
             FOREIGN KEY (admission_id) REFERENCES admissions(admission_id)
         );
         CREATE INDEX IF NOT EXISTS idx_contracts_admission ON contracts(admission_id);
@@ -279,7 +307,10 @@ class CareStore:
             notes           TEXT NOT NULL DEFAULT '',
             status          TEXT NOT NULL DEFAULT 'completed',
             paid_at         TEXT NOT NULL,
-            created_at      TEXT NOT NULL
+            created_at      TEXT NOT NULL,
+            -- PR#6: 多租户 / 乐观锁 schema 准备
+            branch_id       TEXT NOT NULL DEFAULT 'main',
+            version_id      INTEGER NOT NULL DEFAULT 1
         );
         CREATE INDEX IF NOT EXISTS idx_payments_admission ON payments(admission_id);
         CREATE INDEX IF NOT EXISTS idx_payments_contract ON payments(contract_id);
@@ -292,6 +323,8 @@ class CareStore:
             action          TEXT NOT NULL,
             operator        TEXT NOT NULL DEFAULT '',
             detail          TEXT NOT NULL DEFAULT '',
+            -- PR#6: branch_id 用于未来按院区聚合;append-only 不需要 version_id
+            branch_id       TEXT NOT NULL DEFAULT 'main',
             FOREIGN KEY (admission_id) REFERENCES admissions(admission_id)
         );
         CREATE INDEX IF NOT EXISTS idx_timeline_admission ON admission_timeline(admission_id);
@@ -315,6 +348,18 @@ class CareStore:
         Path(self._path).parent.mkdir(parents=True, exist_ok=True)
         with self._connect() as conn:
             conn.executescript(self._CREATE_SQL)
+            # PR#6: 给老库幂等加 branch_id (+ version_id) 列。
+            # 新库 _CREATE_SQL 里已经声明同名列,这里是 no-op;
+            # 老库走 ALTER TABLE ADD COLUMN 路径补齐。
+            ensure_branching_columns(
+                conn,
+                full=(
+                    "beds", "care_levels", "handovers", "incidents",
+                    "care_records", "admissions", "assessments",
+                    "contracts", "payments",
+                ),
+                branch_only=("care_level_assignments", "admission_timeline"),
+            )
         logger.debug(f"CareStore 初始化完成: {self._path}")
 
     # ────────────────────────────────────────────────────────

@@ -49,6 +49,7 @@ from typing import Any
 from loguru import logger
 
 from app.services import db as _db
+from app.services.branching import ensure_branching_columns
 
 
 class AuditLog:
@@ -63,7 +64,9 @@ class AuditLog:
             operator   TEXT    NOT NULL DEFAULT 'unknown',
             doc_id     TEXT    NOT NULL DEFAULT '',
             detail     TEXT    NOT NULL DEFAULT '',
-            diff       TEXT    NOT NULL DEFAULT '{}'
+            diff       TEXT    NOT NULL DEFAULT '{}',
+            -- PR#6: branch_id 用于未来按院区聚合;append-only 不需要 version_id
+            branch_id  TEXT    NOT NULL DEFAULT 'main'
         );
         CREATE INDEX IF NOT EXISTS idx_audit_patient ON audit_log(patient_id);
         CREATE INDEX IF NOT EXISTS idx_audit_action  ON audit_log(action);
@@ -78,6 +81,8 @@ class AuditLog:
     def _init(self) -> None:
         with self._conn() as c:
             c.executescript(self._CREATE_SQL)
+            # PR#6: 老库幂等加 branch_id 列(audit_log 是 append-only,无 version_id)
+            ensure_branching_columns(c, full=(), branch_only=("audit_log",))
 
     def _conn(self) -> sqlite3.Connection:
         # 统一走 db.connect()：自带 PRAGMA busy_timeout=5000

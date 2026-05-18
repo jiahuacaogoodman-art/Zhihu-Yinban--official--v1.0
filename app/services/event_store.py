@@ -35,6 +35,7 @@ from typing import Callable
 from loguru import logger
 
 from app.services import db as _db
+from app.services.branching import ensure_branching_columns
 
 
 class EventStore:
@@ -46,7 +47,10 @@ class EventStore:
             patient_id  TEXT NOT NULL,
             status      TEXT NOT NULL DEFAULT 'processing',
             created_at  TEXT NOT NULL DEFAULT '',
-            data        TEXT NOT NULL        -- 完整事件 JSON
+            data        TEXT NOT NULL,        -- 完整事件 JSON
+            -- PR#6: 多租户 / 乐观锁 schema 准备
+            branch_id   TEXT NOT NULL DEFAULT 'main',
+            version_id  INTEGER NOT NULL DEFAULT 1
         );
         CREATE INDEX IF NOT EXISTS idx_patient ON nursing_events(patient_id);
         CREATE INDEX IF NOT EXISTS idx_status  ON nursing_events(status);
@@ -63,6 +67,8 @@ class EventStore:
     def _init_db(self) -> None:
         with self._connect() as conn:
             conn.executescript(self._CREATE_TABLE)
+            # PR#6: 老库幂等加 branch_id + version_id 列
+            ensure_branching_columns(conn, full=("nursing_events",))
         logger.debug(f"EventStore 初始化完成: {self._path}")
 
     def _connect(self) -> sqlite3.Connection:
