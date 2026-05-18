@@ -1,9 +1,13 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
-import { Toast } from '../components'
+import { NetworkBanner, Toast } from '../components'
 import { useAuthStore } from '../stores/auth'
 import { useToast } from '../composables/useToast'
+import { useScrollLock } from '../composables/useScrollLock'
+import { useViewport } from '../composables/useViewport'
+import { useNetworkStatus } from '../composables/useNetworkStatus'
+import { useSwipeBack } from '../composables/useSwipeBack'
 
 /**
  * NurseApp — 护工端根布局(Phase 7 移动端深度适配)
@@ -24,6 +28,70 @@ const auth = useAuthStore()
 const { push: toast } = useToast()
 
 const moreOpen = ref(false)
+useScrollLock(moreOpen)
+
+// ── 软键盘 / 视口监听 ──
+const { keyboardOpen, keyboardHeight } = useViewport()
+watch(
+  keyboardOpen,
+  (v) => {
+    if (typeof document === 'undefined') return
+    document.body.classList.toggle('kb-open', !!v)
+  },
+  { immediate: true },
+)
+watch(
+  keyboardHeight,
+  (h) => {
+    if (typeof document === 'undefined') return
+    document.documentElement.style.setProperty('--v2-keyboard-h', `${h}px`)
+  },
+  { immediate: true },
+)
+
+// ── 离线状态 ──
+const { offline } = useNetworkStatus()
+watch(
+  offline,
+  (v) => {
+    if (typeof document === 'undefined') return
+    document.body.classList.toggle('netbanner-on', !!v)
+  },
+  { immediate: true },
+)
+
+// ── 边缘右滑返回:仅在患者详情页生效(从详情回老人列表) ──
+const swipeBackEnabled = computed(() => route.name === 'nurse-patient')
+useSwipeBack(
+  () => {
+    if (moreOpen.value) {
+      moreOpen.value = false
+      return
+    }
+    if (typeof window !== 'undefined' && window.history.length > 1) {
+      router.back()
+    } else {
+      router.push('/')
+    }
+  },
+  { enabled: swipeBackEnabled },
+)
+
+// ── ESC 关 sheet ──
+function onGlobalKey(e: KeyboardEvent) {
+  if (e.key === 'Escape' && moreOpen.value) {
+    moreOpen.value = false
+  }
+}
+onMounted(() => {
+  if (typeof document === 'undefined') return
+  document.addEventListener('keydown', onGlobalKey)
+})
+onBeforeUnmount(() => {
+  if (typeof document === 'undefined') return
+  document.removeEventListener('keydown', onGlobalKey)
+  document.body.classList.remove('kb-open', 'netbanner-on')
+})
 
 // 当前页标题
 const currentTitle = computed(() => {
@@ -177,6 +245,7 @@ function goToTask() {
       </div>
     </Teleport>
 
+    <NetworkBanner />
     <Toast />
   </div>
 </template>

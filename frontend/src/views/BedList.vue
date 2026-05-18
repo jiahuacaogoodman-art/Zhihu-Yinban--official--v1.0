@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref, computed } from 'vue'
 import { useBedStore } from '../stores'
-import { Btn, Chip, GlassPanel, Field, Dialog } from '../components'
+import { Btn, Chip, GlassPanel, Field, Dialog, PullToRefresh, Skeleton } from '../components'
 import { useToast } from '../composables/useToast'
 import type { Bed, BedStatus } from '../api/types'
 
@@ -91,11 +91,20 @@ async function doRelease(bed: Bed) {
     push({ tone: 'error', text: e.message ?? '释放失败' })
   }
 }
+
+async function handleRefresh(done: () => void) {
+  try {
+    await bedStore.fetchBeds()
+  } finally {
+    done()
+  }
+}
 </script>
 
 <template>
-  <div class="bed-list-view">
-    <!-- Header -->
+  <PullToRefresh @refresh="handleRefresh">
+    <div class="bed-list-view">
+      <!-- Header -->
     <div class="bed-list-header">
       <h1 class="title-l">床位管理</h1>
       <div class="row-s" style="margin-left: auto;">
@@ -133,8 +142,8 @@ async function doRelease(bed: Bed) {
     </GlassPanel>
 
     <!-- Loading / Error -->
-    <div v-if="bedStore.loading" class="empty">
-      <div class="skel" style="height: 120px; width: 100%;"></div>
+    <div v-if="bedStore.loading" class="bed-grid bed-grid--skeleton">
+      <Skeleton v-for="i in 6" :key="i" shape="card" height="180px" />
     </div>
     <div v-else-if="bedStore.error" class="empty">
       <p class="empty-title">加载失败</p>
@@ -213,7 +222,8 @@ async function doRelease(bed: Bed) {
         <Btn variant="primary" :disabled="!assignPatientId.trim()" @click="confirmAssign">确认分配</Btn>
       </template>
     </Dialog>
-  </div>
+    </div>
+  </PullToRefresh>
 </template>
 
 <style scoped>
