@@ -1,10 +1,8 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 
 /**
- * Vue Router — 合并版（管理端 + 护工端统一路由）
- *
- * 所有功能在同一个 SPA 内，不再拆分 nurse 独立入口。
- * 护工端页面放在 /nurse/* 下，共用同一套认证和布局。
+ * 管理端 Router — 保留双端架构，管理端补齐全部功能页。
+ * 护工端仍然是独立入口 nurse.html → nurse-main.ts → nurse-router。
  */
 
 const routes: RouteRecordRaw[] = [
@@ -71,18 +69,6 @@ const routes: RouteRecordRaw[] = [
   },
   // ── 管理功能 ──
   {
-    path: '/users',
-    name: 'users',
-    component: () => import('../views/UserManagement.vue'),
-    meta: { title: '用户管理' },
-  },
-  {
-    path: '/audit',
-    name: 'audit',
-    component: () => import('../views/AuditLog.vue'),
-    meta: { title: '审计日志' },
-  },
-  {
     path: '/billing',
     name: 'billing',
     component: () => import('../views/Billing.vue'),
@@ -94,19 +80,17 @@ const routes: RouteRecordRaw[] = [
     component: () => import('../views/PaymentChannels.vue'),
     meta: { title: '支付渠道' },
   },
-  // ── 护工端（合并进来） ──
   {
-    path: '/nurse',
-    name: 'nurse-home',
-    component: () => import('../nurse-views/PatientList.vue'),
-    meta: { title: '老人列表（护工）' },
+    path: '/users',
+    name: 'users',
+    component: () => import('../views/UserManagement.vue'),
+    meta: { title: '用户管理' },
   },
   {
-    path: '/nurse/patient/:id',
-    name: 'nurse-patient',
-    component: () => import('../nurse-views/PatientDetail.vue'),
-    meta: { title: '患者详情' },
-    props: true,
+    path: '/audit',
+    name: 'audit',
+    component: () => import('../views/AuditLog.vue'),
+    meta: { title: '审计日志' },
   },
   // ── 兜底 ──
   {
@@ -121,7 +105,6 @@ const router = createRouter({
   routes,
 })
 
-// 路由守卫：未登录跳 /login（带 redirect 参数让登录后跳回原页）
 router.beforeEach((to) => {
   if (to.meta.guest) return true
   const token =
@@ -135,7 +118,6 @@ router.beforeEach((to) => {
   return true
 })
 
-// 更新 document.title
 router.afterEach((to) => {
   const title = (to.meta as { title?: string }).title
   document.title = title ? `${title} · 智护银伴` : '智护银伴'

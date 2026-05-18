@@ -159,10 +159,9 @@ type NavItem = {
   icon: string
   short?: string // 底部 tab 的简短标签
   bottomBar?: boolean
-  section?: string // 分组标签
 }
 const navItems: NavItem[] = [
-  { to: '/nursing-decision', label: 'AI 护理建议', icon: '✨', short: 'AI', bottomBar: true, section: '核心' },
+  { to: '/nursing-decision', label: 'AI 护理建议', icon: '✨', short: 'AI', bottomBar: true },
   { to: '/ehr/add', label: '录入档案', icon: '➕', short: '录入', bottomBar: false },
   { to: '/ehr', label: '患者档案', icon: '📋', short: '档案', bottomBar: true },
   { to: '/ehr/upload', label: '病历上传', icon: '📷', short: '病历', bottomBar: false },
@@ -170,11 +169,10 @@ const navItems: NavItem[] = [
   { to: '/handovers', label: '交接班', icon: '🔁', short: '交接', bottomBar: true },
   { to: '/incidents', label: '异常事件', icon: '⚠️', short: '异常', bottomBar: false },
   { to: '/care-records', label: '护理记录', icon: '💊', short: '护理', bottomBar: false },
-  { to: '/billing', label: '缴费管理', icon: '💰', short: '缴费', bottomBar: false, section: '管理' },
+  { to: '/billing', label: '缴费管理', icon: '💰', short: '缴费', bottomBar: false },
   { to: '/payment-channels', label: '支付渠道', icon: '💳', short: '支付', bottomBar: false },
   { to: '/users', label: '用户管理', icon: '👥', short: '用户', bottomBar: false },
   { to: '/audit', label: '审计日志', icon: '🛡', short: '审计', bottomBar: false },
-  { to: '/nurse', label: '护工端', icon: '👩‍⚕️', short: '护工', bottomBar: false, section: '护工' },
 ]
 
 // 底部 tab 优先取 bottomBar:true,最多 4 个 + 1 个"更多"
@@ -205,6 +203,7 @@ const bottomTabs = computed(() => navItems.filter((n) => n.bottomBar))
         <span class="mark">♥</span>
         <span class="ttl">{{ currentTitle }}</span>
       </div>
+      <a href="/nurse" class="v2-appbar-link" aria-label="切换到护工端">护工</a>
     </header>
 
     <!-- ───── 桌面侧栏(fullBleed 隐藏) ───── -->
@@ -227,6 +226,14 @@ const bottomTabs = computed(() => navItems.filter((n) => n.bottomBar))
         </RouterLink>
       </nav>
       <div class="v2-sidebar-footer">
+        <a href="/nurse" class="v2-nav-item">
+          <span class="v2-nav-icon">👩‍⚕️</span>
+          <span>护工端 →</span>
+        </a>
+        <a href="/legacy" class="v2-nav-item v2-nav-item--muted">
+          <span class="v2-nav-icon">🗂</span>
+          <span>旧版入口 →</span>
+        </a>
         <button
           v-if="auth.isAuthenticated"
           type="button"
@@ -284,6 +291,14 @@ const bottomTabs = computed(() => navItems.filter((n) => n.bottomBar))
           </RouterLink>
         </nav>
         <div class="v2-drawer-footer">
+          <a href="/nurse" class="v2-drawer-item">
+            <span class="ic">👩‍⚕️</span>
+            <span>切换到护工端 →</span>
+          </a>
+          <a href="/legacy" class="v2-drawer-item v2-drawer-item--muted">
+            <span class="ic">🗂</span>
+            <span>旧版入口 →</span>
+          </a>
           <button
             v-if="auth.isAuthenticated"
             type="button"
