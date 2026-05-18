@@ -21,7 +21,7 @@ from app.services.pii_crypto import decrypt_pii_fields
 from app.services.retrieval import HybridRetriever, format_evidence_block, legacy_context_string
 from app.services.decision_memory import DecisionMemory, format_memory_block
 from app.services.user_store import User
-from app.core.config import RAG_PROMPT_TEMPLATE, OLLAMA_MODEL_NAME
+from app.core.config import RAG_PROMPT_TEMPLATE, OLLAMA_MODEL_NAME, LLM_PROVIDER
 
 router = APIRouter()
 # 工厂根据 LLM_PROVIDER（ollama / openai）选 provider，路由层零感知。
@@ -896,10 +896,18 @@ def _normalize_ai_card(ai_data: dict, payload: TaskCardGenerateRequest, context:
     }
 
     event_type = str(ai_data.get("event_type") or "AI生成护理任务卡事件")
+    # 任务卡日志显示真正在用的 provider/模型，不再硬写 "本地大模型"。
+    # ollama  → "本地大模型 huatuo_o1_7b"
+    # openai  → "OpenAI兼容端点 Qwen/Qwen2.5-7B-Instruct"
+    active_model_name = getattr(llm_service, "model_name", "") or "unknown"
+    if (LLM_PROVIDER or "").lower() == "ollama":
+        provider_label = f"本地大模型 {active_model_name}"
+    else:
+        provider_label = f"OpenAI兼容端点 {active_model_name}"
     task_card = {
         "event_id": event_id,
         "generation_mode": "ai_llm",
-        "llm_model": OLLAMA_MODEL_NAME,
+        "llm_model": active_model_name,
         "patient_id": payload.patient_id,
         "patient_name": patient_name,
         "bed_number": profile.get("bed_number") or payload.location or "—",

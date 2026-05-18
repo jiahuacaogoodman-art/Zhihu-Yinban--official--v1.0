@@ -41,12 +41,6 @@ from app.middleware.auth import require_permission
 from app.services.audit_log import get_audit_log
 from app.services.billing_store import get_billing_store
 from app.services.care_store import get_care_store
-from app.services.pdf_generator import (
-    generate_billing_receipt_pdf,
-    generate_care_records_pdf,
-    generate_handover_pdf,
-    generate_patient_profile_pdf,
-)
 from app.services.permissions import (
     PERM_CARE_RECORD_READ,
     PERM_EHR_READ,
@@ -54,6 +48,38 @@ from app.services.permissions import (
 )
 from app.services.pii_crypto import decrypt_pii_fields
 from app.services.user_store import User
+
+
+def _get_pdf_generator():
+    """
+    惰性导入 pdf_generator 模块。
+
+    reportlab 是可选依赖（requirements-api.txt 仍包含它，但用户可能
+    自行精简）。如果缺失，导入时抛 ImportError，这里包成 503，
+    让整个应用的其余功能（入院、护理、LLM 对话等）不受影响。
+    """
+    try:
+        from app.services.pdf_generator import (
+            generate_billing_receipt_pdf,
+            generate_care_records_pdf,
+            generate_handover_pdf,
+            generate_patient_profile_pdf,
+        )
+        return (
+            generate_patient_profile_pdf,
+            generate_billing_receipt_pdf,
+            generate_handover_pdf,
+            generate_care_records_pdf,
+        )
+    except ImportError as e:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "PDF 导出功能不可用：reportlab 未安装。"
+                "请运行 pip install reportlab 或使用完整 requirements.txt。"
+                f"原始错误: {e}"
+            ),
+        ) from e
 
 router = APIRouter()
 
@@ -191,7 +217,7 @@ async def export_patient_pdf(
     if not patient:
         raise HTTPException(status_code=404, detail="老人档案不存在")
 
-    pdf_bytes = generate_patient_profile_pdf(patient)
+    pdf_bytes = _get_pdf_generator()[0](patient)
 
     name = patient.get("name") or patient_id
     filename = f"档案卡_{name}_{patient_id}.pdf"
@@ -225,7 +251,7 @@ async def export_billing_receipt_pdf(
     care_store = get_care_store()
     admission = care_store.get_admission(record.get("admission_id", ""))
 
-    pdf_bytes = generate_billing_receipt_pdf(record, admission)
+    pdf_bytes = _get_pdf_generator()[1](record, admission)
 
     receipt_no = record.get("receipt_number") or record_id
     filename = f"收据_{receipt_no}.pdf"
@@ -271,7 +297,7 @@ async def export_handover_pdf(
     if not handover:
         raise HTTPException(status_code=404, detail="交接班记录不存在")
 
-    pdf_bytes = generate_handover_pdf(handover)
+    pdf_bytes = _get_pdf_generator()[2](handover)
     filename = f"交接班_{handover_id}.pdf"
 
     get_audit_log().log(
@@ -360,7 +386,7 @@ async def export_care_records_pdf(
     if not patient_name:
         patient_name = patient_id
 
-    pdf_bytes = generate_care_records_pdf(patient_name, patient_id, records)
+    pdf_bytes = _get_pdf_generator()[3](patient_name, patient_id, records)
     filename = f"护理记录_{patient_name}_{patient_id}.pdf"
 
     get_audit_log().log(
