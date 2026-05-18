@@ -20,6 +20,7 @@ static/v2/
 # Local data & cache (must NOT be committed)
 local_ehr_db/
 local_ehr_uploads/
+local_backups/
 *.sqlite3
 *.db
 
