@@ -28,6 +28,7 @@ from app.services.backup import (
     verify_backup,
 )
 from app.services.backup_scheduler import get_scheduler
+from app.services.hot_snapshot import get_snapshotter, SNAPSHOT_SUFFIX
 from app.services.permissions import PERM_USERS_MANAGE
 from app.services.user_store import User
 
@@ -197,4 +198,94 @@ async def backup_status(
         schedule=f"daily at {opts.hour:02d}:{opts.minute:02d}",
         last_report=last,
         last_error=scheduler.last_error,
+    )
+
+
+# ============================================================
+# 热快照（PR#5）—— 与冷备并列的、< 1 分钟 RPO 保护
+# ============================================================
+class HotSnapshotItem(BaseModel):
+    source: str
+    snapshot_path: str
+    bytes: int
+    duration_seconds: float
+    pages_copied: int
+    created_at: str
+
+
+class HotSnapshotStatusResponse(BaseModel):
+    code: int = 200
+    enabled: bool
+    snapshot_dir: str
+    interval_seconds: int
+    keep_per_source: int
+    targets: list[str]
+    last_reports: list[HotSnapshotItem]
+    last_error: str | None = None
+
+
+class HotSnapshotRunResponse(BaseModel):
+    code: int = 200
+    message: str
+    snapshots: list[HotSnapshotItem]
+
+
+@router.post(
+    "/backup/hot/run",
+    response_model=HotSnapshotRunResponse,
+    summary="立即对所有受保护数据库做一次热快照",
+)
+async def hot_snapshot_run_now(
+    user: User = Depends(require_permission(PERM_USERS_MANAGE)),
+):
+    snap = get_snapshotter()
+    if snap is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="热快照器未初始化（请检查 HOT_SNAPSHOT_ENABLED）",
+        )
+    try:
+        reports = await snap.trigger_now()
+    except Exception as e:
+        logger.exception(f"热快照失败: {e}")
+        raise HTTPException(status_code=500, detail=f"热快照失败: {e}")
+    items = [HotSnapshotItem(**r.to_dict()) for r in reports]
+    logger.info(
+        f"管理员触发热快照: operator={user.username}, "
+        f"成功 {len(items)} 个数据库"
+    )
+    return HotSnapshotRunResponse(
+        message=f"已快照 {len(items)} 个数据库",
+        snapshots=items,
+    )
+
+
+@router.get(
+    "/backup/hot/status",
+    response_model=HotSnapshotStatusResponse,
+    summary="热快照器状态 + 各库最近一次快照报告",
+)
+async def hot_snapshot_status(
+    user: User = Depends(require_permission(PERM_USERS_MANAGE)),
+):
+    snap = get_snapshotter()
+    if snap is None:
+        return HotSnapshotStatusResponse(
+            enabled=False,
+            snapshot_dir="",
+            interval_seconds=0,
+            keep_per_source=0,
+            targets=[],
+            last_reports=[],
+        )
+    opts = snap.options
+    reports = [HotSnapshotItem(**r.to_dict()) for r in snap.all_reports()]
+    return HotSnapshotStatusResponse(
+        enabled=opts.enabled,
+        snapshot_dir=str(opts.snapshot_dir),
+        interval_seconds=opts.interval_seconds,
+        keep_per_source=opts.keep_per_source,
+        targets=[str(t) for t in opts.targets],
+        last_reports=reports,
+        last_error=snap.last_error,
     )
