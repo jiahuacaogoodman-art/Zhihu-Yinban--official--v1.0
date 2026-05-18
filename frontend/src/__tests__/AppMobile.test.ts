@@ -5,12 +5,12 @@ import { createRouter, createWebHistory } from 'vue-router'
 import App from '../App.vue'
 
 /**
- * App.vue 移动端冒烟测试 — Phase 7
+ * App.vue 移动端冒烟测试
  *
  * 通过 stub matchMedia 让 useIsTabletOrBelow() 返回 true,验证:
  *   - 渲染顶部 appbar(汉堡 + 标题)
- *   - 渲染底部 tab(床位 / 档案 / 交接 / 异常 / 更多)
- *   - 不再渲染桌面侧栏的 "组件展示" 等次要项
+ *   - 渲染底部 tab(AI / 档案 / 床位 / 交接 / 更多)
+ *   - 不再渲染桌面侧栏
  */
 
 ;(globalThis as any).__BUILD_TIME__ = '2026-05-17T00:00:00Z'
@@ -21,13 +21,19 @@ function makeRouter() {
     routes: [
       { path: '/', redirect: '/beds' },
       { path: '/login', component: { template: '<div>login-stub</div>' } },
-      { path: '/beds', component: { template: '<div>beds-stub</div>' } },
+      { path: '/nursing-decision', component: { template: '<div>nursing-decision-stub</div>' } },
+      { path: '/ehr/add', component: { template: '<div>ehr-add-stub</div>' } },
       { path: '/ehr', component: { template: '<div>ehr-stub</div>' }, meta: { title: '患者档案' } },
+      { path: '/ehr/upload', component: { template: '<div>ehr-upload-stub</div>' } },
+      { path: '/beds', component: { template: '<div>beds-stub</div>' } },
       { path: '/handovers', component: { template: '<div>handovers-stub</div>' } },
       { path: '/incidents', component: { template: '<div>incidents-stub</div>' } },
       { path: '/care-records', component: { template: '<div>care-records-stub</div>' } },
+      { path: '/billing', component: { template: '<div>billing-stub</div>' } },
       { path: '/payment-channels', component: { template: '<div>payment-channels-stub</div>' } },
-      { path: '/showcase', component: { template: '<div>showcase-stub</div>' } },
+      { path: '/users', component: { template: '<div>users-stub</div>' } },
+      { path: '/audit', component: { template: '<div>audit-stub</div>' } },
+      { path: '/nurse', component: { template: '<div>nurse-stub</div>' } },
     ],
   })
 }
@@ -78,10 +84,10 @@ describe('App.vue (mobile mode)', () => {
     const wrapper = mount(App, { global: { plugins: [router] } })
     expect(wrapper.find('.v2-bottom-nav').exists()).toBe(true)
     const text = wrapper.text()
-    expect(text).toContain('床位')
+    expect(text).toContain('AI')
     expect(text).toContain('档案')
+    expect(text).toContain('床位')
     expect(text).toContain('交接')
-    expect(text).toContain('异常')
     expect(text).toContain('更多')
   })
 
