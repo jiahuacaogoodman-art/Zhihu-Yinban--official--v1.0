@@ -49,3 +49,7 @@ nohup.out
 Thumbs.db
 ehthumbs.db
 Desktop.ini
+
+
+# Edge sync agent (PR#7) - 离线 / 已发送 payload 都不进 git
+local_sync_outbox/

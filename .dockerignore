@@ -29,3 +29,7 @@ static/v2/
 # Logs
 *.log
 nohup.out
+
+
+# Edge sync agent (PR#7)
+local_sync_outbox/
