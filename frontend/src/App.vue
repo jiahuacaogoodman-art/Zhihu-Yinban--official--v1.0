@@ -161,14 +161,18 @@ type NavItem = {
   bottomBar?: boolean
 }
 const navItems: NavItem[] = [
-  { to: '/', label: '首页', icon: '🏠', short: '首页', bottomBar: false },
-  { to: '/beds', label: '床位管理', icon: '🛏', short: '床位', bottomBar: true },
+  { to: '/nursing-decision', label: 'AI 护理建议', icon: '✨', short: 'AI', bottomBar: true },
+  { to: '/ehr/add', label: '录入档案', icon: '➕', short: '录入', bottomBar: false },
   { to: '/ehr', label: '患者档案', icon: '📋', short: '档案', bottomBar: true },
+  { to: '/ehr/upload', label: '病历上传', icon: '📷', short: '病历', bottomBar: false },
+  { to: '/beds', label: '床位管理', icon: '🛏', short: '床位', bottomBar: true },
   { to: '/handovers', label: '交接班', icon: '🔁', short: '交接', bottomBar: true },
-  { to: '/incidents', label: '异常事件', icon: '⚠️', short: '异常', bottomBar: true },
+  { to: '/incidents', label: '异常事件', icon: '⚠️', short: '异常', bottomBar: false },
   { to: '/care-records', label: '护理记录', icon: '💊', short: '护理', bottomBar: false },
-  { to: '/payment-channels', label: '支付渠道', icon: '💳', short: '收费', bottomBar: false },
-  { to: '/showcase', label: '组件展示', icon: '🎨', short: '组件', bottomBar: false },
+  { to: '/billing', label: '缴费管理', icon: '💰', short: '缴费', bottomBar: false },
+  { to: '/payment-channels', label: '支付渠道', icon: '💳', short: '支付', bottomBar: false },
+  { to: '/users', label: '用户管理', icon: '👥', short: '用户', bottomBar: false },
+  { to: '/audit', label: '审计日志', icon: '🛡', short: '审计', bottomBar: false },
 ]
 
 // 底部 tab 优先取 bottomBar:true,最多 4 个 + 1 个"更多"
