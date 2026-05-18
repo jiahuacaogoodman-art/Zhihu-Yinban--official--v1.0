@@ -40,6 +40,17 @@ EMBEDDING_ALLOW_DEGRADED: bool = os.getenv(
     "EMBEDDING_ALLOW_DEGRADED", "true"
 ).strip().lower() in {"true", "1", "yes"}
 
+# 完全禁用 embedding 模型加载（API-only 部署 / 无 GPU / 受限网络场景）
+# 设为 true 时：
+#   - 不会 import sentence_transformers / torch / transformers
+#   - 启动时不下载也不加载任何 embedding 模型
+#   - RAG 检索仍能跑，但向量函数退化成确定性哈希向量（仅用于 ChromaDB 写入约束，
+#     不参与语义召回；新前端会按 patient_id 过滤已经够用，受限部署可以接受）
+# 适用：requirements-api.txt 这类不装 torch 的轻量部署。
+EMBEDDING_DISABLED: bool = os.getenv(
+    "EMBEDDING_DISABLED", "false"
+).strip().lower() in {"true", "1", "yes"}
+
 # --- 大语言模型 (LLM) 配置 ---
 # 项目支持两种 provider：
 #   - "ollama"  本地 Ollama（默认，向后兼容）

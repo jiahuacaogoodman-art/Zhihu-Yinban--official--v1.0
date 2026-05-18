@@ -89,6 +89,10 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        # 切换为 requirements-api.txt 可构建不含 torch 的轻量镜像
+        # 配合 EMBEDDING_DISABLED=true 使用
+        PY_REQUIREMENTS: ${PY_REQUIREMENTS:-requirements.txt}
     image: zhihu-yinban:latest
     container_name: yinban-app
     restart: unless-stopped
@@ -125,6 +129,7 @@ services:
       XDG_CACHE_HOME: /app/.cache
       # ─ Embedding 降级模式 ─
       EMBEDDING_ALLOW_DEGRADED: ${EMBEDDING_ALLOW_DEGRADED:-true}
+      EMBEDDING_DISABLED: ${EMBEDDING_DISABLED:-false}
       EMBEDDING_MODEL_LOCAL_PATH: ${EMBEDDING_MODEL_LOCAL_PATH:-}
       # ─ ChromaDB telemetry 关闭 ─
       ANONYMIZED_TELEMETRY: "False"

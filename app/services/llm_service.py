@@ -213,7 +213,21 @@ class OpenAICompatibleLLMService:
             )
 
         # 规范化 api_base：去掉末尾 /
-        self.api_base = api_base.rstrip("/")
+        # 同时容错：如果用户把完整端点（含 /chat/completions 或 /completions）
+        # 直接粘进 OPENAI_API_BASE，这里把后缀剥掉，避免拼出
+        # ".../v1/chat/completions/chat/completions" 这种 404 路径。
+        # 这是社区里最高频的部署错误之一（DeepSeek、Moonshot、Qwen 文档
+        # 都是直接给完整端点的截图）。
+        normalized_base = api_base.rstrip("/")
+        for suffix in ("/chat/completions", "/completions"):
+            if normalized_base.endswith(suffix):
+                logger.warning(
+                    f"OPENAI_API_BASE 末尾包含 '{suffix}'，已自动剥离为根端点。"
+                    f"建议在 .env 里直接写到 /v1（如 https://api.deepseek.com/v1）。"
+                )
+                normalized_base = normalized_base[: -len(suffix)]
+                break
+        self.api_base = normalized_base
         # api_url 给 LLMService Protocol 用，对外语义保持一致
         self.api_url = f"{self.api_base}/chat/completions"
         self.model_name = model_name

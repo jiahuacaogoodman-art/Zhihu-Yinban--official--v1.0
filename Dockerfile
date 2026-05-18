@@ -81,9 +81,14 @@ RUN apt-get -o Acquire::Retries=5 update \
     && rm -rf /var/lib/apt/lists/*
 
 # 先复制 requirements，利用 Docker 层缓存——代码改动不会触发重新安装依赖
-COPY requirements.txt .
+# 通过 PY_REQUIREMENTS 构建参数切换依赖清单：
+#   默认: requirements.txt（完整版，含 torch/transformers/sentence-transformers）
+#   轻量: requirements-api.txt（API-only，不装 torch，需配合 EMBEDDING_DISABLED=true）
+ARG PY_REQUIREMENTS=requirements.txt
+COPY ${PY_REQUIREMENTS} requirements_active.txt
+COPY requirements*.txt ./
 RUN pip install --no-cache-dir --upgrade pip \
- && pip install --no-cache-dir -r requirements.txt
+ && pip install --no-cache-dir -r requirements_active.txt
 
 # ── Stage 2: runtime ────────────────────────────────────────
 FROM python:3.11-slim-bookworm AS runtime

@@ -42,7 +42,6 @@ from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from contextlib import asynccontextmanager
 import chromadb
-from sentence_transformers import SentenceTransformer
 from loguru import logger
 
 from app.core.config import (
@@ -52,6 +51,7 @@ from app.core.config import (
     EMBEDDING_DEVICE,
     EMBEDDING_MODEL_LOCAL_PATH,
     EMBEDDING_ALLOW_DEGRADED,
+    EMBEDDING_DISABLED,
     EHR_UPLOAD_DIR,
     AUTH_TOKEN,
     LLM_PROVIDER,
@@ -147,38 +147,60 @@ async def lifespan(app: FastAPI):
         logger.error(f"ChromaDB 初始化失败: {e}")
         raise RuntimeError(f"ChromaDB 初始化失败: {e}") from e
 
-    # 3. 加载 Embedding 模型（带 preflight 检查和降级能力）
+    # 3. 加载 Embedding 模型（带 preflight 检查、降级能力、API-only 短路）
     embedding_loaded = False
     model_path = EMBEDDING_MODEL_LOCAL_PATH or EMBEDDING_MODEL_NAME
 
-    # ── Preflight 检查 ──
-    _preflight_embedding()
-
-    logger.info(f"正在加载 Embedding 模型: {model_path}，使用设备: {EMBEDDING_DEVICE}")
-    try:
-        embedding_function = SentenceTransformer(model_path, device=EMBEDDING_DEVICE)
+    if EMBEDDING_DISABLED:
+        # API-only 部署：不 import sentence_transformers / torch，
+        # 也不下载任何 embedding 模型，直接装个确定性哈希向量函数。
+        # ChromaDB 写入需要一个 embedding_function；这里给它个能用的占位实现。
+        # 注意：这种向量没有语义召回能力，只能当索引主键用，新前端按 patient_id
+        # 过滤已经够用；如果你需要 RAG 语义检索，请把 EMBEDDING_DISABLED 设回 false。
+        from app.services.embedding_fallback import HashEmbeddingFunction
+        embedding_function = HashEmbeddingFunction()
         app_state["embedding_function"] = embedding_function
         app_state["db_collection"].embedding_function = embedding_function
-        app_state["rag_available"] = True
+        # rag_available=false 提示前端 / /health：语义检索不可用
+        app_state["rag_available"] = False
         embedding_loaded = True
-        logger.success("Embedding 模型加载成功！")
-    except Exception as e:
-        error_msg = _classify_embedding_error(e)
-        logger.error(f"Embedding 模型加载失败: {error_msg}")
+        logger.warning(
+            "EMBEDDING_DISABLED=true：跳过 sentence-transformers 加载，"
+            "使用哈希占位向量。RAG 语义召回不可用，patient_id 过滤仍有效。"
+        )
+    else:
+        # ── Preflight 检查 ──
+        _preflight_embedding()
 
-        if EMBEDDING_ALLOW_DEGRADED:
-            logger.warning(
-                "⚠️  降级模式启动：RAG 向量检索功能不可用，但基础 LLM 对话仍正常。\n"
-                "    修复建议：\n"
-                "    1. 确认缓存目录可写: HF_HOME / SENTENCE_TRANSFORMERS_HOME\n"
-                "    2. 设置 EMBEDDING_MODEL_LOCAL_PATH 指向本地模型目录（离线部署）\n"
-                "    3. 确认网络可访问 huggingface.co（首次下载）\n"
-                "    4. 设置 EMBEDDING_ALLOW_DEGRADED=false 可恢复严格模式（启动失败即退出）"
-            )
-            app_state["embedding_function"] = None
-            app_state["rag_available"] = False
-        else:
-            raise RuntimeError(f"Embedding 模型加载失败: {error_msg}") from e
+        logger.info(f"正在加载 Embedding 模型: {model_path}，使用设备: {EMBEDDING_DEVICE}")
+        try:
+            # 惰性 import：仅在真正需要加载模型时才引入 sentence_transformers，
+            # 这样 requirements-api.txt（不装 torch）也能跑得起来。
+            from sentence_transformers import SentenceTransformer
+            embedding_function = SentenceTransformer(model_path, device=EMBEDDING_DEVICE)
+            app_state["embedding_function"] = embedding_function
+            app_state["db_collection"].embedding_function = embedding_function
+            app_state["rag_available"] = True
+            embedding_loaded = True
+            logger.success("Embedding 模型加载成功！")
+        except Exception as e:
+            error_msg = _classify_embedding_error(e)
+            logger.error(f"Embedding 模型加载失败: {error_msg}")
+
+            if EMBEDDING_ALLOW_DEGRADED:
+                logger.warning(
+                    "⚠️  降级模式启动：RAG 向量检索功能不可用，但基础 LLM 对话仍正常。\n"
+                    "    修复建议：\n"
+                    "    1. 确认缓存目录可写: HF_HOME / SENTENCE_TRANSFORMERS_HOME\n"
+                    "    2. 设置 EMBEDDING_MODEL_LOCAL_PATH 指向本地模型目录（离线部署）\n"
+                    "    3. 确认网络可访问 huggingface.co（首次下载）\n"
+                    "    4. 受限网络环境推荐设置 EMBEDDING_DISABLED=true 走哈希占位\n"
+                    "    5. 设置 EMBEDDING_ALLOW_DEGRADED=false 可恢复严格模式（启动失败即退出）"
+                )
+                app_state["embedding_function"] = None
+                app_state["rag_available"] = False
+            else:
+                raise RuntimeError(f"Embedding 模型加载失败: {error_msg}") from e
 
     if embedding_loaded:
         logger.info("所有核心模块初始化完成，应用准备就绪！")
@@ -537,6 +559,7 @@ async def health_check():
         "auth_mode": getattr(app.state, "auth_mode", "unknown"),
         "llm_provider": LLM_PROVIDER,  # ollama / openai
         "rag_available": app_state.get("rag_available", False),
+        "embedding_disabled": EMBEDDING_DISABLED,
     }
 
 
