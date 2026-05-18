@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { Field, Chip, GlassPanel } from '../components'
+import { Field, Chip, GlassPanel, PullToRefresh, Skeleton } from '../components'
 import { api } from '../api'
 import { useToast } from '../composables/useToast'
 
@@ -56,9 +56,18 @@ function selectPatient(pid: string) {
 }
 
 onMounted(fetchPatients)
+
+async function handleRefresh(done: () => void) {
+  try {
+    await fetchPatients()
+  } finally {
+    done()
+  }
+}
 </script>
 
 <template>
+  <PullToRefresh @refresh="handleRefresh">
   <div class="pt-list-view">
     <Field
       v-model="searchQuery"
@@ -66,10 +75,8 @@ onMounted(fetchPatients)
       class="pt-search"
     />
 
-    <div v-if="loading" class="empty">
-      <div class="skel" style="height: 64px; width: 100%; margin-bottom: 8px;"></div>
-      <div class="skel" style="height: 64px; width: 100%; margin-bottom: 8px;"></div>
-      <div class="skel" style="height: 64px; width: 100%;"></div>
+    <div v-if="loading" class="pt-cards">
+      <Skeleton v-for="i in 5" :key="i" shape="row" height="64px" />
     </div>
 
     <div v-else class="pt-cards">
@@ -96,6 +103,7 @@ onMounted(fetchPatients)
       </div>
     </div>
   </div>
+  </PullToRefresh>
 </template>
 
 <style scoped>

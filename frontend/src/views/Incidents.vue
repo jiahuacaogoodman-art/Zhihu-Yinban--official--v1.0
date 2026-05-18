@@ -101,6 +101,7 @@ onMounted(fetchIncidents)
 .incident-header { display: flex; align-items: center; gap: var(--sp-3); }
 
 @media (max-width: 640px) {
+  .incident-view { gap: 12px; }
   .incident-header { flex-wrap: wrap; }
   .incident-header .title-l { font-size: 22px; }
 }

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { onBeforeUnmount, ref, watch } from 'vue'
 import { useNetworkStatus } from '../composables/useNetworkStatus'
 
 /**
@@ -35,6 +35,13 @@ watch(offline, (now, prev) => {
       window.clearTimeout(restoredTimer)
       restoredTimer = null
     }
+  }
+})
+
+onBeforeUnmount(() => {
+  if (restoredTimer !== null && typeof window !== 'undefined') {
+    window.clearTimeout(restoredTimer)
+    restoredTimer = null
   }
 })
 </script>

@@ -110,6 +110,7 @@ onMounted(fetchHandovers)
 .sbar strong { color: var(--accent-ink, #0f766e); margin-right: 6px; font-weight: 700; }
 
 @media (max-width: 640px) {
+  .handover-view { gap: 12px; }
   .handover-header { flex-wrap: wrap; }
   .handover-header .title-l { font-size: 22px; }
   .sbar { font-size: 14px; line-height: 1.7; }

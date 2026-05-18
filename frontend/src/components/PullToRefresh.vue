@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, useTemplateRef } from 'vue'
+import { computed, ref } from 'vue'
 import { usePullToRefresh } from '../composables/usePullToRefresh'
 import { useIsTabletOrBelow } from '../composables/useMediaQuery'
 
@@ -33,7 +33,7 @@ const emit = defineEmits<{
 
 const isMobile = useIsTabletOrBelow()
 const enabled = computed(() => props.enableOnDesktop || isMobile.value)
-const wrap = useTemplateRef<HTMLElement>('wrap')
+const wrap = ref<HTMLElement | null>(null)
 
 const { offset, refreshing, reached } = usePullToRefresh(
   wrap,
