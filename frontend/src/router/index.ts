@@ -54,6 +54,12 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '护理记录' },
   },
   {
+    path: '/payment-channels',
+    name: 'payment-channels',
+    component: () => import('../views/PaymentChannels.vue'),
+    meta: { title: '支付渠道' },
+  },
+  {
     path: '/showcase',
     name: 'showcase',
     component: () => import('../views/Showcase.vue'),
