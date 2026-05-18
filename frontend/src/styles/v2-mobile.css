@@ -245,3 +245,252 @@
     display: none;
   }
 }
+
+
+
+/* ==========================================================================
+   Phase 8 移动端深度适配补丁
+   ========================================================================== */
+
+/* ────────── 触控反馈:点击阻尼(active 态) ────────── */
+@media (hover: none) and (pointer: coarse) {
+  .btn:not(:disabled):active {
+    transform: scale(0.97);
+    transition: transform 80ms var(--ease, ease);
+  }
+  .tap-chip:active,
+  .v2-bottom-item:active,
+  .v2-drawer-item:active,
+  .nb-item:active:not(:disabled),
+  .nurse-sheet-action:active {
+    transform: scale(0.97);
+    transition: transform 80ms var(--ease, ease);
+  }
+  /* 卡片点击反馈 */
+  .ehr-card:active,
+  .pt-card:active,
+  .bed-card:active {
+    transform: scale(0.99);
+    transition: transform 80ms var(--ease, ease);
+  }
+  /* 取消桌面 hover 抬升,移动端只剩"按下回弹" */
+  .ehr-card:hover,
+  .feature-card:hover,
+  .bed-card:hover {
+    transform: none;
+  }
+}
+
+/* ────────── 焦点可见:键盘 / a11y ────────── */
+.btn:focus-visible,
+.tap-chip:focus-visible,
+.v2-nav-item:focus-visible,
+.v2-drawer-item:focus-visible,
+.v2-bottom-item:focus-visible,
+.nb-item:focus-visible,
+.nurse-sheet-action:focus-visible,
+.field:focus-visible {
+  outline: 2px solid var(--accent, #14b8a6);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+/* ────────── touch-action 优化 ────────── */
+@media (max-width: 960px) {
+  /* 按钮 / chip:仅响应 tap,不让浏览器尝试 pan/zoom */
+  .btn,
+  .tap-chip,
+  .v2-bottom-item,
+  .v2-drawer-item,
+  .v2-nav-item,
+  .nb-item,
+  .nurse-sheet-action {
+    touch-action: manipulation;
+  }
+  /* 列表 / 容器:允许竖向滚动,关闭横向滚动 */
+  .v2-main,
+  .nurse-main,
+  .ptr-content {
+    touch-action: pan-y;
+  }
+}
+
+/* ────────── 软键盘弹出时:隐底栏 + 收 dialog ────────── */
+/* 由 App.vue / NurseApp.vue 监听 visualViewport 后给 body 加 .kb-open */
+body.kb-open .v2-bottom-nav,
+body.kb-open .nurse-bottom {
+  /* 用 transform 而非 display:none —— 保留布局以避免输入框抖动 */
+  transform: translateY(110%);
+  transition: transform 180ms var(--ease, ease);
+  pointer-events: none;
+}
+body.kb-open .v2-fab {
+  transform: translateY(120%);
+  pointer-events: none;
+}
+body.kb-open .v2-main,
+body.kb-open .nurse-main {
+  /* 键盘起来后,主内容区按需收紧底部 padding,腾出键盘上方那一点呼吸 */
+  padding-bottom: 12px !important;
+}
+body.kb-open .dialog {
+  /* 键盘弹出时 sheet 缩高 + 上推,确保 actions 区可见 */
+  max-height: calc(100dvh - var(--v2-keyboard-h, 0px) - 24px) !important;
+}
+
+/* ────────── 选中文字色:与品牌色一致 ────────── */
+::selection {
+  background: rgba(20, 184, 166, 0.28);
+  color: var(--accent-ink, #0f766e);
+}
+
+/* ────────── PullToRefresh 包裹时,内容平移与底栏不冲突 ────────── */
+.ptr-wrap {
+  /* 给指示器留出溢出空间,但不放大滚动区 */
+  overflow: visible;
+}
+
+/* ────────── 表单组在移动端的紧凑布局 ────────── */
+@media (max-width: 640px) {
+  .field-group + .field-group {
+    margin-top: var(--sp-2, 8px);
+  }
+  .field-label {
+    font-size: 13px;
+  }
+  /* 表单 actions 在 bottom-sheet 里固定到底部更顺手 */
+  .dialog .form-actions,
+  .dialog .ehr-form + .dialog-actions {
+    position: sticky;
+    bottom: 0;
+    padding-top: var(--sp-2, 8px);
+    background: linear-gradient(180deg, transparent 0%, rgba(255, 255, 255, 0.96) 24%);
+    z-index: 2;
+  }
+}
+
+/* ────────── 长按文本选择策略 ────────── */
+@media (max-width: 960px) {
+  /* 主体可读区可选,操作控件不可选 */
+  .btn,
+  .tap-chip,
+  .v2-nav-item,
+  .v2-drawer-item,
+  .v2-bottom-item,
+  .v2-appbar,
+  .v2-drawer-brand,
+  .nurse-bottom,
+  .nurse-appbar,
+  .nb-item,
+  .ptr-indicator {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  .body-s,
+  .body-m,
+  .body-l,
+  .ehr-detail dd,
+  .pd-info-grid dd,
+  .sbar,
+  .meta {
+    -webkit-user-select: text;
+    user-select: text;
+  }
+}
+
+/* ────────── 顶部 NetworkBanner 出现时,appbar 下移让位 ────────── */
+body.netbanner-on .v2-appbar,
+body.netbanner-on .nurse-appbar {
+  /* JS 动态切;预留 36px,加 safe-area 才不会打架 */
+  margin-top: 32px;
+}
+
+/* ────────── 减弱动效 ────────── */
+@media (prefers-reduced-motion: reduce) {
+  .v2-drawer,
+  .v2-scrim,
+  .nurse-sheet,
+  .nurse-scrim,
+  .ptr-content {
+    transition-duration: 0ms !important;
+    animation-duration: 0ms !important;
+  }
+}
+
+/* ────────── 横屏紧凑(移动横屏 / 平板分屏) ────────── */
+@media (max-width: 960px) and (orientation: landscape) and (max-height: 480px) {
+  .v2-bottom-nav,
+  .nurse-bottom {
+    /* 横屏腾出更多内容区 */
+    padding-top: 4px;
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 2px);
+  }
+  .v2-bottom-item,
+  .nb-item {
+    min-height: 42px;
+  }
+  .v2-bottom-item .lb,
+  .nb-item .lb {
+    font-size: 10px;
+  }
+  .v2-bottom-item .ic,
+  .nb-item .ic {
+    font-size: 18px;
+  }
+  /* Dialog 横屏不再 100dvh 满屏,改成屏中央卡片 */
+  .dialog.dialog--fullsheet {
+    max-height: 92dvh !important;
+    height: auto !important;
+    border-radius: 18px !important;
+    margin: 4dvh auto;
+    max-width: 720px !important;
+  }
+  .dialog-ov {
+    align-items: center !important;
+    padding: 12px !important;
+  }
+}
+
+/* ────────── iOS Safari "弹性滚动"修正 ────────── */
+@supports (-webkit-touch-callout: none) {
+  .v2-main,
+  .nurse-main {
+    /* 让顶部回弹时背景色仍是页面色,而不是黑底白字 */
+    background-color: var(--page-bg, #f0fbfb);
+  }
+}
+
+/* ────────── 底部固定动作栏(护工端 patient detail 用) ────────── */
+.v2-bottom-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  display: flex;
+  gap: 8px;
+  padding: 10px 12px calc(env(safe-area-inset-bottom, 0px) + 10px);
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.9) 35%,
+    rgba(255, 255, 255, 0.98) 100%
+  );
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  margin: 0 -14px -14px;
+}
+.v2-bottom-actions .btn {
+  flex: 1;
+  min-height: 44px;
+}
+@media (min-width: 961px) {
+  .v2-bottom-actions {
+    position: static;
+    margin: 0;
+    padding: 0;
+    background: transparent;
+    backdrop-filter: none;
+  }
+  .v2-bottom-actions .btn {
+    flex: 0 0 auto;
+  }
+}

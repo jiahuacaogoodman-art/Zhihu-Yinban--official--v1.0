@@ -11,3 +11,8 @@ export { default as Field } from './Field.vue'
 export { default as Chip } from './Chip.vue'
 export { default as Dialog } from './Dialog.vue'
 export { default as Toast } from './Toast.vue'
+
+// Phase 8 移动端深度适配新增组件
+export { default as Skeleton } from './Skeleton.vue'
+export { default as PullToRefresh } from './PullToRefresh.vue'
+export { default as NetworkBanner } from './NetworkBanner.vue'

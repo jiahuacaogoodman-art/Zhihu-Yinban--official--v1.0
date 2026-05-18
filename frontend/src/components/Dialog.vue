@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, onBeforeUnmount, ref, watch, nextTick, toRef } from 'vue'
 import { useScrollLock } from '../composables/useScrollLock'
+import { useFocusTrap } from '../composables/useFocusTrap'
 
 /**
  * Dialog — 对话框 / Bottom Sheet / Full Sheet
@@ -38,6 +39,7 @@ const dialogEl = ref<HTMLElement | null>(null)
 const open = toRef(props, 'modelValue')
 
 useScrollLock(open)
+useFocusTrap(open, dialogEl)
 
 function close() {
   emit('update:modelValue', false)

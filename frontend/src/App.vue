@@ -1,11 +1,14 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
-import { Toast } from './components'
+import { NetworkBanner, Toast } from './components'
 import { useAuthStore } from './stores/auth'
 import { useToast } from './composables/useToast'
 import { useScrollLock } from './composables/useScrollLock'
 import { useIsTabletOrBelow } from './composables/useMediaQuery'
+import { useViewport } from './composables/useViewport'
+import { useNetworkStatus } from './composables/useNetworkStatus'
+import { useSwipeBack } from './composables/useSwipeBack'
 
 /**
  * App.vue — 根布局
@@ -34,6 +37,76 @@ const isMobile = useIsTabletOrBelow()
 // ── 抽屉状态 ──
 const drawerOpen = ref(false)
 useScrollLock(drawerOpen)
+
+// ── 软键盘 / 视口监听:键盘弹出时给 body 加 .kb-open 让 v2-mobile.css 收底栏 ──
+const { keyboardOpen, keyboardHeight } = useViewport()
+watch(
+  keyboardOpen,
+  (v) => {
+    if (typeof document === 'undefined') return
+    document.body.classList.toggle('kb-open', !!v)
+  },
+  { immediate: true },
+)
+watch(
+  keyboardHeight,
+  (h) => {
+    if (typeof document === 'undefined') return
+    document.documentElement.style.setProperty('--v2-keyboard-h', `${h}px`)
+  },
+  { immediate: true },
+)
+
+// ── 离线状态:出现网络条幅时给 body 加 .netbanner-on 让 appbar 下移让位 ──
+const { offline } = useNetworkStatus()
+watch(
+  offline,
+  (v) => {
+    if (typeof document === 'undefined') return
+    document.body.classList.toggle('netbanner-on', !!v)
+  },
+  { immediate: true },
+)
+onBeforeUnmount(() => {
+  if (typeof document === 'undefined') return
+  document.body.classList.remove('kb-open', 'netbanner-on')
+})
+
+// ── 移动端边缘右滑返回:仅在移动端 + 非首页/登录页生效 ──
+const swipeBackEnabled = computed(
+  () => isMobile.value && !fullBleed.value && route.fullPath !== '/',
+)
+useSwipeBack(
+  () => {
+    // 抽屉打开时优先关抽屉
+    if (drawerOpen.value) {
+      drawerOpen.value = false
+      return
+    }
+    // 浏览器历史栈 > 1 → back;否则回首页
+    if (typeof window !== 'undefined' && window.history.length > 1) {
+      router.back()
+    } else {
+      router.push('/')
+    }
+  },
+  { enabled: swipeBackEnabled },
+)
+
+// ── ESC 关抽屉 ──
+function onGlobalKey(e: KeyboardEvent) {
+  if (e.key === 'Escape' && drawerOpen.value) {
+    drawerOpen.value = false
+  }
+}
+onMounted(() => {
+  if (typeof document === 'undefined') return
+  document.addEventListener('keydown', onGlobalKey)
+})
+onBeforeUnmount(() => {
+  if (typeof document === 'undefined') return
+  document.removeEventListener('keydown', onGlobalKey)
+})
 
 // 路由切换 → 自动收抽屉
 watch(
@@ -268,6 +341,7 @@ const bottomTabs = computed(() => navItems.filter((n) => n.bottomBar))
       </button>
     </nav>
 
+    <NetworkBanner />
     <Toast />
   </div>
 </template>
