@@ -43,6 +43,7 @@ from typing import Iterable, Optional
 
 from loguru import logger
 
+from app.services import db as _db
 from app.services.permissions import (
     ALL_PERMISSIONS,
     ALL_PERM_KEYS,
@@ -286,16 +287,8 @@ class UserStore:
         logger.debug(f"UserStore 初始化完成: {self._path}")
 
     def _connect(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(
-            self._path,
-            check_same_thread=False,
-            isolation_level=None,
-        )
-        conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute("PRAGMA synchronous=NORMAL")
-        conn.execute("PRAGMA foreign_keys=ON")
-        conn.row_factory = sqlite3.Row
-        return conn
+        # 统一走 db.connect()：自带 PRAGMA busy_timeout=5000
+        return _db.connect(self._path, foreign_keys=True)
 
     @staticmethod
     def _now() -> str:
@@ -459,6 +452,7 @@ class UserStore:
         return bool(row and row["c"] > 0)
 
     # ── API Key CRUD ──────────────────────────────────────
+    @_db.with_db_retry()
     def create_token(
         self,
         user_id: str,
