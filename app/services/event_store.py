@@ -34,6 +34,8 @@ from typing import Callable
 
 from loguru import logger
 
+from app.services import db as _db
+
 
 class EventStore:
     """SQLite 驱动的护理事件存储，进程内线程安全。"""
@@ -64,15 +66,8 @@ class EventStore:
         logger.debug(f"EventStore 初始化完成: {self._path}")
 
     def _connect(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(
-            self._path,
-            check_same_thread=False,
-            isolation_level=None,   # autocommit；事务由我们手动管理
-        )
-        conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute("PRAGMA synchronous=NORMAL")
-        conn.row_factory = sqlite3.Row
-        return conn
+        # 统一走 db.connect()：自带 PRAGMA busy_timeout=5000
+        return _db.connect(self._path)
 
     # ── 旧数据迁移 ───────────────────────────────────────────
     def _migrate_from_json(self, json_path: Path) -> None:
@@ -124,6 +119,7 @@ class EventStore:
         return json.loads(row["data"]) if row else None
 
     # ── 写 ──────────────────────────────────────────────────
+    @_db.with_db_retry()
     def save_event(self, event: dict) -> None:
         """插入或覆盖更新（UPSERT）。"""
         event_id = event.get("event_id") or ""
@@ -147,6 +143,7 @@ class EventStore:
             )
             conn.execute("COMMIT")
 
+    @_db.with_db_retry()
     def update_event(self, event_id: str, updater: Callable[[dict], dict]) -> dict:
         """原子读-改-写：在锁内完成，updater 抛异常则回滚。"""
         with self._lock, self._connect() as conn:

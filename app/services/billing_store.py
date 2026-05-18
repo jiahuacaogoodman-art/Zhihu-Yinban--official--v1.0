@@ -28,6 +28,8 @@ from typing import Optional
 
 from loguru import logger
 
+from app.services import db as _db
+
 
 class BillingStore:
     """缴费管理数据统一存储层。"""
@@ -92,12 +94,8 @@ class BillingStore:
         logger.debug(f"BillingStore 初始化完成: {self._path}")
 
     def _connect(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(self._path, check_same_thread=False, isolation_level=None)
-        conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute("PRAGMA synchronous=NORMAL")
-        conn.execute("PRAGMA foreign_keys=ON")
-        conn.row_factory = sqlite3.Row
-        return conn
+        # 统一走 db.connect() ：自带 PRAGMA busy_timeout=5000，多 worker 下不再裸抛 locked
+        return _db.connect(self._path, foreign_keys=True)
 
     @staticmethod
     def _now() -> str:
@@ -115,6 +113,7 @@ class BillingStore:
     # 收费标准 CRUD
     # ================================================================
 
+    @_db.with_db_retry()
     def create_fee_standard(self, data: dict) -> dict:
         standard_id = self._gen_id("fs")
         now = self._now()
@@ -171,6 +170,7 @@ class BillingStore:
             result.append(d)
         return result
 
+    @_db.with_db_retry()
     def update_fee_standard(self, standard_id: str, data: dict) -> Optional[dict]:
         fields = []
         params = []
@@ -202,6 +202,7 @@ class BillingStore:
             conn.execute("COMMIT")
         return self.get_fee_standard(standard_id)
 
+    @_db.with_db_retry()
     def delete_fee_standard(self, standard_id: str) -> bool:
         with self._lock, self._connect() as conn:
             conn.execute("BEGIN IMMEDIATE")
@@ -218,6 +219,7 @@ class BillingStore:
     # 缴费记录 CRUD
     # ================================================================
 
+    @_db.with_db_retry()
     def create_billing_record(self, data: dict) -> dict:
         record_id = self._gen_id("bill")
         now = self._now()
@@ -290,6 +292,7 @@ class BillingStore:
             return row["latest_end"]
         return None
 
+    @_db.with_db_retry()
     def renew(self, data: dict) -> dict:
         """续费：从上次截止日期往后延 N 个周期。
 
