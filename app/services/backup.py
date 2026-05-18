@@ -426,6 +426,9 @@ def default_sources(base_dir: Path) -> tuple[Path, ...]:
             "local_auth",
             "local_audit_log",
             "local_nursing_events",
+            # PR#5 起：把热快照目录也带进冷备包,这样恢复后能找回
+            # 距离断电时刻最近的几份"分钟级"快照,而不仅仅是 03:00 的全量。
+            "local_hot_snapshots",
         )
     )
 

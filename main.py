@@ -198,10 +198,31 @@ async def lifespan(app: FastAPI):
         logger.error(f"备份调度器启动失败（不影响业务）: {e}")
         backup_scheduler = None
 
+    # ── 启动热快照器 (PR#5) ───────────────────────────
+    # 与冷备并列：每 60s 扫一遍受保护的 SQLite 库，对 mtime 变了的库
+    # 用 SQLite Backup API 拍原子快照。RPO ≤ 1 分钟。
+    # 同样默认 disabled,enabled=false 时 start() 是 no-op。
+    try:
+        from app.services.hot_snapshot import (
+            init_snapshotter,
+            options_from_env as hot_options_from_env,
+        )
+        hot_options = hot_options_from_env(BASE_DIR)
+        hot_snapshotter = init_snapshotter(hot_options)
+        hot_snapshotter.start()
+    except Exception as e:
+        logger.error(f"热快照器启动失败（不影响业务）: {e}")
+        hot_snapshotter = None
+
     yield
 
     # --- 应用关闭时 ---
     logger.info("应用关闭中...")
+    if hot_snapshotter is not None:
+        try:
+            await hot_snapshotter.stop()
+        except Exception as e:
+            logger.warning(f"热快照器关闭异常: {e}")
     if backup_scheduler is not None:
         try:
             await backup_scheduler.stop()

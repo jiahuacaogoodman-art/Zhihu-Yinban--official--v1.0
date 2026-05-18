@@ -21,6 +21,7 @@ static/v2/
 local_ehr_db/
 local_ehr_uploads/
 local_backups/
+local_hot_snapshots/
 *.sqlite3
 *.db
 
