@@ -8,11 +8,10 @@ import { useToast } from '../composables/useToast'
 /**
  * Login — 登录页
  *
- * Phase 7 移动端深度适配 + 体验改进:
+ * 移动端深度适配 + 体验改进:
  *   1) 安全区填充(顶部 + 底部),避免 iOS 刘海/Home 指示条挡到内容
  *   2) Logo + 引导文案 + 大号输入框 + show/hide 密码切换
- *   3) 登录成功跳 /beds 而不是 / —— Landing 页对登录后用户没有信息密度,
- *      新用户登完看到首页会以为没登成功
+ *   3) 登录成功默认跳 /beds(管理端的工作首页)
  *   4) 支持 ?redirect=/path 跳回原页(从 401 抛回登录页时携带)
  *   5) iOS 软键盘弹出时,主动 scrollIntoView 让输入框保持可见
  */
@@ -82,7 +81,7 @@ async function onInputFocus() {
         <div class="login-mark">♥</div>
         <div class="login-brand-text">
           <span class="title-l">智护银伴</span>
-          <span class="meta">v2 · 管理端</span>
+          <span class="meta">管理端</span>
         </div>
       </div>
 
@@ -144,10 +143,6 @@ async function onInputFocus() {
         <a href="/nurse" class="login-extra-link">
           <span>👩‍⚕️</span>
           <span>我是护工，进护工端 →</span>
-        </a>
-        <a href="/legacy" class="login-extra-link login-extra-link--muted">
-          <span>🗂</span>
-          <span>使用旧版界面 →</span>
         </a>
       </div>
     </GlassPanel>

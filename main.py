@@ -75,7 +75,11 @@ from app.services.user_store import UserStore
 # ----------------------------------------------------------------
 BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
-INDEX_HTML = STATIC_DIR / "index.html"
+# 前端 SPA 构建产物目录(由 frontend/ 下 `npm run build` 生成)。
+# 包含 index.html(管理端入口)和 nurse.html(护工端入口),以及共享的 assets/。
+DIST_DIR = STATIC_DIR / "dist"
+INDEX_HTML = DIST_DIR / "index.html"
+NURSE_HTML = DIST_DIR / "nurse.html"
 UPLOAD_DIR = Path(EHR_UPLOAD_DIR)
 
 # 全局应用状态字典，存储 ChromaDB 连接和 Embedding 模型实例
@@ -126,7 +130,7 @@ async def lifespan(app: FastAPI):
     # --- 应用启动时 ---
     logger.info("应用启动中...")
     logger.info(f"项目根目录: {BASE_DIR}")
-    logger.info(f"前端页面路径: {INDEX_HTML}")
+    logger.info(f"前端 SPA 入口: {INDEX_HTML}")
 
     # 1. 初始化 ChromaDB 客户端
     logger.info(f"正在连接本地 ChromaDB，数据存储路径: {CHROMA_DB_PATH}")
@@ -383,59 +387,19 @@ else:
     logger.warning(f"未找到静态文件目录: {STATIC_DIR}，前端页面将不可用")
 
 # ----------------------------------------------------------------
-# Phase 6: 旧版退役 —— / 切到 v2,旧版降到 /legacy/
+# 前端 SPA 静态资源挂载
 # ----------------------------------------------------------------
-# RFC §6.6 / §7 旧版退役方案:
-#   - / → v2 管理端 SPA (static/v2/index.html)
-#   - /nurse → v2 护工端 SPA (static/v2/nurse.html)
-#   - /legacy/ → 旧版管理端 (static/index.html)
-#   - /legacy/nurse → 旧版护工端 (static/nurse.html)
-#   - /legacy/billing → 旧版缴费端 (static/billing.html)
-#   - /billing → 重定向到 /#/billing(v2 未单独做 billing 页时 fallback /legacy/billing)
-#   - 设计系统 /static/design/* 不动(v2 和旧版共用同一份)
-#   - sw.js 不动(RFC §8: 缓存策略只增不改)
-#   - 所有 /api/* 接口完全不变
-#
-# 回滚方案:revert 本 commit 即恢复到 Phase 5 的状态(/ 仍 serve static/index.html)。
-V2_DIR = STATIC_DIR / "v2"
-_v2_ready = V2_DIR.is_dir() and (V2_DIR / "index.html").is_file()
-
-if _v2_ready:
-    logger.info(f"Phase 6 激活: v2 前端就绪({V2_DIR}),/ 将 serve v2 管理端")
-
-    # /legacy/ → 旧版(三合一入口)
-    @app.get("/legacy", include_in_schema=False)
-    @app.get("/legacy/", include_in_schema=False)
-    async def legacy_frontend():
-        """旧版管理端入口(Phase 6 后保留为 fallback)。"""
-        if INDEX_HTML.is_file():
-            return FileResponse(str(INDEX_HTML))
-        return JSONResponse(status_code=404, content={"message": "旧版管理端未找到"})
-
-    @app.get("/legacy/nurse", include_in_schema=False)
-    async def legacy_nurse():
-        """旧版护工端。"""
-        f = STATIC_DIR / "nurse.html"
-        if f.is_file():
-            return FileResponse(str(f))
-        return JSONResponse(status_code=404, content={"message": "旧版护工端未找到"})
-
-    @app.get("/legacy/billing", include_in_schema=False)
-    async def legacy_billing():
-        """旧版缴费端。"""
-        f = STATIC_DIR / "billing.html"
-        if f.is_file():
-            return FileResponse(str(f))
-        return JSONResponse(status_code=404, content={"message": "旧版缴费端未找到"})
-
-    # v2 SPA 资源目录(JS/CSS/assets)—— StaticFiles 仍需存在让 hash 文件能被访问
-    app.mount("/v2", StaticFiles(directory=str(V2_DIR), html=True), name="v2")
-    logger.info(f"v2 静态资源目录已挂载: /v2/")
+# 由 frontend/ 项目 `npm run build` 输出到 static/dist/,FastAPI 把它当作
+# 普通静态目录挂出来,SPA 的 hash 文件(/assets/*.js / *.css)直接走这里。
+# /、/nurse 这两个 SPA 入口由下面的路由 handler 显式返回 index.html /
+# nurse.html(避免 StaticFiles 的 html=True 把根路径吞了)。
+if DIST_DIR.is_dir():
+    app.mount("/dist", StaticFiles(directory=str(DIST_DIR), html=False), name="dist")
+    logger.info(f"前端 SPA 资源目录已挂载: /dist/ → {DIST_DIR}")
 else:
-    # v2 未构建:保持旧行为(Phase 1-5 的 fallback)
     logger.warning(
-        f"v2 前端未就绪({V2_DIR} 不存在或缺少 index.html);"
-        f"/ 仍 serve 旧版 static/index.html"
+        f"前端 SPA 未构建({DIST_DIR} 不存在);"
+        f"/ 和 /nurse 会返回 404。请在 frontend/ 下运行 `npm run build`。"
     )
 
 # 病历照片原件访问目录：文件仍保存在本地磁盘，仅在内网服务中按 URL 预览。
@@ -487,54 +451,32 @@ async def global_exception_handler(request: Request, exc: Exception):
     )
 
 # ----------------------------------------------------------------
-# 前端页面入口 —— Phase 6: / 和 /nurse 切到 v2
+# 前端 SPA 路由入口
 # ----------------------------------------------------------------
+# / → 管理端 SPA (static/dist/index.html)
+# /nurse → 护工端 SPA (static/dist/nurse.html)
+# 两个 SPA 共享同一份 vite 构建产物(共用 chunk + design 目录),
+# 但运行时是两个独立的 Vue app,各走各的路由。
 @app.get("/", include_in_schema=False)
 async def frontend():
-    """
-    Phase 6: / 默认 serve v2 管理端 SPA。
-    v2 未就绪时 fallback 到旧版 static/index.html。
-    """
-    if _v2_ready:
-        return FileResponse(str(V2_DIR / "index.html"))
+    """管理端 SPA 入口。"""
     if INDEX_HTML.is_file():
         return FileResponse(str(INDEX_HTML))
     return JSONResponse(
         status_code=404,
-        content={"message": "前端页面文件未找到"}
+        content={
+            "message": "前端未构建。请在 frontend/ 下执行 `npm install && npm run build`。",
+        },
     )
 
 @app.get("/nurse", include_in_schema=False)
 async def nurse_frontend():
-    """
-    Phase 6: /nurse → v2 护工端 SPA。
-    v2 未就绪时 fallback 到旧版 static/nurse.html。
-    """
-    if _v2_ready:
-        nurse_v2 = V2_DIR / "nurse.html"
-        if nurse_v2.is_file():
-            return FileResponse(str(nurse_v2))
-    # fallback: 旧版
-    nurse_old = STATIC_DIR / "nurse.html"
-    if nurse_old.is_file():
-        return FileResponse(str(nurse_old))
+    """护工端 SPA 入口。"""
+    if NURSE_HTML.is_file():
+        return FileResponse(str(NURSE_HTML))
     return JSONResponse(
         status_code=404,
-        content={"message": "护工端页面未找到"}
-    )
-
-@app.get("/billing", include_in_schema=False)
-async def billing_frontend():
-    """
-    Phase 6: /billing → v2 尚无独立 billing 页,暂 fallback 到旧版。
-    等后续 Phase 把 billing 做成 v2 视图后再切。
-    """
-    billing_html = STATIC_DIR / "billing.html"
-    if billing_html.is_file():
-        return FileResponse(str(billing_html))
-    return JSONResponse(
-        status_code=404,
-        content={"message": "缴费管理页面未找到"}
+        content={"message": "护工端未构建。请在 frontend/ 下执行 `npm run build`。"},
     )
 
 # 健康检查端点
@@ -553,7 +495,7 @@ async def health_check():
         "message": "智护银伴后端服务正在运行",
         "base_dir": str(BASE_DIR),
         "static_dir_exists": STATIC_DIR.is_dir(),
-        "index_html_exists": INDEX_HTML.is_file(),
+        "frontend_built": INDEX_HTML.is_file(),
         # 运维可观测 ─────────────────────────────────────────
         "pii_encryption_enabled": is_encryption_enabled(),
         "auth_mode": getattr(app.state, "auth_mode", "unknown"),

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { Btn, Chip, GlassPanel } from '../components'
+import { Chip, GlassPanel } from '../components'
 import { useToast } from '../composables/useToast'
 import { api } from '../api'
 
@@ -90,14 +90,7 @@ onMounted(fetchHandovers)
 
       <div v-if="handovers.length === 0" class="empty">
         <p class="empty-title">暂无交接记录</p>
-        <p class="empty-sub">
-          v2 暂为只读视图。新增交接班请前往
-          <a href="/legacy" style="color: var(--accent-ink, #0f766e);">旧版界面</a>
-          录入,完成后这里会自动同步。
-        </p>
-        <Btn tag="a" href="/legacy" variant="outline" size="sm" style="margin-top: 12px;">
-          前往旧版录入 →
-        </Btn>
+        <p class="empty-sub">交接班录入功能开发中。</p>
       </div>
     </div>
   </div>

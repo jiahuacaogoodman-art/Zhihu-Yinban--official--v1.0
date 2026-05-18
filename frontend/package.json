@@ -1,9 +1,9 @@
 {
   "name": "zhihu-yinban-frontend",
   "private": true,
-  "version": "0.0.1-phase1",
+  "version": "1.0.0",
   "type": "module",
-  "description": "智护银伴 v2 前端 — Vite + Vue 3 (RFC: docs/FRONTEND_REFACTOR_RFC.md, Phase 1 scaffold)",
+  "description": "智护银伴 前端 — Vite + Vue 3 多入口 SPA(管理端 + 护工端)",
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc --noEmit && vite build",

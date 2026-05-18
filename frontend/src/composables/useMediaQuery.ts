@@ -4,7 +4,7 @@ import { onMounted, onBeforeUnmount, ref, type Ref } from 'vue'
  * useMediaQuery — 响应式 matchMedia 包装
  *
  * 用于让 Vue 组件按媒体查询结果走分支渲染（而不是只靠 CSS 隐藏，
- * 因为 v2 的 App.vue 在移动端要"完全不渲染桌面侧栏 / 改渲染抽屉"，
+ * 因为 App.vue 在移动端要"完全不渲染桌面侧栏 / 改渲染抽屉"，
  * 单纯 display:none 不够）。
  *
  * 在 SSR / 测试环境（无 window）里安全地降级到 false。
@@ -43,7 +43,7 @@ export function useMediaQuery(query: string): Ref<boolean> {
 }
 
 /**
- * 标准断点 —— 与 mobile.css / v2-mobile.css 保持一致。
+ * 标准断点 —— 与 mobile.css / app-shell.css 保持一致。
  *   sm: ≤ 640px  手机
  *   md: ≤ 960px  平板/小笔记本
  */

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { Btn, Chip, GlassPanel } from '../components'
+import { Chip, GlassPanel } from '../components'
 import { useToast } from '../composables/useToast'
 import { api } from '../api'
 
@@ -83,14 +83,7 @@ onMounted(fetchIncidents)
 
       <div v-if="incidents.length === 0" class="empty">
         <p class="empty-title">暂无异常事件</p>
-        <p class="empty-sub">
-          没有事件是好事 ✨。新发生的异常请前往
-          <a href="/legacy" style="color: var(--accent-ink, #0f766e);">旧版界面</a>
-          上报。
-        </p>
-        <Btn tag="a" href="/legacy" variant="outline" size="sm" style="margin-top: 12px;">
-          前往旧版上报 →
-        </Btn>
+        <p class="empty-sub">没有事件是好事 ✨。事件上报功能开发中。</p>
       </div>
     </div>
   </div>

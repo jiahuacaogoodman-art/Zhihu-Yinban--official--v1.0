@@ -5,15 +5,15 @@ import nurseRouter from './nurse-router'
 import { setOnUnauthorized } from './api'
 import { useAuthStore } from './stores/auth'
 
-// 复用管理端的设计系统 —— RFC §8: 0 改动
+// 复用管理端的设计系统
 import '@design/tokens.css'
 import '@design/glass.css'
 import '@design/ui.css'
 import '@design/mobile.css'
-// Phase 7 移动端深度适配（与管理端共享同一份 v2-mobile.css）
-import './styles/v2-mobile.css'
-// Phase 8 子页面移动端专项优化（GlassPanel 卡片、列表触控、各 View 内部排版）
-import './styles/v2-views-mobile.css'
+// 应用壳层移动端样式(与管理端共享同一份)
+import './styles/app-shell.css'
+// 子页面移动端专项优化(GlassPanel 卡片、列表触控、各 View 内部排版)
+import './styles/views-mobile.css'
 
 const app = createApp(NurseApp)
 app.use(createPinia())
