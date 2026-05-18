@@ -258,16 +258,16 @@ function goToTask() {
   min-height: 100dvh;
 }
 
+/* ─── 顶栏：使用 flex 替代 grid，避免手机窄屏文字挤压 ─── */
 .nurse-appbar {
   position: sticky;
   top: 0;
   z-index: 30;
-  display: grid;
-  grid-template-columns: auto 1fr auto;
+  display: flex;
   align-items: center;
-  gap: 12px;
-  padding: calc(env(safe-area-inset-top, 0px) + 8px) 14px 8px;
-  height: calc(56px + env(safe-area-inset-top, 0px));
+  gap: 8px;
+  padding: calc(env(safe-area-inset-top, 0px) + 8px) 12px 8px;
+  min-height: calc(48px + env(safe-area-inset-top, 0px));
   background: rgba(11, 18, 32, 0.88);
   backdrop-filter: blur(18px) saturate(160%);
   -webkit-backdrop-filter: blur(18px) saturate(160%);
@@ -283,26 +283,30 @@ function goToTask() {
   flex-shrink: 0;
 }
 .nurse-mark {
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
   background: linear-gradient(135deg, var(--accent), var(--accent-ink));
   color: #fff;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
+  font-size: 13px;
+  flex-shrink: 0;
 }
 .nurse-tag {
-  font-size: 10.5px;
-  padding: 2px 6px;
+  font-size: 10px;
+  padding: 2px 5px;
   border-radius: 4px;
   background: rgba(94, 234, 212, 0.18);
   color: #5eead4;
   letter-spacing: 0.05em;
+  flex-shrink: 0;
 }
 .nurse-title {
   margin: 0;
+  flex: 1;
+  min-width: 0;
   font: 500 14px/1.2 var(--font-ui);
   color: rgba(255, 255, 255, 0.85);
   text-align: center;
@@ -313,16 +317,17 @@ function goToTask() {
 }
 .nurse-link {
   flex-shrink: 0;
-  height: 36px;
-  padding: 0 12px;
-  border-radius: 8px;
+  height: 32px;
+  padding: 0 10px;
+  border-radius: 7px;
   border: 1px solid rgba(255, 255, 255, 0.18);
   background: rgba(255, 255, 255, 0.08);
   color: #fff;
   text-decoration: none;
   display: inline-flex;
   align-items: center;
-  font: 500 13px/1 var(--font-ui);
+  font: 500 12px/1 var(--font-ui);
+  white-space: nowrap;
 }
 .nurse-link:active {
   background: rgba(255, 255, 255, 0.18);
@@ -330,15 +335,59 @@ function goToTask() {
 
 .nurse-main {
   flex: 1;
-  padding: 14px 14px calc(env(safe-area-inset-bottom, 0px) + 88px);
+  padding: 12px 12px calc(env(safe-area-inset-bottom, 0px) + 72px);
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
 }
 
+/* ─── ≤640px 手机适配 ─── */
 @media (max-width: 640px) {
+  .nurse-appbar {
+    gap: 6px;
+    padding: calc(env(safe-area-inset-top, 0px) + 6px) 10px 6px;
+    min-height: calc(42px + env(safe-area-inset-top, 0px));
+  }
   .nurse-name {
-    /* 极窄屏隐藏品牌字，让标题居中显得不挤 */
     display: none;
+  }
+  .nurse-tag {
+    display: none;
+  }
+  .nurse-title {
+    font-size: 13px;
+  }
+  .nurse-link {
+    height: 28px;
+    padding: 0 8px;
+    font-size: 11px;
+  }
+  .nurse-main {
+    padding: 10px 10px calc(env(safe-area-inset-bottom, 0px) + 68px);
+  }
+}
+
+/* ─── ≤380px 超小屏（iPhone SE / 旧安卓） ─── */
+@media (max-width: 380px) {
+  .nurse-appbar {
+    gap: 4px;
+    padding: calc(env(safe-area-inset-top, 0px) + 4px) 8px 4px;
+    min-height: calc(38px + env(safe-area-inset-top, 0px));
+  }
+  .nurse-mark {
+    width: 22px;
+    height: 22px;
+    font-size: 11px;
+  }
+  .nurse-title {
+    font-size: 12px;
+  }
+  .nurse-link {
+    height: 26px;
+    padding: 0 6px;
+    font-size: 10px;
+  }
+  .nurse-main {
+    padding: 8px 8px calc(env(safe-area-inset-bottom, 0px) + 64px);
   }
 }
 </style>
@@ -367,7 +416,7 @@ function goToTask() {
   align-items: center;
   justify-content: center;
   gap: 2px;
-  padding: 6px 4px;
+  padding: 4px;
   background: transparent;
   border: none;
   border-radius: 8px;
@@ -375,7 +424,7 @@ function goToTask() {
   text-decoration: none;
   font: 500 11px/1.2 var(--font-ui);
   cursor: pointer;
-  min-height: 50px;
+  min-height: 46px;
 }
 .nb-item:disabled {
   color: var(--ink-5, #cbd5e1);

@@ -358,6 +358,7 @@ onMounted(fetchPatient)
   display: flex;
   align-items: center;
   gap: var(--sp-3, 12px);
+  flex-wrap: wrap;
 }
 .pd-avatar {
   width: 52px;
@@ -435,12 +436,15 @@ onMounted(fetchPatient)
 }
 
 @media (max-width: 640px) {
+  .pd-view { gap: 12px; }
   .pd-info-grid { grid-template-columns: 1fr; }
   .pd-actions { grid-template-columns: 1fr; }
-  .pd-actions .btn { height: 46px; font-size: 15px; }
-  .pd-avatar { width: 44px; height: 44px; font-size: 18px; }
-  .pd-tags .chip { font-size: 11px; height: 22px; }
-  .pd-quick-tags .tap-chip { font-size: 13px; height: 36px; }
+  .pd-actions .btn { height: 44px; font-size: 14px; }
+  .pd-avatar { width: 40px; height: 40px; font-size: 16px; }
+  .pd-tags { gap: 4px; }
+  .pd-tags .chip { font-size: 11px; height: 22px; padding: 0 8px; }
+  .pd-quick-tags .tap-chip { font-size: 13px; height: 34px; padding: 0 10px; }
+  .pd-header :deep(.vp-glass__header) { flex-wrap: wrap; gap: 8px; }
   /* 任务执行三个按钮平铺 */
   .task-exec-actions {
     display: flex;
@@ -454,16 +458,26 @@ onMounted(fetchPatient)
     padding: 0 8px;
     font-size: 13px;
   }
-  .task-check { width: 32px; height: 32px; }
-  .task-text { font-size: 14px; }
-  .progress { height: 8px; }
-  .pd-disclaimer { font-size: 12px; }
+  .task-check { width: 30px; height: 30px; }
+  .task-text { font-size: 13px; line-height: 1.4; }
+  .progress { height: 7px; }
+  .pd-disclaimer { font-size: 11px; padding: 6px 10px; }
 }
 
 @media (max-width: 480px) {
-  .pd-actions .btn { height: 48px; font-size: 15px; }
+  .pd-actions .btn { height: 44px; font-size: 14px; }
   .task-exec-actions .btn { flex: 1 1 100%; min-height: 40px; }
   .pd-info-grid { font-size: 12px; }
+  .pd-quick-tags .tap-chip { font-size: 12px; height: 32px; padding: 0 8px; }
+}
+
+@media (max-width: 380px) {
+  .pd-view { gap: 8px; }
+  .pd-avatar { width: 36px; height: 36px; font-size: 14px; }
+  .pd-actions .btn { height: 42px; font-size: 13px; }
+  .task-text { font-size: 12px; }
+  .task-check { width: 28px; height: 28px; font-size: 12px; }
+  .pd-quick-tags .tap-chip { font-size: 11px; height: 28px; padding: 0 6px; }
 }
 
 /* 通用任务执行按钮布局(桌面+移动) */
