@@ -12,6 +12,8 @@ import '@design/ui.css'
 import '@design/mobile.css'
 // Phase 7 移动端深度适配（与管理端共享同一份 v2-mobile.css）
 import './styles/v2-mobile.css'
+// Phase 8 子页面移动端专项优化（GlassPanel 卡片、列表触控、各 View 内部排版）
+import './styles/v2-views-mobile.css'
 
 const app = createApp(NurseApp)
 app.use(createPinia())

@@ -668,7 +668,7 @@ onMounted(fetchRecords)
   }
   /* 移动端隐藏 header 里的"新增"按钮(改用右下 FAB,见模板末尾) */
   .ehr-header > .btn { display: none; }
-  .ehr-header .title-l { font-size: 22px; }
+  .ehr-header .title-l { font-size: 20px; width: 100%; }
 
   .ehr-filters { padding: 10px !important; }
   .ehr-filters :deep(.field) {
@@ -681,7 +681,7 @@ onMounted(fetchRecords)
     gap: 10px;
   }
   .ehr-card { padding: 14px !important; }
-  .ehr-meta { font-size: 14px; }
+  .ehr-meta { font-size: 13px; }
   .ehr-meta div { grid-template-columns: 60px 1fr; }
 
   .ehr-detail-grid,
@@ -690,5 +690,11 @@ onMounted(fetchRecords)
   .ehr-export-care { grid-template-columns: 1fr; }
   .ehr-export-actions .btn { width: 100%; }
   .ehr-export-care .btn { width: 100%; height: 44px; }
+}
+
+@media (max-width: 480px) {
+  .ehr-header .title-l { font-size: 18px; }
+  .ehr-meta { font-size: 12px; }
+  .ehr-detail-grid div { grid-template-columns: 72px 1fr; font-size: 12px; }
 }
 </style>

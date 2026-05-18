@@ -280,11 +280,14 @@ async function handleRefresh(done: () => void) {
     grid-template-columns: 1fr;
     gap: 10px;
   }
+  .bed-grid--skeleton {
+    grid-template-columns: 1fr;
+  }
   .bed-card {
     padding: 14px !important;
   }
   .bed-meta {
-    font-size: 14px;
+    font-size: 13px;
   }
   .bed-meta div {
     grid-template-columns: 70px 1fr;
@@ -296,5 +299,10 @@ async function handleRefresh(done: () => void) {
   .bed-filters .row > * {
     max-width: none !important;
   }
+}
+
+@media (max-width: 480px) {
+  .bed-list-header .title-l { font-size: 18px; }
+  .bed-list-header .chip { font-size: 10px; height: 20px; }
 }
 </style>
