@@ -103,6 +103,22 @@ onMounted(fetchIncidents)
 @media (max-width: 640px) {
   .incident-view { gap: 12px; }
   .incident-header { flex-wrap: wrap; }
-  .incident-header .title-l { font-size: 22px; }
+  .incident-header .title-l { font-size: 20px; width: 100%; }
+  .incident-card :deep(.vp-glass__body) .body-s {
+    font-size: 13px;
+    line-height: 1.65;
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .incident-card :deep(.vp-glass__footer) {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+}
+
+@media (max-width: 480px) {
+  .incident-header .title-l { font-size: 18px; }
 }
 </style>

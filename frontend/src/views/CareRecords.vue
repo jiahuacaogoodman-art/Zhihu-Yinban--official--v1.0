@@ -99,6 +99,26 @@ onMounted(fetchRecords)
 @media (max-width: 640px) {
   .care-record-view { gap: 12px; }
   .care-record-header { flex-wrap: wrap; }
-  .care-record-header .title-l { font-size: 22px; }
+  .care-record-header .title-l { font-size: 20px; width: 100%; }
+  .care-record-view :deep(.vp-glass__body) .body-s {
+    font-size: 13px;
+    line-height: 1.7;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .care-record-view :deep(.vp-glass__header) {
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .care-record-view :deep(.vp-glass__footer) {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+}
+
+@media (max-width: 480px) {
+  .care-record-header .title-l { font-size: 18px; }
 }
 </style>

@@ -438,6 +438,9 @@ onMounted(fetchPatient)
   .pd-info-grid { grid-template-columns: 1fr; }
   .pd-actions { grid-template-columns: 1fr; }
   .pd-actions .btn { height: 46px; font-size: 15px; }
+  .pd-avatar { width: 44px; height: 44px; font-size: 18px; }
+  .pd-tags .chip { font-size: 11px; height: 22px; }
+  .pd-quick-tags .tap-chip { font-size: 13px; height: 36px; }
   /* 任务执行三个按钮平铺 */
   .task-exec-actions {
     display: flex;
@@ -451,6 +454,16 @@ onMounted(fetchPatient)
     padding: 0 8px;
     font-size: 13px;
   }
+  .task-check { width: 32px; height: 32px; }
+  .task-text { font-size: 14px; }
+  .progress { height: 8px; }
+  .pd-disclaimer { font-size: 12px; }
+}
+
+@media (max-width: 480px) {
+  .pd-actions .btn { height: 48px; font-size: 15px; }
+  .task-exec-actions .btn { flex: 1 1 100%; min-height: 40px; }
+  .pd-info-grid { font-size: 12px; }
 }
 
 /* 通用任务执行按钮布局(桌面+移动) */

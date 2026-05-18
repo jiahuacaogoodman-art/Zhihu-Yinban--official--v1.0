@@ -112,8 +112,24 @@ onMounted(fetchHandovers)
 @media (max-width: 640px) {
   .handover-view { gap: 12px; }
   .handover-header { flex-wrap: wrap; }
-  .handover-header .title-l { font-size: 22px; }
-  .sbar { font-size: 14px; line-height: 1.7; }
-  .sbar strong { display: inline-block; width: 18px; }
+  .handover-header .title-l { font-size: 20px; width: 100%; }
+  .sbar {
+    font-size: 13px;
+    line-height: 1.7;
+    padding-left: 10px;
+    border-left: 3px solid rgba(20, 184, 166, 0.3);
+    gap: 8px;
+  }
+  .sbar strong { display: inline-block; width: 20px; text-align: center; }
+  .handover-card :deep(.vp-glass__footer) {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+}
+
+@media (max-width: 480px) {
+  .handover-header .title-l { font-size: 18px; }
+  .sbar { font-size: 12px; }
 }
 </style>

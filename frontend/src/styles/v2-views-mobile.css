@@ -1,0 +1,528 @@
+/* === 智护银伴 v2 · 子页面移动端深度适配 ====================================
+   v2-mobile.css 负责"壳层"(layout / drawer / bottom-tab / dialog / toast)。
+   本文件专注于各 View 内部的内容区域在手机上的优化：
+
+   1) GlassPanel 卡片在 ≤640 收紧内边距、footer 允许换行
+   2) 列表卡片触控优化(touch-action / active 反馈 / 最小高度)
+   3) 各页面表头/筛选栏在窄屏堆叠
+   4) 交接班 SBAR 格子 / 异常事件 / 护理记录在手机上的布局
+   5) 护工端 PatientDetail 任务卡打卡区域的触控友好
+   6) 空态在手机上的紧凑间距
+   7) 搜索栏全宽 + sticky 优化
+   8) 统一 ≤960 → ≤640 → ≤480 三级渐进适配
+
+   加载顺序：在 v2-mobile.css 之后(main.ts / nurse-main.ts 里 import)。
+   ========================================================================== */
+
+/* ============================================================
+   §1 GlassPanel 通用移动优化
+   ============================================================ */
+@media (max-width: 640px) {
+  /* 卡片内边距从桌面 20px 收到 14px，节省横向空间 */
+  .vp-glass--card {
+    padding: 14px !important;
+  }
+  .vp-glass__header {
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .vp-glass__footer {
+    flex-wrap: wrap;
+    gap: 6px;
+    padding-top: 8px;
+  }
+  /* footer 里的 meta/chip 允许换行而非溢出 */
+  .vp-glass__footer .meta,
+  .vp-glass__footer .chip {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+  }
+  /* 卡片 body 间距微调 */
+  .vp-glass__body {
+    padding: 8px 0;
+  }
+}
+
+/* ============================================================
+   §2 列表卡片触控优化
+   ============================================================ */
+@media (hover: none) and (pointer: coarse) {
+  /* 可点击卡片：增大触控区、加点击反馈 */
+  .ehr-card,
+  .bed-card,
+  .pt-card,
+  .handover-card,
+  .incident-card,
+  .pc-card {
+    min-height: 64px;
+    touch-action: manipulation;
+  }
+  .ehr-card:active,
+  .bed-card:active,
+  .pt-card:active,
+  .handover-card:active,
+  .incident-card:active {
+    transform: scale(0.99);
+    transition: transform 80ms ease;
+  }
+  /* 取消桌面 hover 抬升 */
+  .ehr-card:hover,
+  .bed-card:hover {
+    transform: none;
+  }
+}
+
+/* ============================================================
+   §3 页面表头在窄屏堆叠
+   ============================================================ */
+@media (max-width: 640px) {
+  /* 通用 view header: 标题 + 统计 Chip 换行 */
+  .handover-header,
+  .incident-header,
+  .care-record-header,
+  .bed-list-header,
+  .ehr-header,
+  .pc-header {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .handover-header .title-l,
+  .incident-header .title-l,
+  .care-record-header .title-l,
+  .bed-list-header .title-l,
+  .ehr-header .title-l,
+  .pc-header .title-l {
+    font-size: 20px;
+    width: 100%;
+  }
+}
+
+/* ============================================================
+   §4 交接班(Handovers)移动端优化
+   ============================================================ */
+@media (max-width: 640px) {
+  .handover-card {
+    padding: 14px !important;
+  }
+  .handover-card .vp-glass__header {
+    gap: 6px;
+  }
+  .handover-card .title-s {
+    font-size: 14px;
+    word-break: break-all;
+  }
+  /* SBAR 四格布局 —— 在手机上加左侧竖线视觉引导 */
+  .sbar {
+    padding-left: 10px;
+    border-left: 3px solid rgba(20, 184, 166, 0.3);
+    font-size: 13px;
+    line-height: 1.7;
+    gap: 8px;
+  }
+  .sbar strong {
+    display: inline-block;
+    width: 20px;
+    text-align: center;
+    font-size: 13px;
+  }
+  /* footer 时间+患者 chip 换行 */
+  .handover-card .vp-glass__footer {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+}
+
+/* ============================================================
+   §5 异常事件(Incidents)移动端优化
+   ============================================================ */
+@media (max-width: 640px) {
+  .incident-card {
+    padding: 14px !important;
+  }
+  .incident-card .body-s {
+    font-size: 13px;
+    line-height: 1.65;
+    /* 长描述在手机上限高，避免单卡片太长 */
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .incident-card .vp-glass__footer {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .incident-card .vp-glass__footer .meta {
+    font-size: 11px;
+  }
+}
+
+/* ============================================================
+   §6 护理记录(CareRecords)移动端优化
+   ============================================================ */
+@media (max-width: 640px) {
+  .care-record-view .vp-glass--panel,
+  .care-record-view .vp-glass--card {
+    padding: 14px !important;
+  }
+  .care-record-view .body-s {
+    font-size: 13px;
+    line-height: 1.7;
+    /* 内容截断 —— 避免单条记录在列表中占太多空间 */
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .care-record-view .vp-glass__header {
+    gap: 6px;
+  }
+  .care-record-view .vp-glass__footer {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+}
+
+/* ============================================================
+   §7 支付渠道(PaymentChannels)移动端增强
+   ============================================================ */
+@media (max-width: 640px) {
+  .pc-tip {
+    font-size: 12px;
+    line-height: 1.6;
+  }
+  .pc-card .pc-desc {
+    font-size: 13px;
+    line-height: 1.6;
+    /* 描述文字在手机上限 3 行 */
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .pc-flags {
+    gap: 4px;
+  }
+  .pc-flags .chip {
+    font-size: 10px;
+    height: 20px;
+  }
+  .pc-updated {
+    font-size: 10px;
+  }
+  /* 配置 Dialog 在手机上全宽 */
+  .pc-config {
+    max-width: none !important;
+  }
+}
+
+/* ============================================================
+   §8 床位管理(BedList)移动端增强
+   ============================================================ */
+@media (max-width: 640px) {
+  /* 筛选栏下拉:全宽排列 */
+  .bed-filters .row {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 8px !important;
+  }
+  .bed-filters .row > * {
+    max-width: none !important;
+    width: 100% !important;
+  }
+  /* 床位卡片 meta 字体放大一点便于阅读 */
+  .bed-meta {
+    font-size: 13px;
+  }
+  /* footer 按钮全宽 */
+  .bed-card .vp-glass__footer {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .bed-card .vp-glass__footer .btn {
+    width: 100%;
+    min-height: 40px;
+  }
+}
+
+/* ============================================================
+   §9 患者档案(EhrList)移动端增强
+   ============================================================ */
+@media (max-width: 640px) {
+  /* 搜索框全宽 */
+  .ehr-filters .field {
+    max-width: none !important;
+    width: 100% !important;
+  }
+  /* 卡片 meta 字体 */
+  .ehr-meta {
+    font-size: 13px;
+  }
+  /* 详情 dialog 内的导出区域 */
+  .ehr-export {
+    padding: 12px;
+  }
+  .ehr-export-actions {
+    flex-direction: column;
+  }
+  .ehr-export-actions .btn {
+    width: 100%;
+    min-height: 44px;
+  }
+  .ehr-export-care {
+    grid-template-columns: 1fr !important;
+    gap: 8px;
+  }
+  .ehr-export-care .btn {
+    width: 100%;
+    min-height: 44px;
+  }
+}
+
+/* ============================================================
+   §10 护工端 PatientDetail 移动端增强
+   ============================================================ */
+@media (max-width: 640px) {
+  .pd-view {
+    gap: 12px;
+  }
+  /* 头像+姓名头部 */
+  .pd-avatar {
+    width: 44px;
+    height: 44px;
+    font-size: 18px;
+  }
+  .pd-header .title-l {
+    font-size: 20px;
+  }
+  .pd-header .meta {
+    font-size: 12px;
+    line-height: 1.5;
+    word-break: break-all;
+  }
+  /* 标签组 */
+  .pd-tags {
+    gap: 4px;
+  }
+  .pd-tags .chip {
+    font-size: 11px;
+    height: 22px;
+    padding: 0 8px;
+  }
+  /* 快速症状标签:手机上两行 wrap，每个 chip 更大 */
+  .pd-quick-tags {
+    gap: 6px;
+  }
+  .pd-quick-tags .tap-chip {
+    font-size: 13px;
+    height: 36px;
+    padding: 0 12px;
+  }
+  /* 动作按钮区:垂直排列更好按 */
+  .pd-actions {
+    grid-template-columns: 1fr !important;
+    gap: 8px;
+  }
+  .pd-actions .btn {
+    min-height: 46px;
+    font-size: 15px;
+  }
+  /* 信息展开区 */
+  .pd-info-grid {
+    grid-template-columns: 1fr !important;
+    gap: 4px;
+    font-size: 13px;
+  }
+  .pd-info-grid dt {
+    font-weight: 600;
+    color: var(--ink-3);
+  }
+  /* 任务卡执行区域 */
+  .pd-task-item {
+    padding: 10px 0;
+  }
+  .task-check {
+    width: 32px;
+    height: 32px;
+    font-size: 16px;
+  }
+  .task-text {
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  .task-exec-actions {
+    margin-top: 8px;
+    gap: 6px;
+  }
+  .task-exec-actions .btn {
+    min-height: 38px;
+    font-size: 13px;
+    flex: 1 1 calc(33% - 4px);
+  }
+  /* 进度条 */
+  .progress {
+    height: 8px;
+    margin-top: 10px;
+  }
+  /* AI 建议卡 */
+  .pd-ai-card .body-m {
+    font-size: 14px;
+    line-height: 1.7;
+  }
+  .pd-disclaimer {
+    font-size: 12px;
+    padding: 8px 10px;
+  }
+}
+
+/* ============================================================
+   §11 护工端 PatientList 移动端增强
+   ============================================================ */
+@media (max-width: 640px) {
+  /* 搜索栏 sticky + 透明背景让滚动更自然 */
+  .pt-search {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-radius: var(--r-s, 10px);
+    margin: 0 -2px;
+    padding: 0 2px;
+  }
+  /* 卡片:更大触控区、加 active 反馈 */
+  .pt-card {
+    min-height: 68px;
+    padding: 14px;
+    border-radius: 12px;
+  }
+  .pt-card:active {
+    background: rgba(20, 184, 166, 0.08);
+    transform: scale(0.99);
+  }
+  .pt-avatar {
+    width: 44px;
+    height: 44px;
+    font-size: 18px;
+  }
+  .pt-name {
+    font-size: 15px;
+  }
+  .pt-sub {
+    font-size: 12px;
+    margin-top: 3px;
+  }
+  .pt-level {
+    font-size: 10px;
+    height: 20px;
+  }
+}
+
+/* ============================================================
+   §12 空态在手机上的优化
+   ============================================================ */
+@media (max-width: 640px) {
+  .empty {
+    padding: 32px 16px;
+  }
+  .empty-title {
+    font-size: 15px;
+  }
+  .empty-sub {
+    font-size: 13px;
+    line-height: 1.6;
+  }
+  .empty .btn {
+    width: 100%;
+    min-height: 44px;
+  }
+}
+
+/* ============================================================
+   §13 ≤480 极小屏进一步收紧
+   ============================================================ */
+@media (max-width: 480px) {
+  /* 所有 view header 标题再缩一级 */
+  .handover-header .title-l,
+  .incident-header .title-l,
+  .care-record-header .title-l,
+  .bed-list-header .title-l,
+  .ehr-header .title-l,
+  .pc-header .title-l {
+    font-size: 18px;
+  }
+  /* Chip 统计标签缩小 */
+  .handover-header .chip,
+  .incident-header .chip,
+  .care-record-header .chip,
+  .bed-list-header .chip,
+  .pc-header .chip {
+    font-size: 10px;
+    height: 20px;
+    padding: 0 6px;
+  }
+  /* 护工端操作按钮纵排 */
+  .pd-actions {
+    grid-template-columns: 1fr !important;
+  }
+  /* 任务打卡按钮改全宽 */
+  .task-exec-actions .btn {
+    flex: 1 1 100%;
+  }
+}
+
+/* ============================================================
+   §14 横屏适配(移动横屏 / 折叠屏外屏)
+   ============================================================ */
+@media (max-width: 960px) and (orientation: landscape) and (max-height: 500px) {
+  /* 横屏时给内容区更紧凑的间距 */
+  .handover-view,
+  .incident-view,
+  .care-record-view,
+  .bed-list-view,
+  .ehr-view,
+  .pc-view,
+  .pd-view,
+  .pt-list-view {
+    gap: 8px;
+  }
+  /* 卡片网格可以双列 */
+  .bed-grid,
+  .ehr-grid,
+  .pc-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px;
+  }
+  /* 护工端列表:横屏可以双列卡片 */
+  .pt-cards {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 6px;
+  }
+}
+
+/* ============================================================
+   §15 平板适配(641-960px)
+   ============================================================ */
+@media (min-width: 641px) and (max-width: 960px) {
+  /* 床位/EHR/支付渠道:2列网格(比桌面少1列) */
+  .bed-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .ehr-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .pc-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  /* 护工端详情:限宽居中 */
+  .pd-view {
+    max-width: 600px;
+    margin: 0 auto;
+  }
+}
