@@ -14,6 +14,8 @@ import '@design/mobile.css'
 import './styles/v2-mobile.css'
 // Phase 8 子页面移动端专项优化（GlassPanel 卡片、列表触控、各 View 内部排版）
 import './styles/v2-views-mobile.css'
+// Phase 8 子页面美学优化层（卡片光泽、色条、微动效、视觉层次增强）
+import './styles/v2-views-aesthetic.css'
 
 const app = createApp(NurseApp)
 app.use(createPinia())
