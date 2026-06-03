@@ -100,9 +100,9 @@
 **核心思路**:
 
 - 新建 `frontend/` 目录,Vite 项目独立维护
-- `vite build` 输出到 `static/v2/`,FastAPI 静态托管
+- `vite build` 输出到 `static/dist/`,FastAPI 静态托管
 - **不需要在生产环境装 Node**,生产仍然只有 Python
-- 旧版 `static/index.html` 通过 `/legacy/` 路径保留 1-2 个版本作为回滚
+- 旧版 `static/*.html` 不再作为页面入口；`/legacy/` 统一重定向到新版管理端
 
 **收益对应 §2.1**:
 
@@ -185,7 +185,7 @@
 3. 与现有 `tokens.css` / `glass.css` / `ui.css` 设计系统 100% 兼容(Vue 不限制 CSS 写法,直接 import 即可)
 4. 与 PWA / sw.js 兼容,不破坏离线能力
 5. 产物是纯静态文件,不影响 FastAPI 部署链路
-6. 可逆——任何阶段都可以保留 `/legacy/` 旧入口作为回滚
+6. 入口统一——生产只走新版 SPA；回滚通过版本发布完成，不再回到旧 HTML
 
 ---
 
@@ -246,39 +246,38 @@
 │   ├── tsconfig.json                  ← 可选 TS;允许 .js 共存
 │   └── package.json
 │
-├── static/                            ← 保留旧版,作为 /legacy/ 回滚
-│   ├── index.html                     ← 不删,迁完后改名 legacy/index.html
-│   ├── nurse.html                     ← 同上
-│   ├── billing.html
+├── static/                            ← 设计资源 + 新版构建产物
 │   ├── design/                        ← Vite 通过相对路径 import
 │   ├── pet/
-│   └── v2/                            ← Vite build 产出物
+│   └── dist/                          ← Vite build 产出物
 │       ├── index.html
+│       ├── nurse.html
 │       └── assets/                    ← 带 hash 的 JS / CSS
 │
-├── main.py                            ← 仅新增 3 个路由,见 §5.2
+├── main.py                            ← 统一 SPA 入口,见 §5.2
 └── docs/
     └── FRONTEND_REFACTOR_RFC.md       ← 本文档
 ```
 
 ### 5.2 后端改动(最小化)
 
-`main.py` 仅追加,不修改:
+`main.py` 统一入口:
 
 ```python
-# 旧版保持不变
-@app.get("/", include_in_schema=False)            # 现有
-@app.get("/nurse", include_in_schema=False)       # 现有
-@app.get("/billing", include_in_schema=False)     # 现有
+DIST_DIR = STATIC_DIR / "dist"
+app.mount("/dist", StaticFiles(directory=str(DIST_DIR), html=False), name="dist")
 
-# 新增:v2 入口(灰度阶段)
-V2_DIR = STATIC_DIR / "v2"
-if V2_DIR.is_dir():
-    app.mount("/v2", StaticFiles(directory=str(V2_DIR), html=True), name="v2")
+@app.get("/")
+async def frontend():
+    return FileResponse(DIST_DIR / "index.html")
 
-# Phase 6 切换默认时,改成:
-# @app.get("/")        return FileResponse(V2_DIR / "index.html")
-# @app.get("/legacy")  return FileResponse(STATIC_DIR / "index.html")
+@app.get("/nurse")
+async def nurse_frontend():
+    return FileResponse(DIST_DIR / "nurse.html")
+
+@app.get("/legacy/{path:path}")
+async def legacy_redirect():
+    return RedirectResponse("/", status_code=308)
 ```
 
 ### 5.3 构建产物管理
@@ -306,17 +305,17 @@ if V2_DIR.is_dir():
 | **3** | **试点迁移:住户管理 view**(最复杂,先打通完整链路) | 3 天 | 中 — 暴露选型问题最早 | ✅ |
 | **4** | 批量迁移其余 7 个管理端 tab,可两人并行 | 7 天 | 中 | 每 tab 单独合 |
 | **5** | 护工端 nurse.html 迁移到 `/v2/nurse` | 3 天 | 中 | ✅ |
-| **6** | `/` 默认指向 `/v2/`,旧版降到 `/legacy/`,试运行 3 周后清理 | 0.5 天 | 低 | ✅ |
+| **6** | `/`、`/nurse` 和管理端路由统一指向新版 SPA，旧入口重定向 | 0.5 天 | 低 | ✅ |
 
 合计 **约 17 工日**,可拆 6+ 个 PR。
 
 ### 6.1 每个 phase 的 Done 定义
 
-- **Phase 1 完成的标志**:`/v2/` 能打开一个写着"Hello v2"的页面;CI 上 `npm run build` 通过;Dockerfile 能正常构建镜像
+- **Phase 1 完成的标志**:`/` 能打开新版管理端;CI 上 `npm run build` 通过;Dockerfile 能正常构建镜像
 - **Phase 2 完成的标志**:6 个基础组件可在 Storybook 单独预览;视觉对比与旧版差异 < 5%
 - **Phase 3 完成的标志**:`/v2/patients` 功能与 `/#patients` 一致(增删改查、详情、导出),并且代码量 < 旧版 1/3
 - **Phase 4 / 5 完成的标志**:每个 tab 通过 §6.2 的 acceptance checklist
-- **Phase 6 完成的标志**:`/` 默认走 v2,生产监控 7 天无新增前端报错
+- **Phase 6 完成的标志**:`/` 默认走新版 SPA,生产监控 7 天无新增前端报错
 
 ### 6.2 每个 view 的 Acceptance Checklist
 
@@ -337,14 +336,14 @@ if V2_DIR.is_dir():
 | Phase | 怎么退 | 后果 |
 |---|---|---|
 | 0 | 直接 revert RFC PR | 无 |
-| 1 | 删 `frontend/`,移除 `/v2` 路由挂载 | 无 |
+| 1 | 回退对应发布版本或构建产物 | 无 |
 | 2 | 同上 | 无 |
-| 3 | 把 `/v2` 路由摘掉,旧版 `/` 不动 | 无 — 旧版完全独立 |
-| 4 | 部分 tab 出问题:把 `/v2/patients` 路由临时 redirect 到 `/#patients` 旧版 | 单 tab 退,其它 tab 正常 |
-| 5 | 同上,`/v2/nurse` redirect 回 `/nurse` | 护工端退回旧版 |
-| 6 | 改回 `/` 指向 `static/index.html` | 全量退,但旧版仍可工作 |
+| 3 | 回退对应发布版本；不允许临时跳回旧 HTML | 需要重新发布 |
+| 4 | 修复对应 view 后重新发布；不保留旧 tab 回退入口 | 单页受影响 |
+| 5 | 回退护工端构建版本；不回到旧 nurse.html | 护工端短暂不可用 |
+| 6 | 回退到上一个新版 SPA 发布版本 | 全量回滚到上个新版版本 |
 
-**关键不变量**:`static/index.html` / `static/nurse.html` / `static/billing.html` 在 Phase 6 之前**任何时刻都不删除**,作为永久 fallback。
+**关键不变量**:生产入口只允许新版 SPA；旧 HTML 只可作为历史参考，不作为 fallback。
 
 ---
 
@@ -353,7 +352,7 @@ if V2_DIR.is_dir():
 | 现有组件 | 兼容性 | 处理方式 |
 |---|---|---|
 | `tokens.css` / `glass.css` / `ui.css` / `mobile.css` | ✅ 完全兼容 | 在 Vue 入口直接 `import '../../static/design/tokens.css'` |
-| `dialog.js` / `evidence.js` / `icons.js` | ⚠️ 部分兼容 | Phase 2 重写为 Vue composable;旧文件保留给 `/legacy/` |
+| `dialog.js` / `evidence.js` / `icons.js` | ⚠️ 部分兼容 | Phase 2 重写为 Vue composable；旧文件仅作历史参考，不提供 `/legacy/` 入口 |
 | `vendors.js`(GSAP / Lottie 懒加载) | ✅ 兼容 | Phase 2 改为 Vite 动态 `import()`;懒加载语义不变 |
 | `pet/` 桌面宠物 | ✅ 兼容 | 作为 Vue 组件挂载;spritesheet 路径不变 |
 | `sw.js` | ✅ 完全兼容 | Phase 1 起把 `/v2/` 加进缓存清单;策略不动 |
