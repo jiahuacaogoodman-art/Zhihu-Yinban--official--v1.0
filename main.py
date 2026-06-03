@@ -37,7 +37,7 @@ except Exception as _e:  # pragma: no cover - 仅在 python-dotenv 缺失时触�
 import uvicorn
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse, FileResponse
+from fastapi.responses import JSONResponse, FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from contextlib import asynccontextmanager
@@ -457,6 +457,13 @@ async def global_exception_handler(request: Request, exc: Exception):
 # /nurse → 护工端 SPA (static/dist/nurse.html)
 # 两个 SPA 共享同一份 vite 构建产物(共用 chunk + design 目录),
 # 但运行时是两个独立的 Vue app,各走各的路由。
+@app.get("/legacy", include_in_schema=False)
+@app.get("/legacy/", include_in_schema=False)
+@app.get("/legacy/{path:path}", include_in_schema=False)
+async def legacy_redirect():
+    """旧版页面入口已退役，统一回新版管理端。"""
+    return RedirectResponse(url="/", status_code=308)
+
 @app.get("/", include_in_schema=False)
 async def frontend():
     """管理端 SPA 入口。"""
