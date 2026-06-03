@@ -14,6 +14,8 @@
 """
 
 import os
+import json
+import sqlite3
 import sys
 import tempfile
 from datetime import datetime, timedelta
@@ -299,6 +301,35 @@ class TestPaymentChannelStore:
         assert ch["config"]["mch_id"] == "1234567890"
         # api_key_v3 是 password 类型，应该脱敏
         assert ch["config"]["api_key_v3"] == "●●●●●●"
+
+    def test_secret_config_encrypted_at_rest(self, monkeypatch):
+        """测试支付密钥配置写库前加密，内部读取时自动解密"""
+        try:
+            from cryptography.fernet import Fernet
+        except ImportError:
+            pytest.skip("cryptography 不可用，跳过支付密钥加密落库验证")
+
+        monkeypatch.setenv("PAYMENT_CONFIG_ENCRYPTION_KEY", Fernet.generate_key().decode())
+        secret = "super_secret_key_32_bytes_long!!"
+
+        self.store.update_channel("wechat", config={
+            "mch_id": "1234567890",
+            "api_key_v3": secret,
+        }, operator="admin")
+
+        with sqlite3.connect(self.store._path) as conn:
+            row = conn.execute(
+                "SELECT config_json FROM payment_channels WHERE channel_key = 'wechat'"
+            ).fetchone()
+
+        stored_json = row[0]
+        stored = json.loads(stored_json)
+        assert secret not in stored_json
+        assert stored["api_key_v3"].startswith("enc:")
+
+        raw = self.store.get_raw_config("wechat")
+        assert raw["api_key_v3"] == secret
+        assert raw["mch_id"] == "1234567890"
 
     def test_enabled_channels_list(self):
         """测试获取已启用渠道列表"""
