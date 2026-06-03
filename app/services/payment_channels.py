@@ -32,6 +32,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sqlite3
 import threading
 from datetime import datetime
@@ -39,6 +40,14 @@ from pathlib import Path
 from typing import Optional
 
 from loguru import logger
+
+try:
+    from cryptography.fernet import Fernet, InvalidToken
+    _FERNET_AVAILABLE = True
+except ImportError:  # pragma: no cover - requirements 已包含 cryptography
+    Fernet = None  # type: ignore[assignment]
+    InvalidToken = Exception  # type: ignore[assignment]
+    _FERNET_AVAILABLE = False
 
 
 # 渠道元数据（静态定义）
@@ -102,6 +111,68 @@ CHANNEL_META = {
     },
 }
 
+_ENC_PREFIX = "enc:"
+_MASKED_SECRET = "●●●●●●"
+
+
+def _get_payment_cipher() -> Optional["Fernet"]:
+    """
+    支付渠道密钥加密器。
+
+    优先使用 PAYMENT_CONFIG_ENCRYPTION_KEY；未单独配置时复用
+    PII_ENCRYPTION_KEY，方便小型养老院只维护一把本地密钥。
+    """
+    if not _FERNET_AVAILABLE:
+        return None
+    key = (
+        os.getenv("PAYMENT_CONFIG_ENCRYPTION_KEY", "").strip()
+        or os.getenv("PII_ENCRYPTION_KEY", "").strip()
+    )
+    if not key:
+        return None
+    try:
+        return Fernet(key.encode("utf-8"))  # type: ignore[union-attr]
+    except Exception as e:
+        logger.error(f"PAYMENT_CONFIG_ENCRYPTION_KEY/PII_ENCRYPTION_KEY 无效，支付密钥加密关闭: {e}")
+        return None
+
+
+def _secret_field_keys(channel_key: str) -> set[str]:
+    meta = CHANNEL_META.get(channel_key, {})
+    return {
+        field["key"]
+        for field in meta.get("config_fields", [])
+        if field.get("type") == "password"
+    }
+
+
+def _encrypt_secret(value: str) -> str:
+    if not value or value.startswith(_ENC_PREFIX):
+        return value
+    cipher = _get_payment_cipher()
+    if cipher is None:
+        logger.warning(
+            "支付渠道敏感配置将以明文保存：请配置 PAYMENT_CONFIG_ENCRYPTION_KEY "
+            "或 PII_ENCRYPTION_KEY 以启用 Fernet 加密。"
+        )
+        return value
+    return _ENC_PREFIX + cipher.encrypt(value.encode("utf-8")).decode("ascii")
+
+
+def _decrypt_secret(value: str, *, preserve_ciphertext: bool = False) -> str:
+    if not value or not value.startswith(_ENC_PREFIX):
+        return value
+    cipher = _get_payment_cipher()
+    if cipher is None:
+        logger.warning("支付渠道敏感配置已加密，但当前未配置解密密钥。")
+        return value if preserve_ciphertext else ""
+    try:
+        token = value[len(_ENC_PREFIX):].encode("ascii")
+        return cipher.decrypt(token).decode("utf-8")
+    except (InvalidToken, Exception) as e:
+        logger.warning(f"支付渠道敏感配置解密失败: {e}")
+        return value if preserve_ciphertext else ""
+
 
 class PaymentChannelStore:
     """支付渠道配置持久化存储。"""
@@ -147,6 +218,43 @@ class PaymentChannelStore:
         conn.row_factory = sqlite3.Row
         return conn
 
+    @staticmethod
+    def _decode_config(
+        channel_key: str,
+        config_json: str,
+        *,
+        decrypt_secrets: bool,
+        preserve_ciphertext: bool = False,
+    ) -> dict:
+        """解析渠道配置；password 字段可按需解密。"""
+        try:
+            config = json.loads(config_json or "{}")
+        except json.JSONDecodeError:
+            logger.warning(f"支付渠道 {channel_key} 配置 JSON 损坏，已按空配置处理")
+            config = {}
+
+        secret_keys = _secret_field_keys(channel_key)
+        if not decrypt_secrets:
+            return config
+
+        result = dict(config)
+        for key in secret_keys:
+            value = result.get(key)
+            if isinstance(value, str):
+                result[key] = _decrypt_secret(value, preserve_ciphertext=preserve_ciphertext)
+        return result
+
+    @staticmethod
+    def _encode_config(channel_key: str, config: dict) -> str:
+        """将渠道配置编码为 JSON；password 字段写库前加密。"""
+        secret_keys = _secret_field_keys(channel_key)
+        stored = dict(config)
+        for key in secret_keys:
+            value = stored.get(key)
+            if isinstance(value, str):
+                stored[key] = _encrypt_secret(value)
+        return json.dumps(stored, ensure_ascii=False)
+
     def get_all_channels(self) -> list[dict]:
         """获取所有渠道状态（含元数据）。"""
         with self._connect() as conn:
@@ -155,13 +263,17 @@ class PaymentChannelStore:
         for row in rows:
             key = row["channel_key"]
             meta = CHANNEL_META.get(key, {})
-            config = json.loads(row["config_json"] or "{}")
+            config = self._decode_config(
+                key,
+                row["config_json"] or "{}",
+                decrypt_secrets=False,
+            )
             # 脱敏：密码类字段只显示是否已配置
             safe_config = {}
             for field in meta.get("config_fields", []):
                 fk = field["key"]
                 if field.get("type") == "password":
-                    safe_config[fk] = "●●●●●●" if config.get(fk) else ""
+                    safe_config[fk] = _MASKED_SECRET if config.get(fk) else ""
                 else:
                     safe_config[fk] = config.get(fk, "")
             # 判断配置是否完整
@@ -206,7 +318,12 @@ class PaymentChannelStore:
             ).fetchone()
             if not row:
                 return None
-            current_config = json.loads(row["config_json"] or "{}")
+            current_config = self._decode_config(
+                channel_key,
+                row["config_json"] or "{}",
+                decrypt_secrets=True,
+                preserve_ciphertext=True,
+            )
             # 合并新配置（只更新传入的字段）
             if config:
                 for k, v in config.items():
@@ -222,7 +339,7 @@ class PaymentChannelStore:
                 params.append(1 if is_enabled else 0)
             if config is not None:
                 fields.append("config_json = ?")
-                params.append(json.dumps(current_config, ensure_ascii=False))
+                params.append(self._encode_config(channel_key, current_config))
             params.append(channel_key)
             conn.execute(
                 f"UPDATE payment_channels SET {', '.join(fields)} WHERE channel_key = ?",
@@ -247,7 +364,11 @@ class PaymentChannelStore:
             ).fetchone()
         if not row:
             return {}
-        return json.loads(row["config_json"] or "{}")
+        return self._decode_config(
+            channel_key,
+            row["config_json"] or "{}",
+            decrypt_secrets=True,
+        )
 
 
 # 单例
