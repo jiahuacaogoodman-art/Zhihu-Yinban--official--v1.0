@@ -112,6 +112,7 @@ npm run build        # → ../static/dist/ (index.html + nurse.html)
 |---|---|---|
 | `AUTH_TOKEN` | 是 | 管理员 bootstrap token |
 | `PII_ENCRYPTION_KEY` | 是 | PII 字段加密密钥 |
+| `PAYMENT_CONFIG_ENCRYPTION_KEY` | 否 | 支付渠道密钥加密密钥，留空时复用 `PII_ENCRYPTION_KEY` |
 | `OLLAMA_MODEL_NAME` | 否 | 默认 HuatuoGPT-o1-7B Q4_K_M |
 | `EMBEDDING_MODEL_NAME` | 否 | 默认 BAAI/bge-small-zh-v1.5 |
 | `EMBEDDING_ALLOW_DEGRADED` | 否 | 默认 true（模型加载失败降级启动） |
