@@ -3,26 +3,33 @@ import { onMounted, ref, computed } from 'vue'
 import { useBedStore } from '../stores'
 import { Btn, Chip, GlassPanel, Field, Dialog, PullToRefresh, Skeleton } from '../components'
 import { useToast } from '../composables/useToast'
-import type { Bed, BedStatus } from '../api/types'
+import type { Bed, BedFormPayload, BedStatus } from '../api/types'
 
 /**
- * BedList — 床位管理视图(Phase 3 试点)
+ * BedList — 床位管理视图
  *
- * 直接对应旧版 static/index.html 里的"床位管理"tab。
  * 功能覆盖:
  *   - 查看所有床位(按状态筛选)
  *   - 按楼栋筛选
+ *   - 新增 / 编辑 / 删除床位
  *   - 释放已占用床位
- *   - 分配空闲床位(简版 dialog:输入 patient_id)
- *
- * 不做的事(留给后续 phase):
- *   - 新增 / 编辑 / 删除床位(管理功能较重,Phase 4 再做)
+ *   - 分配空闲床位
  *   - 批量操作
  *   - 分页(当前场景 < 100 张床,全量拉取够用)
  */
 
 const bedStore = useBedStore()
 const { push } = useToast()
+
+interface BedFormState {
+  bed_number: string
+  floor: string
+  building: string
+  room: string
+  bed_type: string
+  status: BedStatus
+  notes: string
+}
 
 const statusFilter = ref<BedStatus | ''>('')
 const buildingFilter = ref('')
@@ -31,6 +38,19 @@ const buildingFilter = ref('')
 const assignDialogOpen = ref(false)
 const assignTargetBed = ref<Bed | null>(null)
 const assignPatientId = ref('')
+const bedDialogOpen = ref(false)
+const bedDialogMode = ref<'create' | 'edit'>('create')
+const editTargetBed = ref<Bed | null>(null)
+const savingBed = ref(false)
+const bedForm = ref<BedFormState>({
+  bed_number: '',
+  floor: '',
+  building: '',
+  room: '',
+  bed_type: 'standard',
+  status: 'available',
+  notes: '',
+})
 
 const filteredBeds = computed(() => {
   let result = bedStore.beds
@@ -72,6 +92,91 @@ function openAssign(bed: Bed) {
   assignDialogOpen.value = true
 }
 
+function resetBedForm() {
+  bedForm.value = {
+    bed_number: '',
+    floor: '',
+    building: '',
+    room: '',
+    bed_type: 'standard',
+    status: 'available',
+    notes: '',
+  }
+}
+
+function openCreateBed() {
+  bedDialogMode.value = 'create'
+  editTargetBed.value = null
+  resetBedForm()
+  bedDialogOpen.value = true
+}
+
+function openEditBed(bed: Bed) {
+  bedDialogMode.value = 'edit'
+  editTargetBed.value = bed
+  bedForm.value = {
+    bed_number: bed.bed_number,
+    floor: bed.floor ?? '',
+    building: bed.building ?? '',
+    room: bed.room ?? '',
+    bed_type: bed.bed_type ?? 'standard',
+    status: bed.status,
+    notes: bed.notes ?? '',
+  }
+  bedDialogOpen.value = true
+}
+
+function normalizeBedPayload(payload: BedFormState): BedFormPayload {
+  return {
+    bed_number: payload.bed_number.trim(),
+    floor: payload.floor?.trim() || null,
+    building: payload.building?.trim() || null,
+    room: payload.room?.trim() || null,
+    bed_type: payload.bed_type?.trim() || 'standard',
+    status: payload.status,
+    notes: payload.notes?.trim() || null,
+  }
+}
+
+async function saveBed() {
+  const payload = normalizeBedPayload(bedForm.value)
+  if (!payload.bed_number) {
+    push({ tone: 'warning', text: '请填写床位编号' })
+    return
+  }
+  savingBed.value = true
+  try {
+    if (bedDialogMode.value === 'create') {
+      await bedStore.createBed(payload)
+      push({ tone: 'success', text: `已新增 ${payload.bed_number}` })
+    } else if (editTargetBed.value) {
+      await bedStore.updateBed(editTargetBed.value.bed_id, payload)
+      push({ tone: 'success', text: `已保存 ${payload.bed_number}` })
+    }
+    bedDialogOpen.value = false
+  } catch (e: any) {
+    push({ tone: 'error', text: e.message ?? '保存床位失败' })
+  } finally {
+    savingBed.value = false
+  }
+}
+
+async function doDelete(bed: Bed) {
+  if (bed.status === 'occupied') {
+    push({ tone: 'warning', text: '正在入住的床位不能删除，请先释放床位' })
+    return
+  }
+  if (typeof window !== 'undefined' && !window.confirm(`确定删除床位 ${bed.bed_number} 吗？`)) {
+    return
+  }
+  try {
+    await bedStore.deleteBed(bed.bed_id)
+    push({ tone: 'success', text: `${bed.bed_number} 已删除` })
+  } catch (e: any) {
+    push({ tone: 'error', text: e.message ?? '删除失败' })
+  }
+}
+
 async function confirmAssign() {
   if (!assignTargetBed.value || !assignPatientId.value.trim()) return
   try {
@@ -111,6 +216,7 @@ async function handleRefresh(done: () => void) {
         <Chip tone="success">空闲 {{ bedStore.available.length }}</Chip>
         <Chip tone="danger">占用 {{ bedStore.occupied.length }}</Chip>
         <Chip>总计 {{ bedStore.total }}</Chip>
+        <Btn size="sm" variant="primary" @click="openCreateBed">新增床位</Btn>
       </div>
     </div>
 
@@ -172,11 +278,20 @@ async function handleRefresh(done: () => void) {
           <div v-if="bed.building"><dt>楼栋</dt><dd>{{ bed.building }}</dd></div>
           <div v-if="bed.floor"><dt>楼层</dt><dd>{{ bed.floor }}</dd></div>
           <div v-if="bed.room"><dt>房间</dt><dd>{{ bed.room }}</dd></div>
+          <div v-if="bed.bed_type"><dt>类型</dt><dd>{{ bed.bed_type }}</dd></div>
           <div v-if="bed.patient_name"><dt>入住人</dt><dd>{{ bed.patient_name }}</dd></div>
           <div v-if="bed.assigned_at"><dt>入住时间</dt><dd>{{ bed.assigned_at }}</dd></div>
+          <div v-if="bed.notes"><dt>备注</dt><dd>{{ bed.notes }}</dd></div>
         </dl>
 
         <template #footer>
+          <Btn
+            variant="ghost"
+            size="sm"
+            @click="openEditBed(bed)"
+          >
+            编辑
+          </Btn>
           <Btn
             v-if="bed.status === 'available'"
             variant="primary"
@@ -192,6 +307,14 @@ async function handleRefresh(done: () => void) {
             @click="doRelease(bed)"
           >
             释放
+          </Btn>
+          <Btn
+            v-if="bed.status !== 'occupied'"
+            variant="ghost"
+            size="sm"
+            @click="doDelete(bed)"
+          >
+            删除
           </Btn>
         </template>
       </GlassPanel>
@@ -220,6 +343,38 @@ async function handleRefresh(done: () => void) {
       <template #actions>
         <Btn variant="ghost" @click="assignDialogOpen = false">取消</Btn>
         <Btn variant="primary" :disabled="!assignPatientId.trim()" @click="confirmAssign">确认分配</Btn>
+      </template>
+    </Dialog>
+
+    <!-- Create/Edit Dialog -->
+    <Dialog
+      v-model="bedDialogOpen"
+      :title="bedDialogMode === 'create' ? '新增床位' : `编辑床位 ${editTargetBed?.bed_number ?? ''}`"
+      full-sheet
+    >
+      <div class="bed-form">
+        <Field v-model="bedForm.bed_number" label="床位编号" required placeholder="例如 A-101" />
+        <Field v-model="bedForm.building" label="楼栋" placeholder="例如 A栋" />
+        <Field v-model="bedForm.floor" label="楼层" placeholder="例如 1F" />
+        <Field v-model="bedForm.room" label="房间" placeholder="例如 101" />
+        <Field v-model="bedForm.bed_type" label="床位类型" type="select">
+          <option value="standard">standard</option>
+          <option value="electric">electric</option>
+          <option value="icu">icu</option>
+        </Field>
+        <Field v-model="bedForm.status" label="状态" type="select">
+          <option value="available">空闲</option>
+          <option value="reserved">预留</option>
+          <option value="maintenance">维护</option>
+          <option value="occupied" :disabled="bedDialogMode === 'create'">已入住</option>
+        </Field>
+        <Field v-model="bedForm.notes" label="备注" type="textarea" placeholder="维护原因、特殊设备等" />
+      </div>
+      <template #actions>
+        <Btn variant="ghost" :disabled="savingBed" @click="bedDialogOpen = false">取消</Btn>
+        <Btn variant="primary" :loading="savingBed" :disabled="!bedForm.bed_number.trim()" @click="saveBed">
+          保存
+        </Btn>
       </template>
     </Dialog>
     </div>
@@ -264,6 +419,11 @@ async function handleRefresh(done: () => void) {
 .bed-meta dd {
   margin: 0;
   color: var(--ink-1, #0f172a);
+}
+.bed-form {
+  display: grid;
+  gap: var(--sp-3, 12px);
+  min-width: min(460px, 86vw);
 }
 
 @media (max-width: 640px) {
