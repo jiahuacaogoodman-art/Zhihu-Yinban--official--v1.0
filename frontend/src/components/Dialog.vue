@@ -20,7 +20,7 @@ import { useFocusTrap } from '../composables/useFocusTrap'
  *
  * 使用:
  *   <Dialog v-model="open" title="确认">…</Dialog>
- *   <Dialog v-model="open" title="档案详情" full-sheet>…</Dialog>
+ *   <Dialog v-model="open" title="档案详情" full-sheet panel-class="dialog--ehr-form">…</Dialog>
  */
 const props = defineProps<{
   modelValue: boolean
@@ -29,6 +29,9 @@ const props = defineProps<{
   closeOnEsc?: boolean
   /** 在 ≤ 640 时撑满整屏(适合大表单/详情) */
   fullSheet?: boolean
+  /** 给具体业务弹窗追加面板 class，避免全局样式互相误伤 */
+  panelClass?: string
+  bodyClass?: string
 }>()
 
 const emit = defineEmits<{
@@ -64,6 +67,10 @@ let touchStartScrollTop = 0
 let dragging = false
 let dragOffset = 0
 
+function getScrollHost(): HTMLElement | null {
+  return dialogEl.value?.querySelector<HTMLElement>('.dialog-body') ?? dialogEl.value
+}
+
 function isMobileSheet() {
   if (typeof window === 'undefined') return false
   return window.matchMedia('(max-width: 640px)').matches
@@ -72,8 +79,9 @@ function isMobileSheet() {
 function onTouchStart(e: TouchEvent) {
   if (!isMobileSheet()) return
   if (!dialogEl.value) return
+  const scrollHost = getScrollHost()
   touchStartY = e.touches[0].clientY
-  touchStartScrollTop = dialogEl.value.scrollTop
+  touchStartScrollTop = scrollHost?.scrollTop ?? 0
   dragging = touchStartScrollTop <= 0 // 顶部才允许下拉关闭
   dragOffset = 0
 }
@@ -139,7 +147,7 @@ onBeforeUnmount(() => {
       <div
         ref="dialogEl"
         class="dialog"
-        :class="{ 'dialog--fullsheet': fullSheet }"
+        :class="[{ 'dialog--fullsheet': fullSheet }, panelClass]"
         role="dialog"
         aria-modal="true"
         :aria-label="title"
@@ -150,7 +158,7 @@ onBeforeUnmount(() => {
         @touchcancel.passive="onTouchEnd"
       >
         <h2 v-if="title" class="dialog-title">{{ title }}</h2>
-        <div class="dialog-body">
+        <div class="dialog-body" :class="bodyClass">
           <slot />
         </div>
         <div v-if="$slots.actions" class="dialog-actions">
