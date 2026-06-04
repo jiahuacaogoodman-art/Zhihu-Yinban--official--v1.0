@@ -8,7 +8,7 @@ import { resolve } from 'node:path'
  * Vite 配置 — 多入口
  *
  *   1) build.outDir 指向 ../static/dist/，让 FastAPI 的 StaticFiles 直接挂载即可。
- *   2) base 用 '/'。
+ *   2) base 用 '/v2/'，匹配 FastAPI 中 dist 目录挂载点。
  *   3) emptyOutDir: true — 每次 build 清空 static/dist/。
  *   4) rollupOptions.input 配置两个入口
  *      - managers: index.html → 管理端 SPA
@@ -29,7 +29,7 @@ export default defineConfig({
       '@design': fileURLToPath(new URL('../static/design', import.meta.url)),
     },
   },
-  base: '/',
+  base: '/v2/',
   build: {
     outDir: '../static/dist',
     emptyOutDir: true,
