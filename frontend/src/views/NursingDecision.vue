@@ -10,7 +10,7 @@ import { api } from '../api'
  * 功能覆盖：
  *   - 选择老人 + 症状输入
  *   - 快速标签
- *   - 调用 /api/nursing/decision/stream 或 fallback /api/nursing/decision
+ *   - 优先调用 /api/nursing/decision/stream，失败后使用 /api/nursing/decision
  *   - 展示 AI 建议 + 决策记忆
  *   - 结果回填 /api/nursing/decisions/{id}/outcome
  */
@@ -90,7 +90,7 @@ async function submitDecision() {
   try {
     await streamDecision()
   } catch {
-    try { await fallbackDecision() }
+    try { await requestDecisionOnce() }
     catch { toast({ tone: 'error', text: 'AI 暂时不可用，请检查 AI 服务或 API 配置' }) }
   } finally {
     aiLoading.value = false
@@ -99,38 +99,25 @@ async function submitDecision() {
 }
 
 async function streamDecision() {
-  const token = localStorage.getItem('auth_token') || ''
-  const res = await fetch('/api/nursing/decision/stream', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...(token ? { 'X-Auth-Token': token } : {}) },
-    body: JSON.stringify({ patient_id: selectedPid.value, symptom: symptomText.value.trim(), n_results: 5 }),
-  })
-  if (!res.ok) throw new Error('stream failed')
-  const reader = res.body!.getReader()
-  const dec = new TextDecoder()
-  let buf = '', curEv = ''
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) break
-    buf += dec.decode(value, { stream: true })
-    const lines = buf.split('\n'); buf = lines.pop()!
-    for (const line of lines) {
-      if (line.startsWith('event:')) { curEv = line.slice(6).trim() }
-      else if (line.startsWith('data:')) {
-        const raw = line.slice(5).trim()
-        if (raw === '[DONE]') continue
-        try {
-          const d = JSON.parse(raw)
-          if (curEv === 'evidence') evidence.value = d.evidence ?? []
-          else if (curEv === 'token') adviceText.value += typeof d === 'string' ? d : JSON.stringify(d)
-          else if (curEv === 'done' && d?.decision_id) currentDecisionId.value = d.decision_id
-        } catch { if (curEv === 'token') adviceText.value += raw }
+  await api.streamJsonEvents(
+    '/nursing/decision/stream',
+    { patient_id: selectedPid.value, symptom: symptomText.value.trim(), n_results: 5 },
+    ({ event, data, raw }) => {
+      if (event === 'evidence' && data && typeof data === 'object') {
+        evidence.value = (data as { evidence?: unknown[] }).evidence ?? []
+      } else if (event === 'token') {
+        adviceText.value += typeof data === 'string' ? data : raw
+      } else if (event === 'done' && data && typeof data === 'object') {
+        const decisionId = (data as { decision_id?: string | null }).decision_id
+        if (decisionId) currentDecisionId.value = decisionId
+      } else if (event === 'error') {
+        throw new Error(typeof data === 'string' ? data : raw)
       }
-    }
-  }
+    },
+  )
 }
 
-async function fallbackDecision() {
+async function requestDecisionOnce() {
   const res = await api.post<any>('/nursing/decision', {
     patient_id: selectedPid.value, symptom: symptomText.value.trim(), n_results: 5,
   })

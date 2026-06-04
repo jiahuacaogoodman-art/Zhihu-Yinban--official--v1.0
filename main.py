@@ -191,10 +191,10 @@ async def lifespan(app: FastAPI):
                 logger.warning(
                     "⚠️  降级模式启动：RAG 向量检索功能不可用，但基础 LLM 对话仍正常。\n"
                     "    修复建议：\n"
-                    "    1. 确认缓存目录可写: HF_HOME / SENTENCE_TRANSFORMERS_HOME\n"
-                    "    2. 设置 EMBEDDING_MODEL_LOCAL_PATH 指向本地模型目录（离线部署）\n"
-                    "    3. 确认网络可访问 huggingface.co（首次下载）\n"
-                    "    4. 受限网络环境推荐设置 EMBEDDING_DISABLED=true 走哈希占位\n"
+                    "    1. API-only 部署推荐设置 EMBEDDING_DISABLED=true，避免加载或下载 embedding 模型\n"
+                    "    2. 如需语义检索，再确认缓存目录可写: HF_HOME / SENTENCE_TRANSFORMERS_HOME\n"
+                    "    3. 离线语义检索可设置 EMBEDDING_MODEL_LOCAL_PATH 指向已准备好的模型目录\n"
+                    "    4. 在线语义检索需确认网络可访问模型源\n"
                     "    5. 设置 EMBEDDING_ALLOW_DEGRADED=false 可恢复严格模式（启动失败即退出）"
                 )
                 app_state["embedding_function"] = None
@@ -263,13 +263,13 @@ def _preflight_embedding():
             except OSError as e:
                 logger.warning(f"  → 创建失败: {e}")
 
-    # 检查本地模型路径（如果指定了 EMBEDDING_MODEL_LOCAL_PATH）
+    # 仅在显式指定 EMBEDDING_MODEL_LOCAL_PATH 时检查本地 embedding 路径。
     if EMBEDDING_MODEL_LOCAL_PATH:
         local_p = Path(EMBEDDING_MODEL_LOCAL_PATH)
         if not local_p.exists():
             logger.warning(
                 f"⚠️  Preflight: EMBEDDING_MODEL_LOCAL_PATH={EMBEDDING_MODEL_LOCAL_PATH} 不存在。\n"
-                f"    模型加载将失败。请确认模型文件已下载到该路径。"
+                f"    语义检索加载将失败。API-only 部署可改用 EMBEDDING_DISABLED=true。"
             )
         elif not (local_p / "config.json").exists():
             logger.warning(
@@ -277,7 +277,7 @@ def _preflight_embedding():
                 f"    可能不是有效的 sentence-transformers 模型目录。"
             )
         else:
-            logger.info(f"Preflight: 本地模型路径有效 → {EMBEDDING_MODEL_LOCAL_PATH}")
+            logger.info(f"Preflight: 本地 embedding 路径有效 → {EMBEDDING_MODEL_LOCAL_PATH}")
 
 
 def _classify_embedding_error(e: Exception) -> str:
