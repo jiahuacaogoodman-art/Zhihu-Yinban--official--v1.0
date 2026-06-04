@@ -385,8 +385,8 @@ def format_evidence_block(evidence: list[Evidence]) -> str:
     return "\n".join(lines)
 
 
-def legacy_context_string(evidence: list[Evidence]) -> str:
-    """保留旧的一整坨字符串给兼容路径。"""
+def plain_context_string(evidence: list[Evidence]) -> str:
+    """把证据片段合并成普通文本上下文。"""
     if not evidence:
         return "（未检索到相关档案）"
     return "\n---\n".join(e.snippet for e in evidence)
