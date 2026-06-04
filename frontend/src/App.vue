@@ -13,15 +13,16 @@ import { useSwipeBack } from './composables/useSwipeBack'
 /**
  * App.vue — 根布局
  *
- * 桌面(> 960):  侧栏 220px + 主内容区
- * 移动(≤ 960): 顶部 appbar(汉堡 + 标题 + 跳护工端) + 抽屉 sidebar
- *               + 底部 tab bar(5 个常用入口) + 安全区填充
+ * 移动端深度适配:
+ *   桌面(> 960):  侧栏 220px + 主内容区(原结构,只小改)
+ *   移动(≤ 960): 顶部 appbar(汉堡 + 标题 + 退出) + 抽屉 sidebar
+ *                 + 底部 tab bar(5 个常用入口) + 安全区填充
  *
  * 行为:
  *   - 路由切换自动关闭抽屉
  *   - 抽屉支持点击 scrim 关闭、ESC 关闭、左滑(touchmove dx < -60)关闭
  *   - 抽屉打开时锁定背景滚动(useScrollLock)
- *   - meta.fullBleed = true(Login 页)时桌面端隐侧栏、移动端隐 appbar
+ *   - meta.fullBleed = true(Login)时桌面端隐侧栏、移动端隐 appbar
  *     和 tab bar(让登录页可以铺满)
  */
 
@@ -37,7 +38,7 @@ const isMobile = useIsTabletOrBelow()
 const drawerOpen = ref(false)
 useScrollLock(drawerOpen)
 
-// ── 软键盘 / 视口监听:键盘弹出时给 body 加 .kb-open 让 app-shell.css 收底栏 ──
+// ── 软键盘 / 视口监听:键盘弹出时给 body 加 .kb-open 让 v2-mobile.css 收底栏 ──
 const { keyboardOpen, keyboardHeight } = useViewport()
 watch(
   keyboardOpen,
@@ -51,7 +52,7 @@ watch(
   keyboardHeight,
   (h) => {
     if (typeof document === 'undefined') return
-    document.documentElement.style.setProperty('--app-kb-h', `${h}px`)
+    document.documentElement.style.setProperty('--v2-keyboard-h', `${h}px`)
   },
   { immediate: true },
 )
@@ -71,7 +72,7 @@ onBeforeUnmount(() => {
   document.body.classList.remove('kb-open', 'netbanner-on')
 })
 
-// ── 移动端边缘右滑返回:仅在移动端 + 非首页/登录页生效 ──
+// ── 移动端边缘右滑返回:仅在移动端 + 非登录页生效 ──
 const swipeBackEnabled = computed(
   () => isMobile.value && !fullBleed.value && route.fullPath !== '/',
 )
@@ -82,11 +83,11 @@ useSwipeBack(
       drawerOpen.value = false
       return
     }
-    // 浏览器历史栈 > 1 → back;否则回首页
+    // 浏览器历史栈 > 1 → back;否则回到管理端默认页
     if (typeof window !== 'undefined' && window.history.length > 1) {
       router.back()
     } else {
-      router.push('/')
+      router.push('/beds')
     }
   },
   { enabled: swipeBackEnabled },
@@ -161,7 +162,7 @@ type NavItem = {
 }
 const navItems: NavItem[] = [
   { to: '/nursing-decision', label: 'AI 护理建议', icon: '✨', short: 'AI', bottomBar: true },
-  { to: '/ehr/add', label: '录入档案', icon: '➕', short: '录入', bottomBar: false },
+  { to: '/ehr?new=1', label: '录入档案', icon: '➕', short: '录入', bottomBar: false },
   { to: '/ehr', label: '患者档案', icon: '📋', short: '档案', bottomBar: true },
   { to: '/ehr/upload', label: '病历上传', icon: '📷', short: '病历', bottomBar: false },
   { to: '/beds', label: '床位管理', icon: '🛏', short: '床位', bottomBar: true },
@@ -179,16 +180,16 @@ const bottomTabs = computed(() => navItems.filter((n) => n.bottomBar))
 </script>
 
 <template>
-  <div class="app-layout" :class="{ 'app-layout--full': fullBleed }">
+  <div class="v2-layout" :class="{ 'v2-layout--full': fullBleed }">
     <!-- ───── 移动端顶部 appbar(fullBleed 页面隐藏) ───── -->
     <header
       v-if="!fullBleed && isMobile"
-      class="app-appbar"
+      class="v2-appbar"
       role="banner"
     >
       <button
         type="button"
-        class="app-appbar-btn"
+        class="v2-appbar-btn"
         aria-label="打开导航菜单"
         @click="drawerOpen = true"
       >
@@ -198,43 +199,44 @@ const bottomTabs = computed(() => navItems.filter((n) => n.bottomBar))
           <line x1="4" y1="17" x2="20" y2="17" />
         </svg>
       </button>
-      <div class="app-appbar-title">
+      <div class="v2-appbar-title">
         <span class="mark">♥</span>
         <span class="ttl">{{ currentTitle }}</span>
       </div>
-      <a href="/nurse" class="app-appbar-link" aria-label="切换到护工端">护工</a>
+      <a href="/nurse" class="v2-appbar-link" aria-label="切换到护工端">护工</a>
     </header>
 
     <!-- ───── 桌面侧栏(fullBleed 隐藏) ───── -->
-    <aside v-if="!fullBleed && !isMobile" class="app-sidebar">
-      <div class="app-sidebar-brand">
+    <aside v-if="!fullBleed && !isMobile" class="v2-sidebar">
+      <div class="v2-sidebar-brand">
         <span class="mark">♥</span>
         <span class="title-s">智护银伴</span>
+        <span class="meta">管理端</span>
       </div>
-      <nav class="app-nav" aria-label="主导航">
+      <nav class="v2-nav" aria-label="主导航">
         <RouterLink
           v-for="n in navItems"
           :key="n.to"
           :to="n.to"
-          class="app-nav-item"
-          active-class="app-nav-active"
+          class="v2-nav-item"
+          active-class="v2-nav-active"
         >
-          <span class="app-nav-icon">{{ n.icon }}</span>
+          <span class="v2-nav-icon">{{ n.icon }}</span>
           <span>{{ n.label }}</span>
         </RouterLink>
       </nav>
-      <div class="app-sidebar-footer">
-        <a href="/nurse" class="app-nav-item">
-          <span class="app-nav-icon">👩‍⚕️</span>
+      <div class="v2-sidebar-footer">
+        <a href="/nurse" class="v2-nav-item">
+          <span class="v2-nav-icon">👩‍⚕️</span>
           <span>护工端 →</span>
         </a>
         <button
           v-if="auth.isAuthenticated"
           type="button"
-          class="app-nav-item app-nav-item--logout"
+          class="v2-nav-item v2-nav-item--logout"
           @click="handleLogout"
         >
-          <span class="app-nav-icon">⏻</span>
+          <span class="v2-nav-icon">⏻</span>
           <span>退出登录</span>
         </button>
       </div>
@@ -244,55 +246,55 @@ const bottomTabs = computed(() => navItems.filter((n) => n.bottomBar))
     <Teleport to="body">
       <div
         v-if="!fullBleed && isMobile"
-        class="app-scrim"
-        :class="{ 'app-scrim--show': drawerOpen }"
+        class="v2-scrim"
+        :class="{ 'v2-scrim--show': drawerOpen }"
         @click="drawerOpen = false"
       />
       <aside
         v-if="!fullBleed && isMobile"
-        class="app-drawer"
-        :class="{ 'app-drawer--open': drawerOpen }"
+        class="v2-drawer"
+        :class="{ 'v2-drawer--open': drawerOpen }"
         :aria-hidden="!drawerOpen"
         @touchstart.passive="onDrawerTouchStart"
         @touchmove.passive="onDrawerTouchMove"
         @touchend.passive="onDrawerTouchEnd"
       >
-        <div class="app-drawer-brand">
+        <div class="v2-drawer-brand">
           <span class="mark">♥</span>
           <div>
             <div class="title-s" style="color: #fff;">智护银伴</div>
-            <div class="meta" style="color: rgba(226,232,240,0.6);">管理端</div>
+            <div class="meta" style="color: rgba(226,232,240,0.6);">统一管理端</div>
           </div>
           <button
             type="button"
-            class="app-drawer-close"
+            class="v2-drawer-close"
             aria-label="关闭菜单"
             @click="drawerOpen = false"
           >
             ✕
           </button>
         </div>
-        <nav class="app-drawer-nav" aria-label="主导航">
+        <nav class="v2-drawer-nav" aria-label="主导航">
           <RouterLink
             v-for="n in navItems"
             :key="n.to"
             :to="n.to"
-            class="app-drawer-item"
-            active-class="app-drawer-item--active"
+            class="v2-drawer-item"
+            active-class="v2-drawer-item--active"
           >
             <span class="ic">{{ n.icon }}</span>
             <span>{{ n.label }}</span>
           </RouterLink>
         </nav>
-        <div class="app-drawer-footer">
-          <a href="/nurse" class="app-drawer-item">
+        <div class="v2-drawer-footer">
+          <a href="/nurse" class="v2-drawer-item">
             <span class="ic">👩‍⚕️</span>
             <span>切换到护工端 →</span>
           </a>
           <button
             v-if="auth.isAuthenticated"
             type="button"
-            class="app-drawer-item app-drawer-item--logout"
+            class="v2-drawer-item v2-drawer-item--logout"
             @click="handleLogout"
           >
             <span class="ic">⏻</span>
@@ -303,30 +305,30 @@ const bottomTabs = computed(() => navItems.filter((n) => n.bottomBar))
     </Teleport>
 
     <!-- ───── 主内容 ───── -->
-    <main class="app-main" :class="{ 'app-main--full': fullBleed }">
+    <main class="v2-main" :class="{ 'v2-main--full': fullBleed }">
       <router-view />
     </main>
 
     <!-- ───── 移动端底部 tab(fullBleed 隐藏) ───── -->
     <nav
       v-if="!fullBleed && isMobile"
-      class="app-bottom-nav"
+      class="v2-bottom-nav"
       aria-label="主要功能"
     >
       <RouterLink
         v-for="n in bottomTabs"
         :key="n.to"
         :to="n.to"
-        class="app-bottom-item"
-        active-class="app-bottom-item--active"
+        class="v2-bottom-item"
+        active-class="v2-bottom-item--active"
       >
         <span class="ic">{{ n.icon }}</span>
         <span class="lb">{{ n.short ?? n.label }}</span>
       </RouterLink>
       <button
         type="button"
-        class="app-bottom-item"
-        :class="{ 'app-bottom-item--active': drawerOpen }"
+        class="v2-bottom-item"
+        :class="{ 'v2-bottom-item--active': drawerOpen }"
         aria-label="更多"
         @click="drawerOpen = true"
       >
@@ -341,18 +343,18 @@ const bottomTabs = computed(() => navItems.filter((n) => n.bottomBar))
 </template>
 
 <style scoped>
-.app-layout {
+.v2-layout {
   display: grid;
   grid-template-columns: 220px 1fr;
   min-height: 100vh;
   min-height: 100dvh;
 }
-.app-layout--full {
+.v2-layout--full {
   grid-template-columns: 1fr;
 }
 
 /* ─── 桌面侧栏 ─── */
-.app-sidebar {
+.v2-sidebar {
   position: sticky;
   top: 0;
   height: 100vh;
@@ -366,7 +368,7 @@ const bottomTabs = computed(() => navItems.filter((n) => n.bottomBar))
   border-right: 1px solid rgba(15, 23, 42, 0.06);
   z-index: 5;
 }
-.app-sidebar-brand {
+.v2-sidebar-brand {
   display: flex;
   align-items: center;
   gap: var(--sp-2, 8px);
@@ -374,7 +376,7 @@ const bottomTabs = computed(() => navItems.filter((n) => n.bottomBar))
   padding-bottom: var(--sp-3, 12px);
   border-bottom: 1px solid rgba(15, 23, 42, 0.06);
 }
-.app-sidebar-brand .mark {
+.v2-sidebar-brand .mark {
   width: 28px;
   height: 28px;
   border-radius: 8px;
@@ -386,13 +388,13 @@ const bottomTabs = computed(() => navItems.filter((n) => n.bottomBar))
   font-size: 14px;
 }
 
-.app-nav {
+.v2-nav {
   display: flex;
   flex-direction: column;
   gap: 2px;
   flex: 1;
 }
-.app-nav-item {
+.v2-nav-item {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -408,25 +410,25 @@ const bottomTabs = computed(() => navItems.filter((n) => n.bottomBar))
   text-align: left;
   transition: background var(--dur-fast, 120ms) var(--ease, ease);
 }
-.app-nav-item:hover {
+.v2-nav-item:hover {
   background: rgba(15, 23, 42, 0.04);
 }
-.app-nav-active {
+.v2-nav-active {
   background: rgba(20, 184, 166, 0.1);
   color: var(--accent-ink, #0f766e);
   font-weight: 600;
 }
-.app-nav-icon {
+.v2-nav-icon {
   font-size: 16px;
   flex-shrink: 0;
   width: 20px;
   text-align: center;
 }
-.app-nav-item--muted { color: var(--ink-4, #94a3b8); }
-.app-nav-item--logout { color: var(--red, #dc2626); }
-.app-nav-item--logout:hover { background: rgba(239, 68, 68, 0.08); }
+.v2-nav-item--muted { color: var(--ink-4, #94a3b8); }
+.v2-nav-item--logout { color: var(--red, #dc2626); }
+.v2-nav-item--logout:hover { background: rgba(239, 68, 68, 0.08); }
 
-.app-sidebar-footer {
+.v2-sidebar-footer {
   margin-top: auto;
   padding-top: var(--sp-3, 12px);
   border-top: 1px solid rgba(15, 23, 42, 0.06);
@@ -435,38 +437,38 @@ const bottomTabs = computed(() => navItems.filter((n) => n.bottomBar))
 }
 
 /* ─── 主内容 ─── */
-.app-main {
+.v2-main {
   padding: var(--sp-5, 20px);
   max-width: 1200px;
   width: 100%;
 }
-.app-main--full {
+.v2-main--full {
   padding: 0;
   max-width: none;
 }
 
 /* ============ 移动端 (≤ 960) ============ */
 @media (max-width: 960px) {
-  .app-layout {
+  .v2-layout {
     grid-template-columns: 1fr;
   }
 
   /* 顶部 appbar */
-  .app-appbar {
+  .v2-appbar {
     position: sticky;
     top: 0;
     z-index: 30;
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: calc(var(--app-sat) + 8px) 12px 8px;
+    padding: calc(var(--v2-sat) + 8px) 12px 8px;
     background: rgba(11, 18, 32, 0.86);
     backdrop-filter: blur(18px) saturate(160%);
     -webkit-backdrop-filter: blur(18px) saturate(160%);
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     color: #fff;
   }
-  .app-appbar-btn {
+  .v2-appbar-btn {
     width: 40px;
     height: 40px;
     border-radius: 10px;
@@ -479,10 +481,10 @@ const bottomTabs = computed(() => navItems.filter((n) => n.bottomBar))
     cursor: pointer;
     flex-shrink: 0;
   }
-  .app-appbar-btn:active {
+  .v2-appbar-btn:active {
     background: rgba(255, 255, 255, 0.14);
   }
-  .app-appbar-title {
+  .v2-appbar-title {
     flex: 1;
     min-width: 0;
     display: flex;
@@ -493,7 +495,7 @@ const bottomTabs = computed(() => navItems.filter((n) => n.bottomBar))
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  .app-appbar-title .mark {
+  .v2-appbar-title .mark {
     width: 26px;
     height: 26px;
     border-radius: 7px;
@@ -505,7 +507,7 @@ const bottomTabs = computed(() => navItems.filter((n) => n.bottomBar))
     font-size: 13px;
     flex-shrink: 0;
   }
-  .app-appbar-link {
+  .v2-appbar-link {
     color: rgba(226, 232, 240, 0.85);
     text-decoration: none;
     padding: 8px 12px;
@@ -515,15 +517,15 @@ const bottomTabs = computed(() => navItems.filter((n) => n.bottomBar))
     font: 500 13px/1 var(--font-ui);
     flex-shrink: 0;
   }
-  .app-appbar-link:active {
+  .v2-appbar-link:active {
     background: rgba(255, 255, 255, 0.16);
   }
 
-  .app-main {
-    padding: 12px 14px var(--app-bottom-pad);
+  .v2-main {
+    padding: 12px 14px var(--v2-bottom-pad);
     max-width: 100%;
   }
-  .app-main--full {
+  .v2-main--full {
     padding: 0;
   }
 }
@@ -535,7 +537,7 @@ const bottomTabs = computed(() => navItems.filter((n) => n.bottomBar))
 <style>
 /* ─── 全局样式：抽屉 / scrim / 底部 tab(都 Teleport 到 body) ─── */
 
-.app-scrim {
+.v2-scrim {
   position: fixed;
   inset: 0;
   z-index: 55;
@@ -546,12 +548,12 @@ const bottomTabs = computed(() => navItems.filter((n) => n.bottomBar))
   pointer-events: none;
   transition: opacity 280ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
-.app-scrim--show {
+.v2-scrim--show {
   opacity: 1;
   pointer-events: auto;
 }
 
-.app-drawer {
+.v2-drawer {
   position: fixed;
   top: 0;
   left: 0;
@@ -576,18 +578,18 @@ const bottomTabs = computed(() => navItems.filter((n) => n.bottomBar))
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
 }
-.app-drawer--open {
+.v2-drawer--open {
   transform: translateX(0);
 }
 
-.app-drawer-brand {
+.v2-drawer-brand {
   display: flex;
   align-items: center;
   gap: 10px;
   padding-bottom: 12px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.10);
 }
-.app-drawer-brand .mark {
+.v2-drawer-brand .mark {
   width: 36px;
   height: 36px;
   border-radius: 10px;
@@ -599,7 +601,7 @@ const bottomTabs = computed(() => navItems.filter((n) => n.bottomBar))
   font-size: 18px;
   flex-shrink: 0;
 }
-.app-drawer-close {
+.v2-drawer-close {
   margin-left: auto;
   width: 36px;
   height: 36px;
@@ -611,14 +613,14 @@ const bottomTabs = computed(() => navItems.filter((n) => n.bottomBar))
   cursor: pointer;
 }
 
-.app-drawer-nav {
+.v2-drawer-nav {
   display: flex;
   flex-direction: column;
   gap: 2px;
   flex: 1;
   overflow-y: auto;
 }
-.app-drawer-item {
+.v2-drawer-item {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -634,31 +636,31 @@ const bottomTabs = computed(() => navItems.filter((n) => n.bottomBar))
   width: 100%;
   min-height: 46px;
 }
-.app-drawer-item .ic {
+.v2-drawer-item .ic {
   font-size: 18px;
   width: 22px;
   text-align: center;
   flex-shrink: 0;
 }
-.app-drawer-item:active {
+.v2-drawer-item:active {
   background: rgba(255, 255, 255, 0.10);
 }
-.app-drawer-item--active {
+.v2-drawer-item--active {
   background: rgba(20, 184, 166, 0.18);
   color: #5eead4;
   font-weight: 600;
 }
-.app-drawer-item--muted {
+.v2-drawer-item--muted {
   color: rgba(226, 232, 240, 0.55);
 }
-.app-drawer-item--logout {
+.v2-drawer-item--logout {
   color: #fca5a5;
 }
-.app-drawer-item--logout:active {
+.v2-drawer-item--logout:active {
   background: rgba(239, 68, 68, 0.18);
 }
 
-.app-drawer-footer {
+.v2-drawer-footer {
   border-top: 1px solid rgba(255, 255, 255, 0.10);
   padding-top: 8px;
   display: grid;
@@ -666,7 +668,7 @@ const bottomTabs = computed(() => navItems.filter((n) => n.bottomBar))
 }
 
 /* ─── 底部 tab ─── */
-.app-bottom-nav {
+.v2-bottom-nav {
   position: fixed;
   bottom: 0;
   left: 0;
@@ -682,7 +684,7 @@ const bottomTabs = computed(() => navItems.filter((n) => n.bottomBar))
   box-shadow: 0 -4px 18px rgba(15, 23, 42, 0.06);
   padding: 6px 4px calc(env(safe-area-inset-bottom, 0px) + 4px);
 }
-.app-bottom-item {
+.v2-bottom-item {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -698,17 +700,17 @@ const bottomTabs = computed(() => navItems.filter((n) => n.bottomBar))
   cursor: pointer;
   min-height: 50px;
 }
-.app-bottom-item .ic {
+.v2-bottom-item .ic {
   font-size: 20px;
   line-height: 1;
 }
-.app-bottom-item:active {
+.v2-bottom-item:active {
   background: rgba(20, 184, 166, 0.08);
 }
-.app-bottom-item--active {
+.v2-bottom-item--active {
   color: var(--accent-ink, #0f766e);
 }
-.app-bottom-item--active .ic {
+.v2-bottom-item--active .ic {
   filter: drop-shadow(0 2px 4px rgba(20, 184, 166, 0.35));
 }
 </style>

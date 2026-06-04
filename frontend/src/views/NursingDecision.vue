@@ -7,7 +7,7 @@ import { api } from '../api'
 /**
  * NursingDecision — AI 护理决策（管理端核心功能）
  *
- * 对应旧版 index.html 的 tab-dec：
+ * 功能覆盖：
  *   - 选择老人 + 症状输入
  *   - 快速标签
  *   - 调用 /api/nursing/decision/stream 或 fallback /api/nursing/decision
@@ -91,7 +91,7 @@ async function submitDecision() {
     await streamDecision()
   } catch {
     try { await fallbackDecision() }
-    catch { toast({ tone: 'error', text: 'AI 暂时不可用，请确认本地模型服务已启动' }) }
+    catch { toast({ tone: 'error', text: 'AI 暂时不可用，请检查 AI 服务或 API 配置' }) }
   } finally {
     aiLoading.value = false
     onPatientChange()

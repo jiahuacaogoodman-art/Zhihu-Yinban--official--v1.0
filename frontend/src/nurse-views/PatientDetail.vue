@@ -8,14 +8,14 @@ import { api } from '../api'
 /**
  * PatientDetail — 护工端患者详情 + 任务卡 + AI 问诊
  *
- * 整合旧版 nurse.html 的:
+ * 功能覆盖:
  *   - 档案信息折叠面板
  *   - 症状输入 + 快速标签
- *   - 生成护理任务卡(调 /api/nursing/taskcard)
+ *   - 生成护理任务卡(调 /api/nursing/task-card)
  *   - 快速问 AI(调 /api/nursing/decision)
  *   - 任务执行打卡(完成/异常/跳过 + 进度条)
  *
- * 流式 API 在 Phase 5 先用非流式 fallback;Phase 6 再加 SSE reader。
+ * 流式 API 不可用时使用非流式接口兜底。
  */
 
 const props = defineProps<{ id: string }>()
@@ -62,8 +62,9 @@ const taskItems = ref<TaskItem[]>([])
 const taskLoading = ref(false)
 const taskRiskLevel = ref('')
 const taskTitle = ref('')
-// 整张任务卡背后的 decision_id —— 后端 task-card 接口会在 response 里返回
+// 整张任务卡背后的 decision_id —— 后端 task-card 接口会在 response.task_card 里返回
 const taskDecisionId = ref<string | null>(null)
+const taskRiskLabel = ref('')
 
 const quickSymptoms = ['发热', '咳嗽', '头晕', '胸闷', '腹痛', '血压偏高', '血糖异常', '跌倒', '意识异常']
 
@@ -78,15 +79,10 @@ function progress() {
 async function fetchPatient() {
   loading.value = true
   try {
-    // Try /api/ehr/patients first, then filter by ID
-    const res = await api.get<PatientFull[] | { records: PatientFull[] }>('/ehr/patients')
-    const list = Array.isArray(res) ? res : (res as any).records ?? []
-    patient.value = list.find((p: PatientFull) => p.patient_id === props.id) ?? null
-    if (!patient.value) {
-      toast({ tone: 'error', text: '未找到该老人档案' })
-    }
+    patient.value = await api.get<PatientFull>(`/ehr/patients/${encodeURIComponent(props.id)}`)
   } catch (e: any) {
-    toast({ tone: 'error', text: e.message ?? '加载档案失败' })
+    patient.value = null
+    toast({ tone: 'error', text: e.message ?? '未找到该老人档案' })
   } finally {
     loading.value = false
   }
@@ -105,28 +101,40 @@ async function generateTaskCard() {
   }
   taskLoading.value = true
   try {
-    const res = await api.post<any>('/nursing/taskcard', {
+    const res = await api.post<any>('/nursing/task-card', {
       patient_id: props.id,
       symptom: symptomText.value.trim(),
     })
-    // Parse task card response
-    const card = res
+    const card = res.task_card ?? res
     taskRiskLevel.value = card.risk_level ?? ''
-    taskTitle.value = card.event_title ?? '护理任务卡'
+    taskRiskLabel.value = card.risk_label ?? card.risk_level ?? ''
+    taskTitle.value = card.event_type ?? card.nursing_advice?.title ?? '护理任务卡'
     taskDecisionId.value = card.decision_id ?? null
-    taskItems.value = (card.care_tasks ?? []).map((t: any) => ({
+    const taskSource = card.immediate_tasks ?? []
+    taskItems.value = taskSource.map((t: any) => ({
       text: typeof t === 'string' ? t : t.description ?? t.text ?? '',
-      status: 'pending' as const,
+      status: ['done', 'abnormal', 'skipped'].includes(t?.status) ? t.status : 'pending',
       priority: t.priority,
       decisionId: card.decision_id ?? null,
       saving: false,
     }))
+    if (taskItems.value.length === 0) {
+      toast({ tone: 'warning', text: 'AI 已响应，但未生成可执行任务项' })
+      return
+    }
     toast({ tone: 'success', text: '任务卡已生成' })
   } catch (e: any) {
     toast({ tone: 'error', text: e.message ?? '生成任务卡失败' })
   } finally {
     taskLoading.value = false
   }
+}
+
+function riskTone(level: string): 'neutral' | 'danger' | 'warning' | 'success' | 'info' {
+  if (level === 'red') return 'danger'
+  if (level === 'orange' || level === 'yellow') return 'warning'
+  if (level === 'green') return 'success'
+  return 'info'
 }
 
 // ── Ask AI ──
@@ -287,8 +295,8 @@ onMounted(fetchPatient)
       <!-- Task Card -->
       <GlassPanel v-if="taskItems.length > 0" class="pd-task-card">
         <template #header>
-          <Chip v-if="taskRiskLevel" :tone="taskRiskLevel === 'high' ? 'danger' : taskRiskLevel === 'medium' ? 'warning' : 'success'">
-            {{ taskRiskLevel }}
+          <Chip v-if="taskRiskLevel" :tone="riskTone(taskRiskLevel)">
+            {{ taskRiskLabel || taskRiskLevel }}
           </Chip>
           <span class="title-s">{{ taskTitle }}</span>
         </template>

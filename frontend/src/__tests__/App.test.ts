@@ -13,7 +13,6 @@ function makeRouter() {
       { path: '/', redirect: '/beds' },
       { path: '/login', component: { template: '<div>login-stub</div>' } },
       { path: '/nursing-decision', component: { template: '<div>nd-stub</div>' } },
-      { path: '/ehr/add', component: { template: '<div>ehr-add-stub</div>' } },
       { path: '/ehr', component: { template: '<div>ehr-stub</div>' } },
       { path: '/ehr/upload', component: { template: '<div>ehr-upload-stub</div>' } },
       { path: '/beds', component: { template: '<div>beds-stub</div>' } },
@@ -56,7 +55,7 @@ describe('App.vue layout', () => {
     expect(wrapper.text()).toContain('beds-stub')
   })
 
-  it('has nurse link in sidebar footer', async () => {
+  it('has nurse workspace link in sidebar footer', async () => {
     const router = makeRouter(); router.push('/beds'); await router.isReady()
     const wrapper = mount(App, { global: { plugins: [router] } })
     expect(wrapper.text()).toContain('护工端')

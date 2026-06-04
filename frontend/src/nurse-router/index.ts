@@ -41,8 +41,8 @@ router.beforeEach((to) => {
   const token =
     typeof localStorage !== 'undefined' ? localStorage.getItem('auth_token') : null
   if (!token) {
-    // 跳到管理端登录页
-    window.location.href = '/login'
+    const target = `/nurse${to.fullPath === '/' ? '' : to.fullPath}`
+    window.location.href = `/login?redirect=${encodeURIComponent(target)}`
     return false
   }
   return true
