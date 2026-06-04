@@ -30,6 +30,12 @@ type UnauthorizedHandler = () => void
 let unauthorizedHandler: UnauthorizedHandler | null = null
 let unauthorizedNotifying = false // 防止短时间内 N 个并发 401 触发 N 次跳转
 
+export type JsonStreamEvent = {
+  event: string
+  data: unknown
+  raw: string
+}
+
 export function setOnUnauthorized(handler: UnauthorizedHandler | null) {
   unauthorizedHandler = handler
 }
@@ -179,6 +185,97 @@ async function postForm<T>(path: string, body: FormData): Promise<T> {
   return res.json() as Promise<T>
 }
 
+async function streamJsonEvents(
+  path: string,
+  body: unknown,
+  onEvent: (event: JsonStreamEvent) => void,
+): Promise<void> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  }
+  const token = getToken()
+  if (token) headers['X-Auth-Token'] = token
+
+  const res = await fetch(`${BASE}${path}`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) {
+    let detail = ''
+    try {
+      const json = await res.json()
+      detail = json.message ?? json.detail ?? ''
+    } catch {
+      detail = res.statusText
+    }
+    if (res.status === 401) {
+      notifyUnauthorized()
+    }
+    throw new ApiError(res.status, detail || `流式请求失败 (${res.status})`)
+  }
+  if (!res.body) {
+    throw new ApiError(res.status, '流式响应为空')
+  }
+
+  const reader = res.body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+  let eventName = 'message'
+  let dataLines: string[] = []
+
+  const flushEvent = () => {
+    if (dataLines.length === 0) return
+    const raw = dataLines.join('\n')
+    eventName = eventName || 'message'
+    dataLines = []
+    if (raw === '[DONE]') {
+      eventName = 'message'
+      return
+    }
+    let data: unknown = raw
+    try {
+      data = JSON.parse(raw)
+    } catch {
+      // SSE 允许纯文本 data；调用方可以按 raw 自行处理。
+    }
+    const emittedName = eventName
+    eventName = 'message'
+    onEvent({ event: emittedName, data, raw })
+  }
+
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true })
+    const lines = buffer.split(/\r?\n/)
+    buffer = lines.pop() ?? ''
+    for (const line of lines) {
+      if (line === '') {
+        flushEvent()
+      } else if (line.startsWith('event:')) {
+        eventName = line.slice(6).trim() || 'message'
+      } else if (line.startsWith('data:')) {
+        dataLines.push(line.slice(5).trim())
+      }
+    }
+  }
+
+  buffer += decoder.decode()
+  if (buffer) {
+    for (const line of buffer.split(/\r?\n/)) {
+      if (line === '') {
+        flushEvent()
+      } else if (line.startsWith('event:')) {
+        eventName = line.slice(6).trim() || 'message'
+      } else if (line.startsWith('data:')) {
+        dataLines.push(line.slice(5).trim())
+      }
+    }
+  }
+  flushEvent()
+}
+
 function resolveBlobPath(path: string): string {
   if (/^https?:\/\//i.test(path)) return path
   if (path.startsWith('/api/') || path.startsWith('/uploads/')) return path
@@ -216,5 +313,6 @@ export const api = {
   delete: <T>(path: string) => request<T>('DELETE', path),
   download,
   postForm,
+  streamJsonEvents,
   blobUrl,
 }

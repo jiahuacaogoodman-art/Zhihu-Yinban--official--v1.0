@@ -332,10 +332,10 @@ def _find_patient_name_from_collection(collection, patient_id: str) -> str:
 async def nursing_decision_stream(payload: NursingDecisionRequest):
     """
     SSE 事件：
-    - event: context   → 检索到的病史文本（兼容老前端）
+    - event: context   → 检索到的病史文本
     - event: evidence  → 结构化证据列表 + 决策记忆
     - event: token     → 生成的 token 片段
-    - event: done      → [DONE] + decision_id
+    - event: done      → decision_id
     - event: error     → 错误信息
     """
     collection, embedding_function = _get_state()
@@ -359,7 +359,7 @@ async def nursing_decision_stream(payload: NursingDecisionRequest):
     patient_name = _find_patient_name_from_collection(collection, payload.patient_id)
 
     def event_generator():
-        # 1. 先推检索上下文（兼容老前端）
+        # 1. 先推检索上下文
         context_data = json.dumps({
             "patient_id": payload.patient_id,
             "symptom": payload.symptom,
@@ -408,8 +408,6 @@ async def nursing_decision_stream(payload: NursingDecisionRequest):
         # 5. done（带 decision_id 给前端挂结果记录）
         done_data = json.dumps({"decision_id": log_result.get("decision_id")}, ensure_ascii=False)
         yield f"event: done\ndata: {done_data}\n\n"
-        # 兼容老前端：再推一个裸 [DONE]
-        yield "event: done\ndata: [DONE]\n\n"
 
     return StreamingResponse(
         event_generator(),
@@ -897,14 +895,12 @@ def _normalize_ai_card(ai_data: dict, payload: TaskCardGenerateRequest, context:
     }
 
     event_type = str(ai_data.get("event_type") or "AI生成护理任务卡事件")
-    # 任务卡日志显示真正在用的 provider/模型，不再硬写单一部署形态。
-    # ollama  → "Ollama 本地模型 huatuo_o1_7b"
-    # openai  → "OpenAI兼容端点 Qwen/Qwen2.5-7B-Instruct"
+    # 任务卡日志显示真正在用的 provider/模型，但不把部署形态写死。
     active_model_name = getattr(llm_service, "model_name", "") or "unknown"
     if (LLM_PROVIDER or "").lower() == "ollama":
-        provider_label = f"Ollama 本地模型 {active_model_name}"
+        provider_label = f"Ollama AI服务 {active_model_name}"
     else:
-        provider_label = f"OpenAI兼容端点 {active_model_name}"
+        provider_label = f"OpenAI兼容API {active_model_name}"
     task_card = {
         "event_id": event_id,
         "generation_mode": "ai_llm",
