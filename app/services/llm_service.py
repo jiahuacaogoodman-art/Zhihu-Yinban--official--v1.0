@@ -347,6 +347,9 @@ class OpenAICompatibleLLMService:
                 stream=True,
             ) as resp:
                 resp.raise_for_status()
+                # SSE 文本按规范是 UTF-8；但不少 OpenAI 兼容服务不带 charset。
+                # requests 会把 text/* 兜底成 ISO-8859-1，中文 token 会变成乱码。
+                resp.encoding = "utf-8"
                 # SSE 协议：每行 data: {...}，结束时 data: [DONE]
                 for raw in resp.iter_lines(decode_unicode=True):
                     if not raw:
