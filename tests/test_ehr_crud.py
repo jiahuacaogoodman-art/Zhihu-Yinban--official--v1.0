@@ -11,38 +11,61 @@
 import pytest
 
 
-def test_add_patient_returns_200(client):
+@pytest.fixture(scope="module")
+def ehr_auth_headers(client):
+    import main as main_mod
+
+    store = main_mod.user_store
+    user = store.get_user_by_username("ehr-crud-test-admin")
+    if user is None:
+        user = store.create_user(
+            username="ehr-crud-test-admin",
+            display_name="EHR CRUD Test Admin",
+            role="admin",
+        )
+    token, _ = store.create_token(user.user_id, label="ehr-crud-test")
+    return {"X-Auth-Token": token}
+
+
+def test_add_patient_returns_200(client, ehr_auth_headers):
     payload = {
         "patient_id": "smoke_p001",
         "name": "测试老人",
         "age": 80,
         "medical_history": "高血压、糖尿病",
     }
-    r = client.post("/api/ehr/patients", json=payload)
+    r = client.post("/api/ehr/patients", json=payload, headers=ehr_auth_headers)
     assert r.status_code == 200
     data = r.json()
     assert data.get("patient_id") == "smoke_p001"
     assert "doc_id" in data
 
 
-def test_add_patient_missing_name_returns_422(client):
+def test_add_patient_missing_name_returns_422(client, ehr_auth_headers):
     """请求体缺少必填字段 name → 422，不能被吞成 500。"""
-    r = client.post("/api/ehr/patients", json={"patient_id": "smoke_p002"})
+    r = client.post(
+        "/api/ehr/patients",
+        json={"patient_id": "smoke_p002"},
+        headers=ehr_auth_headers,
+    )
     assert r.status_code == 422
     # 兼容 FastAPI 默认格式 {"detail": [...]} 和分层 handler 格式 {"code": 422, "errors": [...]}
     body = r.json()
     assert "detail" in body or body.get("code") == 422
 
 
-def test_list_patients_returns_200(client):
-    r = client.get("/api/ehr/patients")
+def test_list_patients_returns_200(client, ehr_auth_headers):
+    r = client.get("/api/ehr/patients", headers=ehr_auth_headers)
     assert r.status_code == 200
     assert isinstance(r.json(), list)
 
 
-def test_get_nonexistent_patient_returns_404(client):
+def test_get_nonexistent_patient_returns_404(client, ehr_auth_headers):
     """不存在的 patient_id → 404，绝不能是 500。"""
-    r = client.get("/api/ehr/patients/no_such_patient_xyz")
+    r = client.get(
+        "/api/ehr/patients/no_such_patient_xyz",
+        headers=ehr_auth_headers,
+    )
     assert r.status_code == 404
     # 兼容 FastAPI 默认格式 {"detail": "..."} 和分层 handler 格式 {"code": 404}
     body = r.json()
