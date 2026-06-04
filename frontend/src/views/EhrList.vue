@@ -511,46 +511,112 @@ onMounted(fetchRecords)
       v-model="formOpen"
       :title="formMode === 'create' ? '新增患者档案' : `编辑档案 · ${form.name || form.patient_id}`"
       full-sheet
+      panel-class="dialog--ehr-form"
     >
       <form class="ehr-form" @submit.prevent="submitForm">
-        <div class="ehr-form-grid">
-          <Field
-            v-model="form.patient_id"
-            label="患者 ID"
-            required
-            :disabled="formMode === 'edit'"
-            placeholder="例如:P001"
-          />
-          <Field v-model="form.name" label="姓名" required />
-          <Field v-model="form.age" label="年龄" type="number" />
-          <Field v-model="form.gender" label="性别" placeholder="男 / 女" />
-          <Field v-model="form.birth_date" label="出生日期" type="date" />
-          <Field v-model="form.id_card" label="身份证号" />
-          <Field v-model="form.blood_type" label="血型" placeholder="A / B / AB / O" />
-          <Field v-model="form.height_cm" label="身高(cm)" type="number" />
-          <Field v-model="form.weight_kg" label="体重(kg)" type="number" />
-          <Field v-model="form.admission_date" label="入院日期" type="date" />
-          <Field v-model="form.bed_number" label="床位号" />
-          <Field v-model="form.care_level" label="护理等级" placeholder="一级 / 二级 / 特护" />
-          <Field v-model="form.primary_nurse" label="主管护工" />
-          <Field v-model="form.emergency_contact" label="紧急联系人" />
-          <Field v-model="form.emergency_phone" label="联系电话" />
-          <Field v-model="form.emergency_relation" label="关系" placeholder="子女 / 配偶 …" />
-          <Field v-model="form.allergy" label="过敏史" />
-          <Field v-model="form.diet_restriction" label="饮食禁忌" />
-        </div>
-        <Field
-          v-model="form.medical_history"
-          label="既往病史 / 用药"
-          type="textarea"
-          :rows="3"
-        />
-        <Field v-model="form.notes" label="备注" type="textarea" :rows="2" />
+        <section class="ehr-form-section ehr-form-section--required">
+          <div class="ehr-form-section-head">
+            <span class="ehr-form-section-kicker">必填</span>
+            <h3 class="title-s">身份识别</h3>
+          </div>
+          <div class="ehr-form-grid ehr-form-grid--required">
+            <Field
+              v-model="form.patient_id"
+              label="患者 ID"
+              required
+              :disabled="formMode === 'edit'"
+              placeholder="例如:P001"
+              autocomplete="off"
+            />
+            <Field v-model="form.name" label="姓名" required autocomplete="off" />
+          </div>
+        </section>
+
+        <section class="ehr-form-section">
+          <div class="ehr-form-section-head">
+            <span class="ehr-form-section-kicker">基础</span>
+            <h3 class="title-s">基本信息</h3>
+          </div>
+          <div class="ehr-form-grid">
+            <Field v-model="form.age" label="年龄" type="number" inputmode="numeric" />
+            <Field v-model="form.gender" label="性别" type="select">
+              <option value="">请选择</option>
+              <option value="男">男</option>
+              <option value="女">女</option>
+            </Field>
+            <Field v-model="form.birth_date" label="出生日期" type="date" />
+            <Field v-model="form.id_card" label="身份证号" inputmode="numeric" />
+            <Field v-model="form.blood_type" label="血型" type="select">
+              <option value="">请选择</option>
+              <option value="A">A</option>
+              <option value="B">B</option>
+              <option value="AB">AB</option>
+              <option value="O">O</option>
+              <option value="未知">未知</option>
+            </Field>
+            <Field v-model="form.height_cm" label="身高(cm)" type="number" inputmode="decimal" />
+            <Field v-model="form.weight_kg" label="体重(kg)" type="number" inputmode="decimal" />
+          </div>
+        </section>
+
+        <section class="ehr-form-section">
+          <div class="ehr-form-section-head">
+            <span class="ehr-form-section-kicker">入住</span>
+            <h3 class="title-s">入住与护理</h3>
+          </div>
+          <div class="ehr-form-grid">
+            <Field v-model="form.admission_date" label="入院日期" type="date" />
+            <Field v-model="form.bed_number" label="床位号" placeholder="例如:A-101-1" />
+            <Field v-model="form.care_level" label="护理等级" type="select">
+              <option value="">请选择</option>
+              <option value="一级">一级</option>
+              <option value="二级">二级</option>
+              <option value="三级">三级</option>
+              <option value="特护">特护</option>
+            </Field>
+            <Field v-model="form.primary_nurse" label="主管护工" />
+          </div>
+        </section>
+
+        <section class="ehr-form-section">
+          <div class="ehr-form-section-head">
+            <span class="ehr-form-section-kicker">联系</span>
+            <h3 class="title-s">联系人与健康要点</h3>
+          </div>
+          <div class="ehr-form-grid">
+            <Field v-model="form.emergency_contact" label="紧急联系人" />
+            <Field v-model="form.emergency_phone" label="联系电话" type="tel" inputmode="tel" />
+            <Field v-model="form.emergency_relation" label="关系" placeholder="子女 / 配偶 / 亲属" />
+            <Field v-model="form.allergy" label="过敏史" placeholder="无 / 药物 / 食物" />
+            <Field v-model="form.diet_restriction" label="饮食禁忌" placeholder="无 / 低盐 / 糖尿病饮食" />
+          </div>
+        </section>
+
+        <section class="ehr-form-section">
+          <div class="ehr-form-section-head">
+            <span class="ehr-form-section-kicker">补充</span>
+            <h3 class="title-s">病史与备注</h3>
+          </div>
+          <div class="ehr-form-grid ehr-form-grid--notes">
+            <Field
+              v-model="form.medical_history"
+              label="既往病史 / 用药"
+              type="textarea"
+              :rows="4"
+            />
+            <Field v-model="form.notes" label="备注" type="textarea" :rows="3" />
+          </div>
+        </section>
       </form>
 
       <template #actions>
         <Btn variant="ghost" :disabled="formSaving" @click="formOpen = false">取消</Btn>
-        <Btn variant="primary" :loading="formSaving" @click="submitForm">
+        <Btn
+          variant="primary"
+          :loading="formSaving"
+          :disabled="!form.patient_id.trim() || !form.name.trim()"
+          @click="submitForm"
+        >
           {{ formMode === 'create' ? '创建' : '保存' }}
         </Btn>
       </template>
@@ -666,11 +732,81 @@ onMounted(fetchRecords)
 }
 
 /* ─── 表单 ─── */
-.ehr-form { display: grid; gap: var(--sp-3, 12px); max-width: 720px; }
+.ehr-form {
+  display: grid;
+  gap: var(--sp-3, 12px);
+  width: 100%;
+}
+.ehr-form-section {
+  position: relative;
+  display: grid;
+  gap: var(--sp-3, 12px);
+  padding: 16px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.86);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.82), rgba(255, 255, 255, 0.58)),
+    radial-gradient(180px 110px at 12% 0%, rgba(94, 234, 212, 0.22), transparent 68%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.92),
+    0 10px 30px rgba(15, 23, 42, 0.06);
+}
+.ehr-form-section--required {
+  border-color: rgba(20, 184, 166, 0.32);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.92),
+    0 14px 34px rgba(20, 184, 166, 0.12);
+}
+.ehr-form-section-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.ehr-form-section-head .title-s {
+  margin: 0;
+}
+.ehr-form-section-kicker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 42px;
+  height: 24px;
+  padding: 0 9px;
+  border-radius: 999px;
+  background: rgba(20, 184, 166, 0.12);
+  color: var(--accent-ink, #0f766e);
+  font: 700 11px/1 var(--font-ui);
+  letter-spacing: 0.08em;
+}
 .ehr-form-grid {
   display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.ehr-form-grid--required {
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--sp-2, 8px) var(--sp-3, 12px);
+}
+.ehr-form-grid--notes {
+  grid-template-columns: 1fr;
+}
+.ehr-form :deep(textarea.field) {
+  min-height: 104px;
+  resize: vertical;
+}
+.ehr-form :deep(.field-group) {
+  min-width: 0;
+}
+.ehr-form :deep(.field) {
+  background-color: rgba(255, 255, 255, 0.88);
+}
+
+@media (max-width: 900px) {
+  .ehr-form-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .ehr-form-grid--notes {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 640px) {
@@ -698,6 +834,15 @@ onMounted(fetchRecords)
 
   .ehr-detail-grid,
   .ehr-form-grid { grid-template-columns: 1fr; }
+  .ehr-form-section {
+    padding: 14px;
+    border-radius: 18px;
+  }
+  .ehr-form-section-head {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 6px;
+  }
   .ehr-detail-grid div { grid-template-columns: 80px 1fr; }
   .ehr-export-care { grid-template-columns: 1fr; }
   .ehr-export-actions .btn { width: 100%; }
