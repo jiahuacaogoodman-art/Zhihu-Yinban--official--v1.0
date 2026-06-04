@@ -459,6 +459,7 @@ async def global_exception_handler(request: Request, exc: Exception):
 @app.get("/login", include_in_schema=False)
 @app.get("/nursing-decision", include_in_schema=False)
 @app.get("/ehr", include_in_schema=False)
+@app.get("/ehr/new", include_in_schema=False)
 @app.get("/ehr/upload", include_in_schema=False)
 @app.get("/beds", include_in_schema=False)
 @app.get("/handovers", include_in_schema=False)

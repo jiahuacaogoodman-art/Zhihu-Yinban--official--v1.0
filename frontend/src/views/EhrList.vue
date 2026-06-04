@@ -5,6 +5,7 @@ import { Btn, Chip, Dialog, Field, GlassPanel } from '../components'
 import { useToast } from '../composables/useToast'
 import { api } from '../api'
 import { ApiError } from '../api/types'
+import EhrForm from './EhrForm.vue'
 
 /**
  * EhrList — 患者档案管理(增删改查 + PDF 导出)
@@ -46,6 +47,7 @@ interface EHRRecord {
 const { push: toast } = useToast()
 const route = useRoute()
 const router = useRouter()
+const isCreateRoute = computed(() => route.name === 'ehr-new')
 const records = ref<EHRRecord[]>([])
 const loading = ref(false)
 const searchQuery = ref('')
@@ -230,25 +232,37 @@ async function exportCareRecordsPdf() {
 }
 
 // ── 新增 / 编辑 ─────────────────────────────────────
-function openCreateForm() {
+function prepareCreateForm() {
   Object.assign(form, emptyForm())
   formMode.value = 'create'
-  formOpen.value = true
 }
 
 function startCreate() {
-  openCreateForm()
-  if (route.query.new) {
-    router.replace({ path: '/ehr' })
-  }
+  router.push('/ehr/new')
 }
 
 watch(
   () => route.query.new,
   (value) => {
     if (value !== '1' && value !== 'true') return
-    openCreateForm()
-    router.replace({ path: '/ehr' })
+    router.replace({ path: '/ehr/new' })
+  },
+  { immediate: true },
+)
+
+watch(
+  isCreateRoute,
+  (value, oldValue) => {
+    if (value) {
+      detailOpen.value = false
+      formOpen.value = false
+      confirmDeleteOpen.value = false
+      prepareCreateForm()
+      return
+    }
+    if (oldValue === true && records.value.length === 0) {
+      fetchRecords()
+    }
   },
   { immediate: true },
 )
@@ -306,6 +320,10 @@ async function submitForm() {
     }
     formOpen.value = false
     await fetchRecords()
+    if (formMode.value === 'create' && isCreateRoute.value) {
+      await router.push('/ehr')
+      return
+    }
     // 编辑后自动重开详情,让用户看到最新数据
     if (formMode.value === 'edit' && form.patient_id) {
       await openDetail(form.patient_id)
@@ -390,63 +408,104 @@ function display(v: unknown): string {
   return String(v)
 }
 
-onMounted(fetchRecords)
+onMounted(() => {
+  if (!isCreateRoute.value) fetchRecords()
+})
 </script>
 
 <template>
   <div class="ehr-view">
-    <div class="ehr-header">
-      <h1 class="title-l">患者档案</h1>
-      <Chip>共 {{ records.length }} 人</Chip>
-      <Btn variant="primary" size="sm" style="margin-left: auto;" @click="startCreate">
-        + 新增档案
-      </Btn>
-    </div>
+    <template v-if="isCreateRoute">
+      <div class="ehr-header">
+        <h1 class="title-l">录入档案</h1>
+        <Chip>新建患者</Chip>
+        <Btn
+          variant="outline"
+          size="sm"
+          class="ehr-back-btn"
+          @click="router.push('/ehr')"
+        >
+          <span class="ehr-back-icon" aria-hidden="true">←</span>
+          <span>患者档案</span>
+        </Btn>
+      </div>
 
-    <GlassPanel class="ehr-filters">
-      <Field
-        v-model="searchQuery"
-        placeholder="搜索姓名 / ID / 床位号"
-        style="max-width: 320px;"
-      />
-    </GlassPanel>
+      <GlassPanel class="ehr-create-panel">
+        <EhrForm :model="form" :mode="formMode" @submit="submitForm" />
+        <div class="ehr-create-actions">
+          <Btn variant="ghost" :disabled="formSaving" @click="router.push('/ehr')">取消</Btn>
+          <Btn
+            variant="primary"
+            :loading="formSaving"
+            :disabled="!form.patient_id.trim() || !form.name.trim()"
+            @click="submitForm"
+          >
+            创建档案
+          </Btn>
+        </div>
+      </GlassPanel>
+    </template>
 
-    <div v-if="loading" class="empty">
-      <div class="skel" style="height: 200px; width: 100%;"></div>
-    </div>
+    <template v-else>
+      <div class="ehr-header">
+        <h1 class="title-l">患者档案</h1>
+        <Chip>共 {{ records.length }} 人</Chip>
+        <Btn
+          variant="primary"
+          size="sm"
+          class="ehr-list-create-btn"
+          style="margin-left: auto;"
+          @click="startCreate"
+        >
+          + 录入档案
+        </Btn>
+      </div>
 
-    <div v-else class="ehr-grid">
-      <GlassPanel
-        v-for="r in filteredRecords"
-        :key="r.doc_id"
-        variant="card"
-        class="ehr-card"
-        role="button"
-        tabindex="0"
-        @click="openDetail(r.patient_id)"
-        @keydown.enter="openDetail(r.patient_id)"
-        @keydown.space.prevent="openDetail(r.patient_id)"
-      >
-        <template #header>
-          <span class="title-s">{{ r.name || '未知' }}</span>
-          <Chip v-if="r.care_level" tone="accent" style="margin-left: auto;">
-            {{ r.care_level }}
-          </Chip>
-        </template>
-        <dl class="ehr-meta">
-          <div><dt>ID</dt><dd>{{ r.patient_id }}</dd></div>
-          <div v-if="r.age != null"><dt>年龄</dt><dd>{{ r.age }}</dd></div>
-          <div v-if="r.gender"><dt>性别</dt><dd>{{ r.gender }}</dd></div>
-          <div v-if="r.bed_number"><dt>床位</dt><dd>{{ r.bed_number }}</dd></div>
-          <div v-if="r.admission_date"><dt>入院</dt><dd>{{ r.admission_date }}</dd></div>
-        </dl>
-        <p class="ehr-card-hint meta">点击查看完整档案 →</p>
+      <GlassPanel class="ehr-filters">
+        <Field
+          v-model="searchQuery"
+          placeholder="搜索姓名 / ID / 床位号"
+          style="max-width: 320px;"
+        />
       </GlassPanel>
 
-      <div v-if="filteredRecords.length === 0" class="empty" style="grid-column: 1/-1;">
-        <p class="empty-title">暂无匹配档案</p>
+      <div v-if="loading" class="empty">
+        <div class="skel" style="height: 200px; width: 100%;"></div>
       </div>
-    </div>
+
+      <div v-else class="ehr-grid">
+        <GlassPanel
+          v-for="r in filteredRecords"
+          :key="r.doc_id"
+          variant="card"
+          class="ehr-card"
+          role="button"
+          tabindex="0"
+          @click="openDetail(r.patient_id)"
+          @keydown.enter="openDetail(r.patient_id)"
+          @keydown.space.prevent="openDetail(r.patient_id)"
+        >
+          <template #header>
+            <span class="title-s">{{ r.name || '未知' }}</span>
+            <Chip v-if="r.care_level" tone="accent" style="margin-left: auto;">
+              {{ r.care_level }}
+            </Chip>
+          </template>
+          <dl class="ehr-meta">
+            <div><dt>ID</dt><dd>{{ r.patient_id }}</dd></div>
+            <div v-if="r.age != null"><dt>年龄</dt><dd>{{ r.age }}</dd></div>
+            <div v-if="r.gender"><dt>性别</dt><dd>{{ r.gender }}</dd></div>
+            <div v-if="r.bed_number"><dt>床位</dt><dd>{{ r.bed_number }}</dd></div>
+            <div v-if="r.admission_date"><dt>入院</dt><dd>{{ r.admission_date }}</dd></div>
+          </dl>
+          <p class="ehr-card-hint meta">点击查看完整档案 →</p>
+        </GlassPanel>
+
+        <div v-if="filteredRecords.length === 0" class="empty" style="grid-column: 1/-1;">
+          <p class="empty-title">暂无匹配档案</p>
+        </div>
+      </div>
+    </template>
 
     <!-- ────────────── 档案详情 ────────────── -->
     <Dialog
@@ -506,108 +565,14 @@ onMounted(fetchRecords)
       </template>
     </Dialog>
 
-    <!-- ────────────── 新增 / 编辑 表单 ────────────── -->
+    <!-- ────────────── 编辑表单 ────────────── -->
     <Dialog
       v-model="formOpen"
       :title="formMode === 'create' ? '新增患者档案' : `编辑档案 · ${form.name || form.patient_id}`"
       full-sheet
       panel-class="dialog--ehr-form"
     >
-      <form class="ehr-form" @submit.prevent="submitForm">
-        <section class="ehr-form-section ehr-form-section--required">
-          <div class="ehr-form-section-head">
-            <span class="ehr-form-section-kicker">必填</span>
-            <h3 class="title-s">身份识别</h3>
-          </div>
-          <div class="ehr-form-grid ehr-form-grid--required">
-            <Field
-              v-model="form.patient_id"
-              label="患者 ID"
-              required
-              :disabled="formMode === 'edit'"
-              placeholder="例如:P001"
-              autocomplete="off"
-            />
-            <Field v-model="form.name" label="姓名" required autocomplete="off" />
-          </div>
-        </section>
-
-        <section class="ehr-form-section">
-          <div class="ehr-form-section-head">
-            <span class="ehr-form-section-kicker">基础</span>
-            <h3 class="title-s">基本信息</h3>
-          </div>
-          <div class="ehr-form-grid">
-            <Field v-model="form.age" label="年龄" type="number" inputmode="numeric" />
-            <Field v-model="form.gender" label="性别" type="select">
-              <option value="">请选择</option>
-              <option value="男">男</option>
-              <option value="女">女</option>
-            </Field>
-            <Field v-model="form.birth_date" label="出生日期" type="date" />
-            <Field v-model="form.id_card" label="身份证号" inputmode="numeric" />
-            <Field v-model="form.blood_type" label="血型" type="select">
-              <option value="">请选择</option>
-              <option value="A">A</option>
-              <option value="B">B</option>
-              <option value="AB">AB</option>
-              <option value="O">O</option>
-              <option value="未知">未知</option>
-            </Field>
-            <Field v-model="form.height_cm" label="身高(cm)" type="number" inputmode="decimal" />
-            <Field v-model="form.weight_kg" label="体重(kg)" type="number" inputmode="decimal" />
-          </div>
-        </section>
-
-        <section class="ehr-form-section">
-          <div class="ehr-form-section-head">
-            <span class="ehr-form-section-kicker">入住</span>
-            <h3 class="title-s">入住与护理</h3>
-          </div>
-          <div class="ehr-form-grid">
-            <Field v-model="form.admission_date" label="入院日期" type="date" />
-            <Field v-model="form.bed_number" label="床位号" placeholder="例如:A-101-1" />
-            <Field v-model="form.care_level" label="护理等级" type="select">
-              <option value="">请选择</option>
-              <option value="一级">一级</option>
-              <option value="二级">二级</option>
-              <option value="三级">三级</option>
-              <option value="特护">特护</option>
-            </Field>
-            <Field v-model="form.primary_nurse" label="主管护工" />
-          </div>
-        </section>
-
-        <section class="ehr-form-section">
-          <div class="ehr-form-section-head">
-            <span class="ehr-form-section-kicker">联系</span>
-            <h3 class="title-s">联系人与健康要点</h3>
-          </div>
-          <div class="ehr-form-grid">
-            <Field v-model="form.emergency_contact" label="紧急联系人" />
-            <Field v-model="form.emergency_phone" label="联系电话" type="tel" inputmode="tel" />
-            <Field v-model="form.emergency_relation" label="关系" placeholder="子女 / 配偶 / 亲属" />
-            <Field v-model="form.allergy" label="过敏史" placeholder="无 / 药物 / 食物" />
-            <Field v-model="form.diet_restriction" label="饮食禁忌" placeholder="无 / 低盐 / 糖尿病饮食" />
-          </div>
-        </section>
-
-        <section class="ehr-form-section">
-          <div class="ehr-form-section-head">
-            <span class="ehr-form-section-kicker">补充</span>
-            <h3 class="title-s">病史与备注</h3>
-          </div>
-          <div class="ehr-form-grid ehr-form-grid--notes">
-            <Field
-              v-model="form.medical_history"
-              label="既往病史 / 用药"
-              type="textarea"
-              :rows="4"
-            />
-            <Field v-model="form.notes" label="备注" type="textarea" :rows="3" />
-          </div>
-        </section>
-      </form>
+      <EhrForm :model="form" :mode="formMode" @submit="submitForm" />
 
       <template #actions>
         <Btn variant="ghost" :disabled="formSaving" @click="formOpen = false">取消</Btn>
@@ -640,15 +605,6 @@ onMounted(fetchRecords)
       </template>
     </Dialog>
 
-    <!-- ─── 移动端 FAB:新增档案 ─── -->
-    <button
-      type="button"
-      class="v2-fab"
-      aria-label="新增档案"
-      @click="startCreate"
-    >
-      +
-    </button>
   </div>
 </template>
 
@@ -656,6 +612,42 @@ onMounted(fetchRecords)
 .ehr-view { display: grid; gap: var(--sp-4, 16px); }
 .ehr-header { display: flex; align-items: center; gap: var(--sp-3); }
 .ehr-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: var(--sp-3); }
+.ehr-back-btn {
+  margin-left: auto;
+  min-width: 118px;
+  height: 40px;
+  padding: 0 15px 0 10px;
+  border-radius: 12px;
+  gap: 8px;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.78);
+  border-color: rgba(20, 184, 166, 0.34);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.92),
+    0 8px 18px rgba(15, 23, 42, 0.08);
+}
+.ehr-back-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  color: var(--accent-ink, #0f766e);
+  background: rgba(20, 184, 166, 0.14);
+  font: 800 16px/1 var(--font-ui);
+}
+.ehr-create-panel {
+  display: grid;
+  gap: var(--sp-4, 16px);
+}
+.ehr-create-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--sp-2, 8px);
+  padding-top: var(--sp-2, 8px);
+  border-top: 1px solid rgba(15, 23, 42, 0.06);
+}
 
 .ehr-card {
   cursor: pointer;
@@ -731,92 +723,17 @@ onMounted(fetchRecords)
   margin-top: var(--sp-3, 12px);
 }
 
-/* ─── 表单 ─── */
-.ehr-form {
-  display: grid;
-  gap: var(--sp-3, 12px);
-  width: 100%;
-}
-.ehr-form-section {
-  position: relative;
-  display: grid;
-  gap: var(--sp-3, 12px);
-  padding: 16px;
-  border-radius: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.86);
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.82), rgba(255, 255, 255, 0.58)),
-    radial-gradient(180px 110px at 12% 0%, rgba(94, 234, 212, 0.22), transparent 68%);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.92),
-    0 10px 30px rgba(15, 23, 42, 0.06);
-}
-.ehr-form-section--required {
-  border-color: rgba(20, 184, 166, 0.32);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.92),
-    0 14px 34px rgba(20, 184, 166, 0.12);
-}
-.ehr-form-section-head {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.ehr-form-section-head .title-s {
-  margin: 0;
-}
-.ehr-form-section-kicker {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 42px;
-  height: 24px;
-  padding: 0 9px;
-  border-radius: 999px;
-  background: rgba(20, 184, 166, 0.12);
-  color: var(--accent-ink, #0f766e);
-  font: 700 11px/1 var(--font-ui);
-  letter-spacing: 0.08em;
-}
-.ehr-form-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-}
-.ehr-form-grid--required {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-.ehr-form-grid--notes {
-  grid-template-columns: 1fr;
-}
-.ehr-form :deep(textarea.field) {
-  min-height: 104px;
-  resize: vertical;
-}
-.ehr-form :deep(.field-group) {
-  min-width: 0;
-}
-.ehr-form :deep(.field) {
-  background-color: rgba(255, 255, 255, 0.88);
-}
-
-@media (max-width: 900px) {
-  .ehr-form-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .ehr-form-grid--notes {
-    grid-template-columns: 1fr;
-  }
-}
-
 @media (max-width: 640px) {
   .ehr-header {
     flex-wrap: wrap;
     gap: 8px;
   }
-  /* 移动端隐藏 header 里的"新增"按钮(改用右下 FAB,见模板末尾) */
-  .ehr-header > .btn { display: none; }
   .ehr-header .title-l { font-size: 20px; width: 100%; }
+  .ehr-back-btn {
+    width: 100%;
+    margin-left: 0;
+    justify-content: center;
+  }
 
   .ehr-filters { padding: 10px !important; }
   .ehr-filters :deep(.field) {
@@ -832,18 +749,10 @@ onMounted(fetchRecords)
   .ehr-meta { font-size: 13px; }
   .ehr-meta div { grid-template-columns: 60px 1fr; }
 
-  .ehr-detail-grid,
-  .ehr-form-grid { grid-template-columns: 1fr; }
-  .ehr-form-section {
-    padding: 14px;
-    border-radius: 18px;
-  }
-  .ehr-form-section-head {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 6px;
-  }
+  .ehr-detail-grid { grid-template-columns: 1fr; }
   .ehr-detail-grid div { grid-template-columns: 80px 1fr; }
+  .ehr-create-actions { flex-direction: column-reverse; }
+  .ehr-create-actions .btn { width: 100%; }
   .ehr-export-care { grid-template-columns: 1fr; }
   .ehr-export-actions .btn { width: 100%; }
   .ehr-export-care .btn { width: 100%; height: 44px; }

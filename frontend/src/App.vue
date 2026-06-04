@@ -162,7 +162,7 @@ type NavItem = {
 }
 const navItems: NavItem[] = [
   { to: '/nursing-decision', label: 'AI 护理建议', icon: '✨', short: 'AI', bottomBar: true },
-  { to: '/ehr?new=1', label: '录入档案', icon: '➕', short: '录入', bottomBar: false },
+  { to: '/ehr/new', label: '录入档案', icon: '➕', short: '录入', bottomBar: false },
   { to: '/ehr', label: '患者档案', icon: '📋', short: '档案', bottomBar: true },
   { to: '/ehr/upload', label: '病历上传', icon: '📷', short: '病历', bottomBar: false },
   { to: '/beds', label: '床位管理', icon: '🛏', short: '床位', bottomBar: true },

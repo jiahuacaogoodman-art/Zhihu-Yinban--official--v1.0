@@ -31,6 +31,12 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '患者档案' },
   },
   {
+    path: '/ehr/new',
+    name: 'ehr-new',
+    component: () => import('../views/EhrList.vue'),
+    meta: { title: '录入档案' },
+  },
+  {
     path: '/ehr/upload',
     name: 'ehr-upload',
     component: () => import('../views/MedicalUpload.vue'),

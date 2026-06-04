@@ -14,6 +14,7 @@ function makeRouter() {
       { path: '/login', component: { template: '<div>login-stub</div>' } },
       { path: '/nursing-decision', component: { template: '<div>nd-stub</div>' } },
       { path: '/ehr', component: { template: '<div>ehr-stub</div>' } },
+      { path: '/ehr/new', component: { template: '<div>ehr-new-stub</div>' } },
       { path: '/ehr/upload', component: { template: '<div>ehr-upload-stub</div>' } },
       { path: '/beds', component: { template: '<div>beds-stub</div>' } },
       { path: '/handovers', component: { template: '<div>handovers-stub</div>' } },
