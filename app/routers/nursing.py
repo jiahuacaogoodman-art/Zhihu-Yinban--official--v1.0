@@ -3,6 +3,7 @@
 @File    : routers/nursing.py
 @Desc    : 护理决策支持路由：RAG 推理（普通 + 流式 SSE）、提示词优化、患者信息查询
 """
+from __future__ import annotations
 
 import json
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -18,7 +19,7 @@ from app.middleware.auth import get_current_user
 from app.services.audit_log import get_audit_log
 from app.services.llm_service import get_llm_service
 from app.services.pii_crypto import decrypt_pii_fields
-from app.services.retrieval import HybridRetriever, format_evidence_block, legacy_context_string
+from app.services.retrieval import HybridRetriever, format_evidence_block, plain_context_string
 from app.services.decision_memory import DecisionMemory, format_memory_block
 from app.services.user_store import User
 from app.core.config import RAG_PROMPT_TEMPLATE, OLLAMA_MODEL_NAME, LLM_PROVIDER
@@ -122,12 +123,12 @@ def _get_state():
 
 
 def _retrieve_context(collection, embedding_function, patient_id: str, query: str, n_results: int = 3) -> str:
-    """旧接口：只回字符串。保留给 prompt 优化等非关键路径用。"""
+    """返回普通文本上下文，供 prompt 优化等非引用型路径使用。"""
     retriever = HybridRetriever(collection, embedding_function)
     evidence = retriever.retrieve(patient_id=patient_id, query=query, top_k=max(n_results, 3))
     if not evidence:
         return f"（未检索到 patient_id='{patient_id}' 的相关档案，请先录入档案）"
-    return legacy_context_string(evidence)
+    return plain_context_string(evidence)
 
 
 async def _retrieve_context_async(
@@ -146,7 +147,7 @@ async def _retrieve_context_async(
     )
     if not evidence:
         return f"（未检索到 patient_id='{patient_id}' 的相关档案，请先录入档案）"
-    return legacy_context_string(evidence)
+    return plain_context_string(evidence)
 
 
 def _retrieve_evidence(
@@ -299,7 +300,7 @@ async def nursing_decision(payload: NursingDecisionRequest):
         code=200,
         patient_id=payload.patient_id,
         symptom=payload.symptom,
-        retrieved_context=legacy_context_string(evidence),
+        retrieved_context=plain_context_string(evidence),
         llm_advice=llm_advice,
         decision_id=log_result.get("decision_id"),
         evidence=[EvidenceItem(**e.to_dict()) for e in evidence],
@@ -362,7 +363,7 @@ async def nursing_decision_stream(payload: NursingDecisionRequest):
         context_data = json.dumps({
             "patient_id": payload.patient_id,
             "symptom": payload.symptom,
-            "retrieved_context": legacy_context_string(evidence)
+            "retrieved_context": plain_context_string(evidence)
         }, ensure_ascii=False)
         yield f"event: context\ndata: {context_data}\n\n"
 
@@ -896,12 +897,12 @@ def _normalize_ai_card(ai_data: dict, payload: TaskCardGenerateRequest, context:
     }
 
     event_type = str(ai_data.get("event_type") or "AI生成护理任务卡事件")
-    # 任务卡日志显示真正在用的 provider/模型，不再硬写 "本地大模型"。
-    # ollama  → "本地大模型 huatuo_o1_7b"
+    # 任务卡日志显示真正在用的 provider/模型，不再硬写单一部署形态。
+    # ollama  → "Ollama 本地模型 huatuo_o1_7b"
     # openai  → "OpenAI兼容端点 Qwen/Qwen2.5-7B-Instruct"
     active_model_name = getattr(llm_service, "model_name", "") or "unknown"
     if (LLM_PROVIDER or "").lower() == "ollama":
-        provider_label = f"本地大模型 {active_model_name}"
+        provider_label = f"Ollama 本地模型 {active_model_name}"
     else:
         provider_label = f"OpenAI兼容端点 {active_model_name}"
     task_card = {
@@ -929,7 +930,7 @@ def _normalize_ai_card(ai_data: dict, payload: TaskCardGenerateRequest, context:
         "forbidden_actions": forbidden,
         "recheck_plan": recheck,
         "observations": [],
-        "execution_logs": [_event_log("AI任务卡生成", f"由本地大模型 {OLLAMA_MODEL_NAME} 生成护理建议、任务卡、复测计划和SBAR草稿", payload.reporter or "护工端")],
+        "execution_logs": [_event_log("AI任务卡生成", f"由{provider_label}生成护理建议、任务卡、复测计划和SBAR草稿", payload.reporter or "护工端")],
         "progress": {"total": len(tasks), "handled": 0, "percent": 0, "required_total": len([t for t in tasks if t.get("required")]), "required_done": 0},
         "handover_sbar": handover_sbar,
         "safety_boundary": nursing_advice["safety_boundary"],
@@ -939,7 +940,7 @@ def _normalize_ai_card(ai_data: dict, payload: TaskCardGenerateRequest, context:
 
 
 def _build_ai_task_card(payload: TaskCardGenerateRequest, context: str) -> dict:
-    """真正调用本地大模型生成任务卡。关键词模板不参与默认任务卡生成。"""
+    """真正调用 AI 服务生成任务卡。关键词模板不参与默认任务卡生成。"""
     prompt = AI_TASK_CARD_PROMPT_TEMPLATE.format(
         retrieved_context=context,
         symptom=payload.symptom,
@@ -956,11 +957,11 @@ def _build_ai_task_card(payload: TaskCardGenerateRequest, context: str) -> dict:
             },
         )
     except ConnectionError as e:
-        raise HTTPException(status_code=503, detail=f"本地大模型不可用，无法生成AI任务卡：{str(e)}")
+        raise HTTPException(status_code=503, detail=f"AI 服务不可用，无法生成AI任务卡：{str(e)}")
     except (TimeoutError, ValueError) as e:
-        raise HTTPException(status_code=502, detail=f"本地大模型生成失败：{str(e)}")
+        raise HTTPException(status_code=502, detail=f"AI 服务生成失败：{str(e)}")
     except Exception as e:
-        raise HTTPException(status_code=502, detail=f"本地大模型调用异常：{str(e)}")
+        raise HTTPException(status_code=502, detail=f"AI 服务调用异常：{str(e)}")
 
     try:
         ai_data = _extract_json_from_llm(raw)
@@ -1017,7 +1018,7 @@ def _build_task_card(payload: TaskCardGenerateRequest, context: str) -> dict:
     return task_card
 
 
-@router.post("/nursing/task-card", summary="调用本地大模型生成AI护理任务卡：护理建议 + 任务打卡 + 执行入档")
+@router.post("/nursing/task-card", summary="调用 AI 服务生成护理任务卡：护理建议 + 任务打卡 + 执行入档")
 async def generate_task_card(payload: TaskCardGenerateRequest):
     collection, embedding_function = _get_state()
     try:
@@ -1060,7 +1061,7 @@ async def generate_task_card(payload: TaskCardGenerateRequest):
         logger.warning(f"任务卡决策记忆写入失败: {e}")
 
     logger.success(f"任务卡生成: event_id={task_card['event_id']}, patient_id={payload.patient_id}, risk={task_card['risk_level']}")
-    return {"code": 200, "message": "本地大模型已生成AI护理任务卡", "task_card": task_card}
+    return {"code": 200, "message": "AI 服务已生成护理任务卡", "task_card": task_card}
 
 
 @router.get("/nursing/events", summary="查询护理事件列表")

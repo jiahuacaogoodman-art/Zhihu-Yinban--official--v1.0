@@ -11,7 +11,7 @@ import { useToast } from '../composables/useToast'
  * 移动端深度适配 + 体验改进:
  *   1) 安全区填充(顶部 + 底部),避免 iOS 刘海/Home 指示条挡到内容
  *   2) Logo + 引导文案 + 大号输入框 + show/hide 密码切换
- *   3) 登录成功默认跳 /beds(管理端的工作首页)
+ *   3) 登录成功跳 /beds,让管理员直接进入业务页
  *   4) 支持 ?redirect=/path 跳回原页(从 401 抛回登录页时携带)
  *   5) iOS 软键盘弹出时,主动 scrollIntoView 让输入框保持可见
  */
@@ -39,7 +39,7 @@ async function handleLogin() {
   if (!t) return
   loading.value = true
   try {
-    const res = await fetch('/api/beds', {
+    const res = await fetch('/api/auth/me', {
       headers: { 'X-Auth-Token': t },
     })
     if (res.status === 401) {
@@ -47,8 +47,8 @@ async function handleLogin() {
       return
     }
     if (!res.ok && res.status !== 200) {
-      toast({ tone: 'warning', text: `登录验证返回 ${res.status}，请检查后端是否启动` })
-      // 仍允许登录(非 401 可能是后端模块未就绪),但提示一下
+      toast({ tone: 'warning', text: `登录验证返回 ${res.status}，请检查后端认证服务` })
+      return
     }
     authStore.login(t)
     toast({ tone: 'success', text: '登录成功' })
@@ -81,7 +81,7 @@ async function onInputFocus() {
         <div class="login-mark">♥</div>
         <div class="login-brand-text">
           <span class="title-l">智护银伴</span>
-          <span class="meta">管理端</span>
+          <span class="meta">统一管理端</span>
         </div>
       </div>
 

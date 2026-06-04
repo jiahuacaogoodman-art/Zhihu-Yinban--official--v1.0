@@ -37,7 +37,7 @@ except Exception as _e:  # pragma: no cover - 仅在 python-dotenv 缺失时触�
 import uvicorn
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse, FileResponse, RedirectResponse
+from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from contextlib import asynccontextmanager
@@ -75,11 +75,7 @@ from app.services.user_store import UserStore
 # ----------------------------------------------------------------
 BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
-# 前端 SPA 构建产物目录(由 frontend/ 下 `npm run build` 生成)。
-# 包含 index.html(管理端入口)和 nurse.html(护工端入口),以及共享的 assets/。
 DIST_DIR = STATIC_DIR / "dist"
-INDEX_HTML = DIST_DIR / "index.html"
-NURSE_HTML = DIST_DIR / "nurse.html"
 UPLOAD_DIR = Path(EHR_UPLOAD_DIR)
 
 # 全局应用状态字典，存储 ChromaDB 连接和 Embedding 模型实例
@@ -130,7 +126,7 @@ async def lifespan(app: FastAPI):
     # --- 应用启动时 ---
     logger.info("应用启动中...")
     logger.info(f"项目根目录: {BASE_DIR}")
-    logger.info(f"前端 SPA 入口: {INDEX_HTML}")
+    logger.info(f"前端构建目录: {DIST_DIR}")
 
     # 1. 初始化 ChromaDB 客户端
     logger.info(f"正在连接本地 ChromaDB，数据存储路径: {CHROMA_DB_PATH}")
@@ -387,19 +383,25 @@ else:
     logger.warning(f"未找到静态文件目录: {STATIC_DIR}，前端页面将不可用")
 
 # ----------------------------------------------------------------
-# 前端 SPA 静态资源挂载
+# 新版统一入口
 # ----------------------------------------------------------------
-# 由 frontend/ 项目 `npm run build` 输出到 static/dist/,FastAPI 把它当作
-# 普通静态目录挂出来,SPA 的 hash 文件(/assets/*.js / *.css)直接走这里。
-# /、/nurse 这两个 SPA 入口由下面的路由 handler 显式返回 index.html /
-# nurse.html(避免 StaticFiles 的 html=True 把根路径吞了)。
-if DIST_DIR.is_dir():
-    app.mount("/dist", StaticFiles(directory=str(DIST_DIR), html=False), name="dist")
-    logger.info(f"前端 SPA 资源目录已挂载: /dist/ → {DIST_DIR}")
+# 新版不再保留静态 HTML fallback：
+#   - / 和所有管理端 history 路由 → static/dist/index.html
+#   - /nurse 和护工端子路由 → static/dist/nurse.html
+#   - 新版未构建时返回明确错误
+V2_DIR = DIST_DIR
+_v2_ready = V2_DIR.is_dir() and (V2_DIR / "index.html").is_file()
+
+if _v2_ready:
+    logger.info(f"新版前端已启用({V2_DIR})")
+
+    # 新版 SPA 资源目录(JS/CSS/assets)—— 继续挂在 /v2 下，保持访问路径稳定
+    app.mount("/v2", StaticFiles(directory=str(V2_DIR), html=True), name="v2")
+    logger.info(f"v2 静态资源目录已挂载: /v2/")
 else:
     logger.warning(
-        f"前端 SPA 未构建({DIST_DIR} 不存在);"
-        f"/ 和 /nurse 会返回 404。请在 frontend/ 下运行 `npm run build`。"
+        f"新版前端未就绪({V2_DIR} 不存在或缺少 index.html);"
+        "请先构建 frontend。"
     )
 
 # 病历照片原件访问目录：文件仍保存在本地磁盘，仅在内网服务中按 URL 预览。
@@ -451,39 +453,45 @@ async def global_exception_handler(request: Request, exc: Exception):
     )
 
 # ----------------------------------------------------------------
-# 前端 SPA 路由入口
+# 前端页面入口
 # ----------------------------------------------------------------
-# / → 管理端 SPA (static/dist/index.html)
-# /nurse → 护工端 SPA (static/dist/nurse.html)
-# 两个 SPA 共享同一份 vite 构建产物(共用 chunk + design 目录),
-# 但运行时是两个独立的 Vue app,各走各的路由。
-@app.get("/legacy", include_in_schema=False)
-@app.get("/legacy/", include_in_schema=False)
-@app.get("/legacy/{path:path}", include_in_schema=False)
-async def legacy_redirect():
-    """旧版页面入口已退役，统一回新版管理端。"""
-    return RedirectResponse(url="/", status_code=308)
-
 @app.get("/", include_in_schema=False)
+@app.get("/login", include_in_schema=False)
+@app.get("/nursing-decision", include_in_schema=False)
+@app.get("/ehr", include_in_schema=False)
+@app.get("/ehr/upload", include_in_schema=False)
+@app.get("/beds", include_in_schema=False)
+@app.get("/handovers", include_in_schema=False)
+@app.get("/incidents", include_in_schema=False)
+@app.get("/care-records", include_in_schema=False)
+@app.get("/users", include_in_schema=False)
+@app.get("/audit", include_in_schema=False)
+@app.get("/billing", include_in_schema=False)
+@app.get("/payment-channels", include_in_schema=False)
 async def frontend():
-    """管理端 SPA 入口。"""
-    if INDEX_HTML.is_file():
-        return FileResponse(str(INDEX_HTML))
+    """
+    管理端 SPA 入口：根路由、登录页和管理端历史路由都交给 dist/index.html。
+    """
+    if _v2_ready:
+        return FileResponse(str(V2_DIR / "index.html"))
     return JSONResponse(
-        status_code=404,
-        content={
-            "message": "前端未构建。请在 frontend/ 下执行 `npm install && npm run build`。",
-        },
+        status_code=503,
+        content={"message": "新版前端未构建，请先运行 frontend 构建"}
     )
 
 @app.get("/nurse", include_in_schema=False)
+@app.get("/nurse/patient/{path:path}", include_in_schema=False)
 async def nurse_frontend():
-    """护工端 SPA 入口。"""
-    if NURSE_HTML.is_file():
-        return FileResponse(str(NURSE_HTML))
+    """
+    护工端 SPA 入口：/nurse 和子路径都交给 dist/nurse.html。
+    """
+    if _v2_ready:
+        nurse_v2 = V2_DIR / "nurse.html"
+        if nurse_v2.is_file():
+            return FileResponse(str(nurse_v2))
     return JSONResponse(
-        status_code=404,
-        content={"message": "护工端未构建。请在 frontend/ 下执行 `npm run build`。"},
+        status_code=503,
+        content={"message": "新版护工端未构建，请先运行 frontend 构建"}
     )
 
 # 健康检查端点
@@ -502,7 +510,7 @@ async def health_check():
         "message": "智护银伴后端服务正在运行",
         "base_dir": str(BASE_DIR),
         "static_dir_exists": STATIC_DIR.is_dir(),
-        "frontend_built": INDEX_HTML.is_file(),
+        "frontend_dist_exists": _v2_ready,
         # 运维可观测 ─────────────────────────────────────────
         "pii_encryption_enabled": is_encryption_enabled(),
         "auth_mode": getattr(app.state, "auth_mode", "unknown"),

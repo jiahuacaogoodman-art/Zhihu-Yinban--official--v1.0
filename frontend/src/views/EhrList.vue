@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, reactive } from 'vue'
+import { ref, computed, onMounted, reactive, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { Btn, Chip, Dialog, Field, GlassPanel } from '../components'
 import { useToast } from '../composables/useToast'
 import { api } from '../api'
@@ -8,22 +9,14 @@ import { ApiError } from '../api/types'
 /**
  * EhrList — 患者档案管理(增删改查 + PDF 导出)
  *
- * 此前(Phase 4 first cut)只是只读卡片列表,5 个字段封顶,卡片不可点击。
- * 后端早就实现了完整 CRUD + 4 个 PDF 导出端点,但前端没接,导致用户
- * "看不到全部档案,更提不上如何导出"。本次重写把这些都接上。
- *
  * 后端契约:
- *   GET    /api/ehr/list                       —— 列表(EHRListResponse)
+ *   GET    /api/ehr/patients                   —— 列表
  *   GET    /api/ehr/patients/{id}              —— 单个详情(全字段)
  *   POST   /api/ehr/patients                   —— 新增
  *   PUT    /api/ehr/patients/{id}              —— 修改
  *   DELETE /api/ehr/patients/{id}              —— 删除全部
  *   GET    /api/export/patient/{id}/pdf        —— 档案卡 PDF
  *   GET    /api/export/care-records/{id}/pdf   —— 护理记录 PDF(按日期)
- *
- * 不做的事:
- *   - 病历照片上传 + OCR(/ehr/records/upload):MVP 不阻塞主线;
- *     该流程涉及多文件上传,UI 复杂度更高,留到下一个 PR。
  */
 
 interface EHRRecord {
@@ -51,6 +44,8 @@ interface EHRRecord {
 }
 
 const { push: toast } = useToast()
+const route = useRoute()
+const router = useRouter()
 const records = ref<EHRRecord[]>([])
 const loading = ref(false)
 const searchQuery = ref('')
@@ -154,8 +149,8 @@ const filteredRecords = computed(() => {
 async function fetchRecords() {
   loading.value = true
   try {
-    const res = await api.get<{ records: EHRRecord[]; total: number }>('/ehr/list')
-    records.value = res.records ?? []
+    const res = await api.get<EHRRecord[]>('/ehr/patients')
+    records.value = res ?? []
   } catch (e: unknown) {
     toast({ tone: 'error', text: errMsg(e, '加载档案失败') })
   } finally {
@@ -235,11 +230,28 @@ async function exportCareRecordsPdf() {
 }
 
 // ── 新增 / 编辑 ─────────────────────────────────────
-function startCreate() {
+function openCreateForm() {
   Object.assign(form, emptyForm())
   formMode.value = 'create'
   formOpen.value = true
 }
+
+function startCreate() {
+  openCreateForm()
+  if (route.query.new) {
+    router.replace({ path: '/ehr' })
+  }
+}
+
+watch(
+  () => route.query.new,
+  (value) => {
+    if (value !== '1' && value !== 'true') return
+    openCreateForm()
+    router.replace({ path: '/ehr' })
+  },
+  { immediate: true },
+)
 
 function startEdit() {
   if (!detailRecord.value) return
@@ -565,7 +577,7 @@ onMounted(fetchRecords)
     <!-- ─── 移动端 FAB:新增档案 ─── -->
     <button
       type="button"
-      class="app-fab"
+      class="v2-fab"
       aria-label="新增档案"
       @click="startCreate"
     >

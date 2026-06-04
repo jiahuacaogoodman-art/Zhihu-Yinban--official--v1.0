@@ -1,16 +1,16 @@
 import { ApiError } from './types'
 
 /**
- * Typed API client — Phase 3 起
+ * Typed API client
  *
  * 设计取舍:
  *   - 不引 axios;原生 fetch 足够,减少 bundle。Vite proxy 在 dev 时已经
  *     把 /api 转发到 localhost:8000,生产里同源,也不需要配 baseURL。
- *   - X-Auth-Token 从 localStorage 读(Phase 4 的 auth store 负责写入)。
+ *   - X-Auth-Token 从 localStorage 读(auth store 负责写入)。
  *   - 全局错误由 interceptor 抛 ApiError;业务侧 try/catch 或让 store 统一处理。
- *   - 不做请求取消(AbortController);Phase 4 对长列表加分页时再加。
+ *   - 不做请求取消(AbortController);长列表需要分页时再加。
  *
- * Phase 7 增强(401 自动登出):
+ * 401 自动登出:
  *   - 任何 401 → 清 localStorage.auth_token + 通知应用层(setOnUnauthorized)
  *   - 应用层在 main.ts 里挂 router.replace('/login?redirect=...')
  *   - login 页保留 redirect query,登录成功后跳回原页
@@ -155,6 +155,59 @@ async function download(path: string, fallbackName = 'download.bin'): Promise<vo
   }
 }
 
+async function postForm<T>(path: string, body: FormData): Promise<T> {
+  const headers: Record<string, string> = {}
+  const token = getToken()
+  if (token) headers['X-Auth-Token'] = token
+
+  const res = await fetch(`${BASE}${path}`, { method: 'POST', headers, body })
+  if (!res.ok) {
+    let detail = ''
+    try {
+      const json = await res.json()
+      detail = json.message ?? json.detail ?? ''
+    } catch {
+      detail = res.statusText
+    }
+    if (res.status === 401) {
+      notifyUnauthorized()
+    }
+    throw new ApiError(res.status, detail || `提交失败 (${res.status})`)
+  }
+
+  if (res.status === 204) return undefined as unknown as T
+  return res.json() as Promise<T>
+}
+
+function resolveBlobPath(path: string): string {
+  if (/^https?:\/\//i.test(path)) return path
+  if (path.startsWith('/api/') || path.startsWith('/uploads/')) return path
+  return `${BASE}${path.startsWith('/') ? path : `/${path}`}`
+}
+
+async function blobUrl(path: string): Promise<string> {
+  const headers: Record<string, string> = {}
+  const token = getToken()
+  if (token) headers['X-Auth-Token'] = token
+
+  const res = await fetch(resolveBlobPath(path), { method: 'GET', headers })
+  if (!res.ok) {
+    let detail = ''
+    try {
+      const json = await res.json()
+      detail = json.message ?? json.detail ?? ''
+    } catch {
+      detail = res.statusText
+    }
+    if (res.status === 401) {
+      notifyUnauthorized()
+    }
+    throw new ApiError(res.status, detail || `读取文件失败 (${res.status})`)
+  }
+
+  return URL.createObjectURL(await res.blob())
+}
+
 export const api = {
   get: <T>(path: string) => request<T>('GET', path),
   post: <T>(path: string, body?: unknown) => request<T>('POST', path, body),
@@ -162,4 +215,6 @@ export const api = {
   patch: <T>(path: string, body?: unknown) => request<T>('PATCH', path, body),
   delete: <T>(path: string) => request<T>('DELETE', path),
   download,
+  postForm,
+  blobUrl,
 }

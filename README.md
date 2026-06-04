@@ -56,8 +56,7 @@
 | 路径 | 功能 |
 |---|---|
 | `/nursing-decision` | AI 护理建议（SSE 流式 + 决策记忆 + 结果回填） |
-| `/ehr/add` | 录入老人档案（21 字段表单） |
-| `/ehr` | 患者档案列表 + 详情 + 导出 |
+| `/ehr` | 患者档案列表 + 新增 / 编辑 / 删除 + 详情 + 导出 |
 | `/ehr/upload` | 病历上传 OCR |
 | `/beds` | 床位管理 |
 | `/handovers` | 交接班 |
@@ -95,11 +94,11 @@ chmod +x scripts/setup.sh && ./scripts/setup.sh
 
 ```bash
 cd frontend
-npm install
-npm run dev          # http://localhost:5173, api proxy → 8000
-npm run typecheck    # vue-tsc strict
-npm run test         # vitest
-npm run build        # → ../static/dist/ (index.html + nurse.html)
+pnpm install
+pnpm dev          # http://localhost:5173, api proxy → 8000
+pnpm typecheck    # vue-tsc strict
+pnpm test         # vitest
+pnpm build        # → ../static/dist/ (index.html + nurse.html)
 ```
 
 ---
@@ -142,7 +141,7 @@ npm run build        # → ../static/dist/ (index.html + nurse.html)
 | 床位 | POST | `/api/beds/{id}/release` | 释放 |
 | 护理 | POST | `/api/nursing/decision` | RAG 推理 |
 | 护理 | POST | `/api/nursing/decision/stream` | SSE 流式 |
-| 护理 | POST | `/api/nursing/taskcard` | 任务卡 |
+| 护理 | POST | `/api/nursing/task-card` | 任务卡 |
 | 护理 | GET | `/api/nursing/decisions` | 决策记忆 |
 | 护理 | PATCH | `/api/nursing/decisions/{id}/outcome` | 结果回填 |
 | 交接 | POST/GET | `/api/handovers` | SBAR 交接班 |

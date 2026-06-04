@@ -10,7 +10,7 @@ import { useNetworkStatus } from '../composables/useNetworkStatus'
 import { useSwipeBack } from '../composables/useSwipeBack'
 
 /**
- * NurseApp — 护工端根布局(Phase 7 移动端深度适配)
+ * NurseApp — 护工端根布局
  *
  * 与管理端不同:
  *   - 移动端优先: 顶部 appbar(深色) + 主内容区 + 底部 tab(老人 / 任务 / 我)
@@ -44,7 +44,7 @@ watch(
   keyboardHeight,
   (h) => {
     if (typeof document === 'undefined') return
-    document.documentElement.style.setProperty('--app-kb-h', `${h}px`)
+    document.documentElement.style.setProperty('--v2-keyboard-h', `${h}px`)
   },
   { immediate: true },
 )
@@ -121,8 +121,7 @@ watch(
 function handleLogout() {
   auth.logout()
   toast({ tone: 'success', text: '已退出登录' })
-  // 护工端登出后跳管理端登录页
-  window.location.href = '/login'
+  window.location.href = '/login?redirect=/nurse'
 }
 
 // 底部 tab 点击"任务"时,如果当前没有选中患者,提示先选老人

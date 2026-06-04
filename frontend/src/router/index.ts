@@ -25,12 +25,6 @@ const routes: RouteRecordRaw[] = [
     meta: { title: 'AI 护理建议' },
   },
   {
-    path: '/ehr/add',
-    name: 'ehr-add',
-    component: () => import('../views/PatientAdd.vue'),
-    meta: { title: '录入档案' },
-  },
-  {
     path: '/ehr',
     name: 'ehr',
     component: () => import('../views/EhrList.vue'),

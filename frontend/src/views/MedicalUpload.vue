@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { Btn, Field, GlassPanel, Chip } from '../components'
 import { useToast } from '../composables/useToast'
 import { api } from '../api'
@@ -17,7 +17,10 @@ const manualText = ref('')
 const uploading = ref(false)
 const records = ref<MedicalRecord[]>([])
 const fileInput = ref<HTMLInputElement | null>(null)
+const previewUrls = ref<Record<string, string>>({})
+const previewErrors = ref<Record<string, boolean>>({})
 const recordTypes = ['门诊病历', '住院记录', '出院小结', '检查报告', '检验报告', '用药清单', '其他病历']
+let previewLoadSeq = 0
 
 async function loadPatients() {
   try {
@@ -30,14 +33,66 @@ function onPatientSelect() {
   const p = patients.value.find((x) => x.patient_id === selectedPid.value)
   selectedName.value = p?.name ?? ''
   if (selectedPid.value) loadRecords()
+  else {
+    records.value = []
+    clearPreviewUrls()
+  }
+}
+
+function revokePreviewUrls(urls: Record<string, string>) {
+  Object.values(urls).forEach((url) => URL.revokeObjectURL(url))
+}
+
+function clearPreviewUrls() {
+  previewLoadSeq += 1
+  revokePreviewUrls(previewUrls.value)
+  previewUrls.value = {}
+  previewErrors.value = {}
+}
+
+async function loadPreviewUrls(items: MedicalRecord[]) {
+  const seq = ++previewLoadSeq
+  revokePreviewUrls(previewUrls.value)
+  previewUrls.value = {}
+  previewErrors.value = {}
+  const nextUrls: Record<string, string> = {}
+  const nextErrors: Record<string, boolean> = {}
+
+  await Promise.all(
+    items.map(async (r) => {
+      if (!r.file_url) return
+      try {
+        nextUrls[r.doc_id] = await api.blobUrl(r.file_url)
+      } catch {
+        nextErrors[r.doc_id] = true
+      }
+    }),
+  )
+
+  if (seq !== previewLoadSeq) {
+    revokePreviewUrls(nextUrls)
+    return
+  }
+  previewUrls.value = nextUrls
+  previewErrors.value = nextErrors
 }
 
 async function loadRecords() {
-  if (!selectedPid.value) return
+  if (!selectedPid.value) {
+    records.value = []
+    clearPreviewUrls()
+    return
+  }
+  const pid = selectedPid.value
   try {
-    const res = await api.get<any>(`/ehr/records/${encodeURIComponent(selectedPid.value)}`)
+    const res = await api.get<any>(`/ehr/records/${encodeURIComponent(pid)}`)
+    if (pid !== selectedPid.value) return
     records.value = res.records ?? []
-  } catch { records.value = [] }
+    await loadPreviewUrls(records.value)
+  } catch {
+    records.value = []
+    clearPreviewUrls()
+  }
 }
 
 async function upload() {
@@ -46,7 +101,6 @@ async function upload() {
   if (!files || files.length === 0) { toast({ tone: 'warning', text: '请选择病历照片' }); return }
   uploading.value = true
   try {
-    const token = localStorage.getItem('auth_token') || ''
     const fd = new FormData()
     fd.append('patient_id', selectedPid.value)
     if (selectedName.value) fd.append('name', selectedName.value)
@@ -54,18 +108,29 @@ async function upload() {
     fd.append('notes', recordNotes.value)
     fd.append('manual_text', manualText.value)
     Array.from(files).forEach((f) => fd.append('files', f))
-    const res = await fetch('/api/ehr/records/upload', {
-      method: 'POST', headers: token ? { 'X-Auth-Token': token } : {}, body: fd,
-    })
-    const d = await res.json().catch(() => ({}))
-    if (!res.ok) throw new Error(d.detail || '上传失败')
+    const d = await api.postForm<{ records?: { ocr_status?: string }[] }>('/ehr/records/upload', fd)
     const hasWarn = (d.records || []).some((x: any) => x.ocr_status !== 'ocr_success')
     toast({ tone: 'success', text: hasWarn ? '照片已保存；部分文字未识别' : '病历和文字识别结果已保存' })
     if (fileInput.value) fileInput.value.value = ''
     manualText.value = ''; recordNotes.value = ''
-    loadRecords()
+    await loadRecords()
   } catch (e: any) { toast({ tone: 'error', text: e.message ?? '上传失败' }) }
   finally { uploading.value = false }
+}
+
+async function openRecordFile(r: MedicalRecord) {
+  if (!r.file_url) return
+  try {
+    let url = previewUrls.value[r.doc_id]
+    if (!url) {
+      url = await api.blobUrl(r.file_url)
+      previewUrls.value = { ...previewUrls.value, [r.doc_id]: url }
+      previewErrors.value = { ...previewErrors.value, [r.doc_id]: false }
+    }
+    window.open(url, '_blank', 'noopener')
+  } catch (e: any) {
+    toast({ tone: 'error', text: e.message ?? '打开原图失败' })
+  }
 }
 
 async function deleteRecord(docId: string) {
@@ -75,6 +140,7 @@ async function deleteRecord(docId: string) {
 }
 
 onMounted(loadPatients)
+onBeforeUnmount(clearPreviewUrls)
 </script>
 
 <template>
@@ -107,14 +173,16 @@ onMounted(loadPatients)
       <template #header><span class="title-s">已上传病历（{{ records.length }}）</span></template>
       <div class="mu-records">
         <div v-for="r in records" :key="r.doc_id" class="mu-record-card">
-          <img v-if="r.file_url" :src="r.file_url" alt="病历照片" class="mu-thumb" loading="lazy" />
+          <img v-if="previewUrls[r.doc_id]" :src="previewUrls[r.doc_id]" alt="病历照片" class="mu-thumb" loading="lazy" />
+          <div v-else-if="previewErrors[r.doc_id]" class="mu-thumb mu-thumb--placeholder">无法预览</div>
+          <div v-else-if="r.file_url" class="mu-thumb mu-thumb--placeholder">加载中</div>
           <div class="mu-record-info">
             <div class="body-s"><strong>{{ r.record_type || '病历' }}</strong></div>
             <div class="meta">{{ r.uploaded_at ?? '' }} · 引擎: {{ r.ocr_engine ?? '无' }}</div>
             <Chip :tone="r.ocr_status === 'ocr_success' ? 'success' : 'warning'">{{ r.ocr_status === 'ocr_success' ? '已识别' : '待校对' }}</Chip>
             <p class="mu-ocr-text">{{ (r.ocr_text || r.manual_text || '未识别到文字').slice(0, 200) }}</p>
             <div class="mu-actions">
-              <a v-if="r.file_url" :href="r.file_url" target="_blank" class="btn btn-outline btn-sm">查看原图</a>
+              <Btn v-if="r.file_url" variant="outline" size="sm" @click="openRecordFile(r)">查看原图</Btn>
               <Btn variant="ghost" size="sm" @click="deleteRecord(r.doc_id)">删除</Btn>
             </div>
           </div>
@@ -136,6 +204,7 @@ onMounted(loadPatients)
 .mu-records { display: grid; gap: 12px; }
 .mu-record-card { display: grid; grid-template-columns: 100px 1fr; gap: 12px; padding: 12px; border-radius: var(--r-s, 10px); background: rgba(255,255,255,0.75); border: 1px solid rgba(15,23,42,0.06); }
 .mu-thumb { width: 100px; height: 80px; object-fit: cover; border-radius: 8px; }
+.mu-thumb--placeholder { display: grid; place-items: center; background: rgba(15, 23, 42, 0.06); color: var(--ink-3); font: 600 var(--fz-xs, 11px)/1.4 var(--font-ui); text-align: center; }
 .mu-ocr-text { font: 400 var(--fz-xs, 11px)/1.5 var(--font-ui); color: var(--ink-3); margin-top: 4px; }
 .mu-actions { display: flex; gap: 6px; margin-top: 8px; }
 @media (max-width: 640px) { .form-grid.cols-3 { grid-template-columns: 1fr; } .mu-record-card { grid-template-columns: 1fr; } .mu-thumb { width: 100%; height: 120px; } }
