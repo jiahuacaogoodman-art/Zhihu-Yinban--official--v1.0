@@ -1,13 +1,12 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 
 /**
- * 管理端 Router。
- * 护工端是独立入口 nurse.html → nurse-main.ts → nurse-router。
+ * 管理端 Router — 真实功能页作为唯一入口。
+ * 护工工作台仍然使用独立入口 nurse.html → nurse-main.ts → nurse-router。
  */
 
 const routes: RouteRecordRaw[] = [
   {
-    // 管理端默认页:已登录 → /beds;未登录 → auth guard 拦回 /login。
     path: '/',
     name: 'home',
     redirect: '/beds',
@@ -96,7 +95,7 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/:pathMatch(.*)*',
     name: 'not-found',
-    redirect: '/',
+    redirect: '/beds',
   },
 ]
 

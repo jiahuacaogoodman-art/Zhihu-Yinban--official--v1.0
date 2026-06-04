@@ -1,19 +1,14 @@
-/* 智护银伴 Service Worker v22 · 玻璃设计系统 + 手机适配 */
-const CACHE_NAME = 'zhihu-v22-glass-mobile';
+/* 智护银伴 Service Worker · 新版 SPA 专用 */
+const CACHE_NAME = 'zhihu-spa-only-v23';
 const STATIC_ASSETS = [
   '/',
   '/nurse',
-  '/static/index.html',
-  '/static/nurse.html',
   '/static/manifest.json',
   '/static/design/tokens.css',
   '/static/design/glass.css',
   '/static/design/ui.css',
   '/static/design/mobile.css',
   '/static/design/ambient.svg',
-  '/static/design/icons.js',
-  '/static/design/dialog.js',
-  '/static/design/evidence.js',
   '/static/icons/icon-192.png',
   '/static/icons/icon-512.png',
 ];
@@ -64,7 +59,17 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // 页面 & 静态资源：Stale-While-Revalidate
+  // 页面请求：网络优先；离线时回到对应 SPA 壳。
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request).catch(() =>
+        caches.match(url.pathname.startsWith('/nurse') ? '/nurse' : '/')
+      )
+    );
+    return;
+  }
+
+  // 静态资源：Stale-While-Revalidate
   event.respondWith(
     caches.open(CACHE_NAME).then(cache =>
       cache.match(event.request).then(cached => {

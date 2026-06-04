@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { api } from '../api'
-import type { Bed, BedStatus } from '../api/types'
+import type { Bed, BedFormPayload, BedStatus } from '../api/types'
 
 /**
  * useBedStore — 床位管理 Pinia store
@@ -45,10 +45,27 @@ export const useBedStore = defineStore('beds', () => {
 
   async function assignBed(bedId: string, patientId: string) {
     const res = await api.post<Bed>(`/beds/${bedId}/assign`, { patient_id: patientId })
-    // 替换本地缓存中对应的 bed
     const idx = beds.value.findIndex((b) => b.bed_id === bedId)
     if (idx >= 0) beds.value[idx] = res
     return res
+  }
+
+  async function createBed(payload: BedFormPayload) {
+    const res = await api.post<Bed>('/beds', payload)
+    beds.value = [res, ...beds.value]
+    return res
+  }
+
+  async function updateBed(bedId: string, payload: Partial<BedFormPayload>) {
+    const res = await api.patch<Bed>(`/beds/${bedId}`, payload)
+    const idx = beds.value.findIndex((b) => b.bed_id === bedId)
+    if (idx >= 0) beds.value[idx] = res
+    return res
+  }
+
+  async function deleteBed(bedId: string) {
+    await api.delete(`/beds/${bedId}`)
+    beds.value = beds.value.filter((b) => b.bed_id !== bedId)
   }
 
   async function releaseBed(bedId: string) {
@@ -67,6 +84,9 @@ export const useBedStore = defineStore('beds', () => {
     occupied,
     byStatus,
     fetchBeds,
+    createBed,
+    updateBed,
+    deleteBed,
     assignBed,
     releaseBed,
   }
