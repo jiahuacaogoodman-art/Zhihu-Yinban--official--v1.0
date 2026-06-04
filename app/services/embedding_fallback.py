@@ -34,7 +34,21 @@ from typing import Iterable, List, Sequence
 _VECTOR_DIM = 64  # 64 维足够 ChromaDB 建索引；维度越大，CPU 开销越高
 
 
-def _hash_to_vector(text: str, dim: int = _VECTOR_DIM) -> List[float]:
+class EmbeddingVector(list):
+    """list 版向量，同时兼容现有代码里的 numpy.ndarray.tolist() 调用。"""
+
+    def tolist(self) -> List[float]:
+        return list(self)
+
+
+class EmbeddingMatrix(list):
+    """list 版向量矩阵，同时兼容 Chroma / sentence-transformers 风格调用。"""
+
+    def tolist(self) -> List[List[float]]:
+        return [list(row) for row in self]
+
+
+def _hash_to_vector(text: str, dim: int = _VECTOR_DIM) -> EmbeddingVector:
     """把字符串映射到一个 dim 维 [-1, 1] 浮点向量。"""
     if text is None:
         text = ""
@@ -51,7 +65,7 @@ def _hash_to_vector(text: str, dim: int = _VECTOR_DIM) -> List[float]:
         counter += 1
     # L2 归一化，避免 ChromaDB cosine 距离爆炸
     norm = math.sqrt(sum(x * x for x in out)) or 1.0
-    return [x / norm for x in out]
+    return EmbeddingVector(x / norm for x in out)
 
 
 class HashEmbeddingFunction:
@@ -70,13 +84,13 @@ class HashEmbeddingFunction:
         self._dim = dim
 
     # ── ChromaDB 协议 ────────────────────────────────────────
-    def __call__(self, input: Sequence[str]) -> List[List[float]]:  # noqa: A002 - chroma 用了保留字
-        return [_hash_to_vector(t, self._dim) for t in (input or [])]
+    def __call__(self, input: Sequence[str]) -> EmbeddingMatrix:  # noqa: A002 - chroma 用了保留字
+        return EmbeddingMatrix(_hash_to_vector(t, self._dim) for t in (input or []))
 
-    def embed_documents(self, texts: Sequence[str]) -> List[List[float]]:
+    def embed_documents(self, texts: Sequence[str]) -> EmbeddingMatrix:
         return self(texts)
 
-    def embed_query(self, text: str) -> List[float]:
+    def embed_query(self, text: str) -> EmbeddingVector:
         return _hash_to_vector(text, self._dim)
 
     # ── sentence-transformers 协议 ───────────────────────────
@@ -99,7 +113,7 @@ class HashEmbeddingFunction:
         if isinstance(sentences, str):
             return _hash_to_vector(sentences, self._dim)
         if isinstance(sentences, Iterable):
-            return [_hash_to_vector(t, self._dim) for t in sentences]
+            return EmbeddingMatrix(_hash_to_vector(t, self._dim) for t in sentences)
         raise TypeError(f"Unsupported sentences type: {type(sentences)}")
 
     # 让 ``str(embedding_function)`` 看到的是有意义的标识
