@@ -91,39 +91,185 @@
 
 ## 🧭 技术路线
 
-### 需求 -> 技术路线
+智护银伴的技术路线不是“前端 + 后端 + 大模型”三段式，而是围绕养老院真实闭环拆成九层：入口、鉴权、业务域、检索、模型、事件、审计、存储、部署。每一层都服务一个具体问题。
 
-| 需求 | 技术选择 | 为什么这样做 |
-| --- | --- | --- |
-| 数据不能随便上云 | 本地 ChromaDB + SQLite + 上传目录 | 档案、病历、审计和护理事件默认保存在本机或院内服务器。 |
-| AI 建议必须有上下文 | patient_id 过滤 + RAG 检索 + 决策记忆 | 模型回答基于该老人档案、病历和历史处理结果。 |
-| 一线护工要能执行 | 任务卡 JSON + 护理事件 + 打卡状态 | 把建议落到“测什么、何时复测、何时上报”。 |
-| 管理端和护工端职责不同 | Vue 多入口 SPA | 管理端做全流程管理，护工端做移动端优先执行。 |
-| 部署环境不可控 | Docker、API-only、Windows 向导、降级模式 | 有 GPU/无 GPU、国内网络、远程模型、非开发者都能找到路径。 |
-| 生产要可追责 | API Key、角色权限、审计日志、PII 加密 | 不是只做 demo，而是把安全边界放进系统设计。 |
-
-### RAG 护理建议链路
+### 总体分层
 
 ```text
-护工输入症状
-  -> 按 patient_id 拉取患者档案、病历 OCR、近期护理事件
-  -> 检索证据与决策记忆
-  -> 组织带证据编号的护理提示词
-  -> Ollama 或 OpenAI 兼容 LLM 生成建议
-  -> SSE 流式返回 token、证据、上下文和 done 事件
-  -> 写入决策记忆
-  -> 护理人员回填 effective / partial / ineffective
-  -> 下次同一老人类似事件自动参考历史效果
+┌──────────────────────────────────────────────────────────────┐
+│ Vue 3 多入口前端                                             │
+│ 管理端 index.html：档案/床位/交接/缴费/审计                  │
+│ 护工端 nurse.html：老人列表/症状输入/任务卡/执行打卡         │
+└──────────────────────────────┬───────────────────────────────┘
+                               │ fetch /api/* + X-Auth-Token
+┌──────────────────────────────▼───────────────────────────────┐
+│ FastAPI 应用入口 main.py                                      │
+│ AuthTokenMiddleware / ReadAuditMiddleware / SPA fallback       │
+│ /health 暴露 auth_mode、rag_available、pii_encryption_enabled │
+└───────────┬──────────────┬──────────────┬────────────────────┘
+            │              │              │
+            ▼              ▼              ▼
+┌────────────────┐ ┌────────────────┐ ┌───────────────────────┐
+│ 业务路由层      │ │ AI 护理决策层   │ │ 运维安全层             │
+│ EHR/Beds/Bill  │ │ RAG/SSE/TaskCard│ │ Auth/RBAC/Audit/Backup │
+└───────┬────────┘ └───────┬────────┘ └──────────┬────────────┘
+        │                  │                     │
+        ▼                  ▼                     ▼
+┌────────────────┐ ┌───────────────────────┐ ┌─────────────────┐
+│ SQLite WAL     │ │ ChromaDB + Hybrid RAG  │ │ Fernet/AES-GCM  │
+│ care/billing   │ │ Dense + BM25 + RRF     │ │ PII/backup key  │
+│ auth/audit     │ │ Evidence + Memory      │ │ encrypted data  │
+└────────────────┘ └───────────┬───────────┘ └─────────────────┘
+                                │
+                                ▼
+                    Ollama 本地模型 / OpenAI 兼容接口
 ```
 
-### 可降级启动
+### 1. 多入口前端：按角色拆工作台
 
-现实部署里最容易失败的是模型下载、torch 安装、缓存权限和 GPU 环境。项目用两个变量避免“模型没好，业务也跑不起来”：
+| 入口 | 技术 | 承载的复杂度 |
+| --- | --- | --- |
+| 管理端 | `frontend/index.html` + `src/main.ts` + Vue Router | 档案、录入、上传、床位、交接、异常、护理记录、缴费、支付渠道、用户、审计。 |
+| 护工端 | `frontend/nurse.html` + `src/nurse-main.ts` + `createWebHistory('/nurse')` | 移动端优先，围绕老人详情、症状输入、任务卡、复测和打卡。 |
+| 构建产物 | Vite 多入口 + `base: '/v2/'` + `static/dist/` | 后端统一托管两个 SPA，history 路由由 FastAPI fallback 到对应 HTML。 |
 
-| 变量 | 作用 |
+这让“院方管理”和“一线执行”不互相污染：管理端信息密度高，护工端流程更短、更适合巡房和平板。
+
+### 2. 本地数据底座：ChromaDB + 多个 SQLite store + CAS 文件仓
+
+| 数据类型 | 存储 | 技术点 |
+| --- | --- | --- |
+| 患者档案、OCR 文本、决策记忆 | ChromaDB PersistentClient | 同一个 collection 内用 `patient_id`、`doc_type`、`source_type` 区分档案、病历、决策日志。 |
+| 病历原图 | Content-Addressable Storage | 文件名按 `sha256` 分桶，重复文件自动 dedup，写入先 `.tmp` 再 `os.replace`，可做完整性校验。 |
+| 用户和 API Key | `local_auth/users.db` | Token 明文只返回一次，库里保存 hash 和前缀。 |
+| 床位、护理等级、交接、异常、记录、入住 | `local_care/care.db` | SQLite WAL，本地单机部署足够轻。 |
+| 缴费、收费标准、续费提醒 | `local_billing/billing.db` | 与护理业务库拆开，方便备份和权限隔离。 |
+| 审计日志 | `local_audit_log/audit.db` | 写操作、病历预览和敏感导出留痕。 |
+| 护理任务事件 | `local_nursing_events/events.db` | 任务卡、打卡、复测观察、归档和 SBAR 都是事件流。 |
+
+SQLite 不是随便用：项目统一了 `PRAGMA journal_mode=WAL`、`synchronous=NORMAL`、`busy_timeout=5000ms`，并对关键写操作提供指数退避重试，避免多 worker 或高频打卡时直接抛 `database is locked`。
+
+### 3. 混合检索：Dense + BM25 + RRF + source 权重
+
+护理场景里，“语义相似”和“关键词精确命中”都重要：老人可能说“头晕”，病历里写的是“低血糖反应”；也可能必须精确命中“青霉素”“华法林”“餐前血糖 3.2”。所以检索不是单纯向量召回。
+
+```text
+输入：patient_id + symptom
+  1. ChromaDB collection.get(where patient_id) 拉取该老人全部文档
+  2. 按 source_type/include/exclude 做来源过滤
+  3. 字符 bi-gram + 英文/数字 token 做 BM25 稀疏打分
+  4. sentence-transformers encode 后做 ChromaDB dense query
+  5. BM25 topK 和 Dense topK 用 RRF 融合
+  6. 按来源加权：patient_profile / medical_record_upload / observation / decision_log
+  7. 生成 Evidence：E1、E2、source_label、snippet、score、metadata
+```
+
+| 组件 | 设计 |
 | --- | --- |
-| `EMBEDDING_DISABLED=true` | 完全跳过 sentence-transformers/torch，不下载也不加载 embedding 模型。 |
-| `EMBEDDING_ALLOW_DEGRADED=true` | embedding 加载失败时允许系统启动，基础业务和普通 LLM 调用仍可用。 |
+| 中文分词 | 字符 bi-gram + 单字 + 英文/数字 token，不引入词典依赖。 |
+| 稀疏检索 | 纯 Python BM25，适合单个老人几十到几百条档案的规模。 |
+| 稠密检索 | ChromaDB `query_embeddings` + `where={"patient_id": ...}`。 |
+| 融合策略 | RRF（Reciprocal Rank Fusion），避免单一路径召回偏差。 |
+| 来源权重 | `patient_profile`、`medical_record_upload`、`observation`、`decision_log` 分别加权。 |
+| 证据格式 | `[E1] 来源：病历OCR·时间` + snippet，直接进入 prompt。 |
+| 性能优化 | BM25 索引按 `(patient_id, frozenset(doc_ids))` 做进程级 LRU 缓存。 |
+| async 保护 | `retrieve_async()` 用 `asyncio.to_thread`，避免 RAG 阻塞 event loop。 |
+
+### 4. 决策记忆：AI 建议不是一次性回答
+
+每次 AI 决策会写入 ChromaDB，`doc_type=decision_log`。它本身也会成为下次检索的证据。
+
+```text
+AI 建议生成
+  -> 保存 decision_id、symptom、advice_preview、evidence_refs、risk_level、event_id
+  -> outcome_status 初始 pending
+  -> 护理人员回填 effective / partial / ineffective
+  -> record_outcome 更新 metadata + 把实际执行结果追加到可检索文本
+  -> 下次同一患者类似症状检索时，过去决策自然进入 Evidence
+```
+
+这里的关键不是“存聊天记录”，而是把“当时建议什么 + 引用了哪些证据 + 后来实际如何”变成可检索、可追溯、可回填的护理经验。
+
+### 5. 护理任务卡：从建议到事件闭环
+
+任务卡不是普通文本回答，而是一个可以执行的事件对象。
+
+```text
+POST /api/nursing/task-card
+  -> RAG 拉取患者上下文
+  -> AI 生成严格 JSON：风险等级、护理建议、即时任务、禁忌、复测、SBAR
+  -> normalize/sanitize：任务字段、风险等级、输入项、复测计划
+  -> EventStore 保存为 nursing event
+  -> DecisionMemory 同步写入一次 task-card 决策
+  -> 护工逐项 PATCH complete/abnormal/skipped
+  -> 观察记录 POST observations
+  -> SBAR GET /sbar
+  -> archive 归档为结构化护理记录
+```
+
+| 子系统 | 技术点 |
+| --- | --- |
+| 风险分级 | `red/orange/yellow/green`，同时保留 label、title、color。 |
+| AI JSON | provider 支持 `format=json`，OpenAI 兼容端转为 `response_format=json_object`。 |
+| JSON 防御 | 支持从 markdown code fence 或混杂文本中提取 JSON，解析失败返回 502 和原始输出片段。 |
+| 任务状态 | `pending/done/abnormal/skipped`，保留 `completed_at`、`completed_by`、`note`、`value`。 |
+| 审计轨迹 | 每条任务有 `audit_trail`，事件有 `execution_logs`。 |
+| 协议模板 | `data/protocols.yaml` 热加载，可扩展跌倒、低血糖、误吸、发热等护理流程。 |
+
+### 6. LLM Provider 抽象：Ollama 与 OpenAI 兼容协议共用一套上层逻辑
+
+| Provider | 适用场景 | 实现细节 |
+| --- | --- | --- |
+| `ollama` | 本地模型、离线优先、院内服务器 | 调 `/api/generate`，支持普通和 stream，兼容 Ollama options。 |
+| `openai` | vLLM/TGI/SGLang/DeepSeek/智谱/Qwen/LM Studio | 调 `/chat/completions`，把 Ollama options 映射为 OpenAI 参数。 |
+
+OpenAI 兼容层还处理了高频部署坑：如果用户把 `OPENAI_API_BASE` 写成 `/chat/completions` 完整路径，服务层会自动剥离后缀并提示，避免拼出双重路径 404。
+
+### 7. 安全路线：三模式鉴权 + RBAC + PII 透明加密 + 审计脱敏
+
+| 层 | 机制 |
+| --- | --- |
+| 鉴权入口 | `AuthTokenMiddleware` 保护 `/api/*` 和 `/uploads/*`。 |
+| Token 传递 | 支持 `X-Auth-Token`，也支持 `?token=` 供病历文件预览。 |
+| 鉴权模式 | `user_store`、`legacy_token`、`disabled` 三模式自动切换。 |
+| 权限控制 | 路由通过 `require_permission("xxx")` 声明权限点，不硬编码角色名。 |
+| PII 加密 | 10 个高敏字段写入 ChromaDB metadata 前 Fernet 加密，密文带 `enc:` 前缀防双重加密。 |
+| PII 解密 | 读取时透明解密；密钥缺失时返回占位符，不把密文泄露给前端。 |
+| 审计脱敏 | audit diff 中 PII 字段只显示“有变化”，不写明文也不写密文。 |
+| 健康可观测 | `/health` 暴露 `auth_mode`、`pii_encryption_enabled`、`rag_available`。 |
+
+### 8. 备份与灾备：不是简单 tar
+
+冷备份模块会打包七类本地数据：ChromaDB、上传病历、缴费库、护理业务库、用户库、审计库、护理事件流。备份文件不是裸 tar，而是：
+
+```text
+magic b"ZYBAK\x01"
+  + 12-byte nonce
+  + AES-256-GCM(ciphertext + tag)
+
+plaintext = tar.gz(目录树 + _manifest.json)
+```
+
+| 能力 | 说明 |
+| --- | --- |
+| 完整性 | AES-GCM 是认证加密，文件被篡改 1 字节也会解密失败。 |
+| manifest | 记录 created_at、hostname、每个源目录文件数和字节数。 |
+| 调度 | 不引 APScheduler，lifespan 里启动纯 asyncio task，每天指定时间跑。 |
+| 立即备份 | `POST /api/backup/run` 可手动触发。 |
+| 保留策略 | `BACKUP_RETENTION_DAYS` 自动清理旧备份。 |
+| 部署友好 | `BACKUP_DIR` 可指向 NAS、USB 加密盘或院内安全目录。 |
+
+### 9. 部署路线：同一代码适配四种现实环境
+
+| 环境 | 技术路线 |
+| --- | --- |
+| 标准试点 | Docker Compose 构建前端和后端，`--profile ollama` 启动本地模型和 model-puller。 |
+| GPU 服务器 | 叠加 `docker-compose.gpu.yml`，让 Ollama 使用 NVIDIA runtime。 |
+| 无 GPU / 网络差 | `requirements-api.txt` + `EMBEDDING_DISABLED=true`，先跑业务和远程 LLM。 |
+| 非开发者 Windows | `.bat` + PowerShell 向导生成密钥、写 `.env`、启动服务、打开浏览器。 |
+| 中国大陆网络 | `setup-cn.sh` / `setup-cn.ps1` 使用镜像源和 `hf-mirror.com`。 |
+
+这也是项目复杂度的一部分：不是只在开发者电脑上能跑，而是要尽量覆盖养老院现场真正会遇到的部署条件。
 
 ## 🚀 快速开始
 
