@@ -247,9 +247,14 @@ onMounted(fetchIncidents)
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--sp-3, 12px);
   width: 100%;
+  max-width: 100%;
   min-width: 0;
 }
-.incident-form .full { grid-column: 1 / -1; }
+.incident-form > * { min-width: 0; }
+.incident-form .full {
+  grid-column: 1 / -1;
+  max-width: 100%;
+}
 
 @media (max-width: 640px) {
   .incident-view { gap: 12px; }
