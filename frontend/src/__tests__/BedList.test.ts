@@ -55,13 +55,25 @@ describe('BedList.vue', () => {
     setActivePinia(createPinia())
     vi.stubGlobal(
       'fetch',
-      vi.fn(() =>
-        Promise.resolve({
+      vi.fn((input: RequestInfo | URL) => {
+        const url = String(input)
+        if (url.includes('/api/ehr/patients')) {
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: () =>
+              Promise.resolve([
+                { patient_id: 'p1', name: '张奶奶', bed_number: 'A-102' },
+                { patient_id: 'p2', name: '李爷爷', bed_number: null },
+              ]),
+          })
+        }
+        return Promise.resolve({
           ok: true,
           status: 200,
           json: () => Promise.resolve({ beds: MOCK_BEDS, total: 2 }),
-        }),
-      ),
+        })
+      }),
     )
   })
 
@@ -103,5 +115,21 @@ describe('BedList.vue', () => {
     await flushPromises()
     expect(wrapper.text()).toContain('分配')
     expect(wrapper.text()).toContain('释放')
+  })
+
+  it('loads patient archive options for bed assignment', async () => {
+    const router = makeRouter()
+    router.push('/')
+    await router.isReady()
+    const wrapper = mount(BedList, { global: { plugins: [router] }, attachTo: document.body })
+    await flushPromises()
+
+    await wrapper.findAll('button').find((b) => b.text() === '分配')?.trigger('click')
+    await flushPromises()
+
+    const options = [...document.body.querySelectorAll('#bed-patient-options option')]
+      .map((option) => (option as HTMLOptionElement).value)
+    expect(options).toContain('p2')
+    wrapper.unmount()
   })
 })
