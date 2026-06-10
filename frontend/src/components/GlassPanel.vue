@@ -48,6 +48,8 @@ defineProps<{
 /* 注意:这是 Phase 2 唯一新写的 CSS,且只有"组合现有 token"的简单规则。
    颜色/模糊参数全部来自 tokens.css,不引入新视觉语言。 */
 .vp-glass {
+  min-width: 0;
+  max-width: 100%;
   border-radius: var(--r-m, 14px);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85), 0 4px 12px rgba(15, 23, 42, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.8);
@@ -67,15 +69,23 @@ defineProps<{
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95), var(--shadow-4, 0 24px 48px rgba(15, 23, 42, 0.16));
 }
 .vp-glass__header {
+  min-width: 0;
+  max-width: 100%;
   margin-bottom: var(--sp-3, 12px);
   display: flex;
   align-items: center;
   gap: var(--sp-2, 8px);
 }
 .vp-glass__footer {
+  min-width: 0;
+  max-width: 100%;
   margin-top: var(--sp-3, 12px);
   display: flex;
   gap: var(--sp-2, 8px);
   justify-content: flex-end;
+}
+.vp-glass__body {
+  min-width: 0;
+  max-width: 100%;
 }
 </style>
