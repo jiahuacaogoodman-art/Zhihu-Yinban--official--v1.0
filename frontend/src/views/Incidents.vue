@@ -206,7 +206,7 @@ onMounted(fetchIncidents)
       </div>
     </div>
 
-    <Dialog v-model="createOpen" title="上报异常事件" panel-class="dialog--workflow-form">
+    <Dialog v-model="createOpen" title="上报异常事件" panel-class="dialog--wide-form">
       <div class="incident-form">
         <Field v-model="form.patient_id" label="老人 ID *" placeholder="P001" />
         <Field v-model="form.incident_type" label="事件类型 *" placeholder="跌倒 / 误吸 / 走失 / 用药错误" />

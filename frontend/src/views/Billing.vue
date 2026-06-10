@@ -601,7 +601,7 @@ onMounted(() => {
       </option>
     </datalist>
 
-    <Dialog v-model="receiveOpen" title="登记收款">
+    <Dialog v-model="receiveOpen" title="登记收款" panel-class="dialog--wide-form">
       <div class="bl-form-grid">
         <Field
           v-model="receiveForm.admission_id"
@@ -632,7 +632,7 @@ onMounted(() => {
       </template>
     </Dialog>
 
-    <Dialog v-model="renewOpen" title="续费">
+    <Dialog v-model="renewOpen" title="续费" panel-class="dialog--wide-form">
       <div class="bl-form-grid">
         <Field
           v-model="renewForm.admission_id"
@@ -662,7 +662,7 @@ onMounted(() => {
       </template>
     </Dialog>
 
-    <Dialog v-model="standardOpen" title="新增收费标准">
+    <Dialog v-model="standardOpen" title="新增收费标准" panel-class="dialog--wide-form">
       <div class="bl-form-grid">
         <Field v-model="standardForm.name" label="标准名称 *" placeholder="二级护理费" />
         <Field v-model="standardForm.unit_price" label="单价(元) *" type="number" inputmode="decimal" placeholder="2500" />
@@ -691,10 +691,7 @@ onMounted(() => {
 <style scoped>
 .bl-view {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
   gap: var(--sp-4, 16px);
-  min-width: 0;
-  width: 100%;
   max-width: 1080px;
 }
 
@@ -730,14 +727,10 @@ onMounted(() => {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--sp-3, 12px);
-  min-width: 0;
-  width: 100%;
-  max-width: 100%;
 }
 
 .bl-stat {
   padding: 14px !important;
-  min-width: 0;
   text-align: center;
 }
 
@@ -804,7 +797,8 @@ onMounted(() => {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--sp-3, 12px);
-  min-width: min(620px, calc(100vw - 48px));
+  width: 100%;
+  min-width: 0;
 }
 
 .bl-form-grid .full {
@@ -836,7 +830,6 @@ onMounted(() => {
 
   .bl-stats {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
   }
 
   .bl-row {
