@@ -16,6 +16,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from loguru import logger
@@ -66,8 +67,8 @@ class BackupVerifyResponse(BaseModel):
     code: int = 200
     valid: bool
     filename: str
-    manifest: dict | None = None
-    error: str | None = None
+    manifest: Optional[dict] = None
+    error: Optional[str] = None
 
 
 class BackupStatusResponse(BaseModel):
@@ -75,8 +76,8 @@ class BackupStatusResponse(BaseModel):
     enabled: bool
     target_dir: str
     schedule: str
-    last_report: dict | None = None
-    last_error: str | None = None
+    last_report: Optional[dict] = None
+    last_error: Optional[str] = None
 
 
 # ── 端点 ───────────────────────────────────────────────────
