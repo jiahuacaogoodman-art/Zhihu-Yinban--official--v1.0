@@ -266,6 +266,7 @@ plaintext = tar.gz(目录树 + _manifest.json)
 | 标准试点 | Docker Compose 构建前端和后端，`--profile ollama` 启动本地模型和 model-puller。 |
 | GPU 服务器 | 叠加 `docker-compose.gpu.yml`，让 Ollama 使用 NVIDIA runtime。 |
 | 无 GPU / 网络差 | `requirements-api.txt` + `EMBEDDING_DISABLED=true`，先跑业务和远程 LLM。 |
+| 非开发者 macOS | `.command` + 本地浏览器单页向导生成密钥、写 `.env`、启动 Docker 部署。 |
 | 非开发者 Windows | `.bat` + PowerShell 向导生成密钥、写 `.env`、启动服务、打开浏览器。 |
 | 中国大陆网络 | `setup-cn.sh` / `setup-cn.ps1` 使用镜像源和 `hf-mirror.com`。 |
 
@@ -277,7 +278,25 @@ plaintext = tar.gz(目录树 + _manifest.json)
 
 只需要先装好 Docker。向导会自动生成密钥、选择模型、写入 `.env`、启动服务并等待健康检查。
 
-#### Linux / macOS
+#### macOS 图形向导
+
+Finder 中双击：
+
+```text
+配置向导.command
+```
+
+它会打开一个只监听 `127.0.0.1` 的本地浏览器单页表单：选择本地 Ollama 或远程 OpenAI 兼容 API、生成管理员 Token、生成 PII 加密密钥、写入 `.env`，然后打开 Terminal 执行 Docker Compose 部署。
+
+日常启动或调试可以双击：
+
+```text
+启动智护银伴.command
+```
+
+启动菜单可选择图形部署向导、Docker 启动、API-only、本地后端运行或只打开浏览器。
+
+#### Linux / macOS 命令行
 
 ```bash
 git clone https://github.com/jiahuacaogoodman-art/Zhihu-Yinban--official--v1.0.git
@@ -744,7 +763,9 @@ X-Auth-Token: <AUTH_TOKEN 或用户 API Key>
 │   └── src/
 ├── static/design/                  # 设计资源
 ├── tests/                          # pytest 测试
-├── scripts/                        # setup、run、diagnose、backup、Windows 向导
+├── scripts/                        # setup、run、diagnose、backup、Windows/macOS 向导
+├── 配置向导.command                 # macOS 图形化配置/部署入口
+├── 启动智护银伴.command             # macOS 双击启动器
 ├── main.py                         # FastAPI 应用入口
 ├── requirements.txt                # 完整依赖，含 torch/OCR
 ├── requirements-api.txt            # 轻量依赖，不含 torch/OCR 图片依赖
