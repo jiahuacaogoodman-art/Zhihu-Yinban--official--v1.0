@@ -11,9 +11,9 @@ import '@design/glass.css'
 import '@design/ui.css'
 import '@design/mobile.css'
 // 应用壳层移动端样式(layout / drawer / bottom-tab / dialog / toast / safe-area)
-import './styles/app-shell.css'
+import './styles/v2-mobile.css'
 // 子页面移动端专项优化(GlassPanel 卡片、列表触控、各 View 内部排版)
-import './styles/views-mobile.css'
+import './styles/v2-views-mobile.css'
 
 const app = createApp(App)
 app.use(createPinia())
