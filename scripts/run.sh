@@ -33,11 +33,17 @@ else
     echo "警告：未找到虚拟环境 (venv)，将使用系统 Python 环境。"
 fi
 
-# 检查 Ollama 服务是否在运行
-if ! pgrep -x "ollama" > /dev/null
-then
-    echo "错误：Ollama 服务未运行。请先启动 Ollama。"
-    exit 1
+# 只有本地 Ollama 模式才要求 Ollama 进程存在。
+# 远程 OpenAI 兼容 API 模式不需要本机模型服务。
+llm_provider="$(printf '%s' "${LLM_PROVIDER:-ollama}" | tr '[:upper:]' '[:lower:]')"
+if [ "$llm_provider" = "ollama" ]; then
+    if ! pgrep -x "ollama" > /dev/null
+    then
+        echo "错误：Ollama 服务未运行。请先启动 Ollama，或在 .env 中设置 LLM_PROVIDER=openai。"
+        exit 1
+    fi
+else
+    echo "当前 LLM_PROVIDER=${LLM_PROVIDER:-ollama}，跳过 Ollama 进程检查。"
 fi
 
 # 启动 FastAPI 应用

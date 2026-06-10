@@ -17,6 +17,9 @@
 #     -v yinban_auth:/app/local_auth \
 #     -v yinban_audit_log:/app/local_audit_log \
 #     -v yinban_nursing_events:/app/local_nursing_events \
+#     -v yinban_care:/app/local_care \
+#     -v yinban_billing:/app/local_billing \
+#     -v yinban_backups:/app/local_backups \
 #     --add-host=host.docker.internal:host-gateway \
 #     --name yinban \
 #     zhihu-yinban:latest
@@ -145,6 +148,9 @@ RUN mkdir -p \
         local_nursing_events \
         local_auth \
         local_audit_log \
+        local_care \
+        local_billing \
+        local_backups \
         /app/.cache/huggingface \
         /app/.cache/torch \
         /app/.cache/chroma \
@@ -155,6 +161,9 @@ RUN mkdir -p \
         local_nursing_events \
         local_auth \
         local_audit_log \
+        local_care \
+        local_billing \
+        local_backups \
         /app/.cache \
         /tmp/sentence_transformers
 

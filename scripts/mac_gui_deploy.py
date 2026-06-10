@@ -65,6 +65,28 @@ def generate_fernet_key() -> str:
     return base64.urlsafe_b64encode(os.urandom(32)).decode("ascii")
 
 
+def looks_like_http_url(value: str) -> bool:
+    return value.lower().startswith(("http://", "https://"))
+
+
+def normalize_openai_base(value: str) -> str:
+    base = value.strip().rstrip("/")
+    lower = base.lower()
+    for suffix in ("/chat/completions", "/completions"):
+        if lower.endswith(suffix):
+            return base[: -len(suffix)].rstrip("/")
+    return base
+
+
+def validate_openai_settings(openai_base: str, openai_model: str, openai_key: str) -> None:
+    if not openai_base or not openai_model:
+        raise ValueError("远程 API 模式必须填写 API Base 和模型名。")
+    if not looks_like_http_url(openai_base):
+        raise ValueError("API Base 应该是 http/https 开头的接口根地址，例如 https://api.deepseek.com/v1。")
+    if openai_key and looks_like_http_url(openai_key):
+        raise ValueError("API Key 不能填写接口地址。请把 https://.../v1 填在 API Base，把真实 key 填在 API Key；自建无鉴权端点可留空。")
+
+
 def compose_command() -> str | None:
     docker = shutil.which("docker")
     if docker:
@@ -221,6 +243,12 @@ class WizardHandler(BaseHTTPRequestHandler):
             if action == "keep" and ENV_FILE.exists():
                 provider = existing.get("LLM_PROVIDER", "ollama") or "ollama"
                 port = existing.get("PORT", "8000") or "8000"
+                if provider == "openai":
+                    validate_openai_settings(
+                        normalize_openai_base(existing.get("OPENAI_API_BASE", "")),
+                        existing.get("OPENAI_MODEL", ""),
+                        existing.get("OPENAI_API_KEY", ""),
+                    )
             else:
                 provider = form.get("provider", "ollama")
                 port = (form.get("port") or "8000").strip()
@@ -237,11 +265,10 @@ class WizardHandler(BaseHTTPRequestHandler):
                 openai_model = ""
                 openai_key = ""
                 if provider == "openai":
-                    openai_base = (form.get("openai_base") or "").strip()
+                    openai_base = normalize_openai_base(form.get("openai_base") or "")
                     openai_model = (form.get("openai_model") or "").strip()
                     openai_key = (form.get("openai_key") or "").strip()
-                    if not openai_base or not openai_model:
-                        raise ValueError("远程 API 模式必须填写 API Base 和模型名。")
+                    validate_openai_settings(openai_base, openai_model, openai_key)
                 else:
                     model_value = form.get("model_choice") or DEFAULT_MODEL
                     if model_value == "__custom__":
@@ -473,6 +500,7 @@ class WizardHandler(BaseHTTPRequestHandler):
           <input id="openai_key" name="openai_key" value="{esc(env.get('OPENAI_API_KEY', ''))}" type="password">
           <span></span>
         </div>
+        <p class="hint">API Base 填接口根地址（如 https://api.deepseek.com/v1），API Key 填真实密钥，不要填 /chat/completions 地址。</p>
       </div>
     </section>
     <section data-config>

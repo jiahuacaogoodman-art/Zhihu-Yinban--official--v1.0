@@ -115,6 +115,42 @@ print(base64.urlsafe_b64encode(os.urandom(32)).decode())
 PY
 }
 
+looks_like_http_url() {
+    local value
+    value="$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')"
+    case "$value" in
+        http://*|https://*) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+normalize_openai_base() {
+    local value="${1%/}"
+    local lower
+    lower="$(printf '%s' "$value" | tr '[:upper:]' '[:lower:]')"
+    case "$lower" in
+        */chat/completions) value="${value%/chat/completions}" ;;
+        */completions) value="${value%/completions}" ;;
+    esac
+    printf '%s' "${value%/}"
+}
+
+validate_openai_settings() {
+    local openai_base="$1"
+    local openai_model="$2"
+    local openai_key="$3"
+
+    if [ -z "$openai_base" ] || [ -z "$openai_model" ]; then
+        die_dialog "远程 LLM 模式必须填写 OPENAI_API_BASE 和 OPENAI_MODEL。"
+    fi
+    if ! looks_like_http_url "$openai_base"; then
+        die_dialog "API Base 应该是 http/https 开头的接口根地址，例如：https://api.deepseek.com/v1。"
+    fi
+    if [ -n "$openai_key" ] && looks_like_http_url "$openai_key"; then
+        die_dialog "API Key 不能填写接口地址。请把 https://.../v1 填在 API Base，把真实 key 填在 API Key；自建无鉴权端点可留空。"
+    fi
+}
+
 compose_command() {
     if docker compose version >/dev/null 2>&1; then
         printf 'docker compose'
@@ -296,9 +332,8 @@ main() {
             openai_base="$(ask_text "远程 LLM 地址" "请输入 OpenAI 兼容 API Base，例如：https://api.deepseek.com/v1" "")"
             openai_model="$(ask_text "远程模型名" "请输入模型名，例如 deepseek-chat 或 Qwen/Qwen2.5-7B-Instruct" "")"
             openai_key="$(ask_secret "API Key" "请输入 API Key。自建无鉴权端点可留空后点继续。")"
-            if [ -z "$openai_base" ] || [ -z "$openai_model" ]; then
-                die_dialog "远程 LLM 模式必须填写 OPENAI_API_BASE 和 OPENAI_MODEL。"
-            fi
+            openai_base="$(normalize_openai_base "$openai_base")"
+            validate_openai_settings "$openai_base" "$openai_model" "$openai_key"
         else
             provider="ollama"
             local model_choice
@@ -320,6 +355,12 @@ main() {
         [ -z "$provider" ] && provider="ollama"
         port="$(grep '^PORT=' "$ENV_FILE" 2>/dev/null | cut -d= -f2 | tr -d '\r' || true)"
         [ -z "$port" ] && port="8000"
+        if [ "$provider" = "openai" ]; then
+            openai_base="$(grep '^OPENAI_API_BASE=' "$ENV_FILE" 2>/dev/null | cut -d= -f2- | tr -d '\r' || true)"
+            openai_model="$(grep '^OPENAI_MODEL=' "$ENV_FILE" 2>/dev/null | cut -d= -f2- | tr -d '\r' || true)"
+            openai_key="$(grep '^OPENAI_API_KEY=' "$ENV_FILE" 2>/dev/null | cut -d= -f2- | tr -d '\r' || true)"
+            validate_openai_settings "$(normalize_openai_base "$openai_base")" "$openai_model" "$openai_key"
+        fi
     fi
 
     info_dialog "配置完成。\n\n接下来会打开 Terminal 执行部署命令，首次启动会下载镜像和模型，可能需要数分钟。"
