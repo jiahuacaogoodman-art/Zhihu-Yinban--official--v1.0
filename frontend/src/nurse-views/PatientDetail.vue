@@ -270,6 +270,7 @@ onMounted(fetchPatient)
           <button
             v-for="s in quickSymptoms"
             :key="s"
+            type="button"
             class="tap-chip"
             @click="addSymptom(s)"
           >
@@ -314,21 +315,23 @@ onMounted(fetchPatient)
             :key="i"
             class="pd-task-item"
           >
-            <div
+            <button
+              type="button"
               class="task-check"
               :class="t.status"
+              :aria-label="`切换任务 ${i + 1}：${t.text}`"
               @click="markTask(i, t.status === 'done' ? 'pending' : 'done')"
             >
               <span v-if="t.status === 'done'">✓</span>
               <span v-else-if="t.status === 'abnormal'">!</span>
               <span v-else-if="t.status === 'skipped'">—</span>
-            </div>
+            </button>
             <div class="pd-task-content">
               <span class="task-text" :class="t.status">{{ t.text }}</span>
               <div v-if="t.status === 'pending'" class="task-exec-actions">
-                <button class="btn btn-ghost btn-sm" @click="markTask(i, 'done')">完成</button>
-                <button class="btn btn-ghost btn-sm" @click="markTask(i, 'abnormal')">异常</button>
-                <button class="btn btn-ghost btn-sm" @click="markTask(i, 'skipped')">跳过</button>
+                <button type="button" class="btn btn-ghost btn-sm" @click="markTask(i, 'done')">完成</button>
+                <button type="button" class="btn btn-ghost btn-sm" @click="markTask(i, 'abnormal')">异常</button>
+                <button type="button" class="btn btn-ghost btn-sm" @click="markTask(i, 'skipped')">跳过</button>
               </div>
             </div>
           </div>
@@ -562,8 +565,10 @@ onMounted(fetchPatient)
 }
 
 .task-check {
+  appearance: none;
   width: 28px;
   height: 28px;
+  padding: 0;
   flex-shrink: 0;
   border-radius: 50%;
   border: 1.5px solid rgba(15, 23, 42, 0.15);

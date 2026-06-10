@@ -1,5 +1,5 @@
 /* 智护银伴 Service Worker · 新版 SPA 专用 */
-const CACHE_NAME = 'zhihu-spa-only-v23';
+const CACHE_NAME = 'zhihu-spa-only-v25';
 const STATIC_ASSETS = [
   '/',
   '/nurse',
@@ -9,8 +9,15 @@ const STATIC_ASSETS = [
   '/static/design/ui.css',
   '/static/design/mobile.css',
   '/static/design/ambient.svg',
+  '/static/design/select-chevron.svg',
   '/static/icons/icon-192.png',
   '/static/icons/icon-512.png',
+];
+
+const NETWORK_FIRST_PATHS = [
+  '/v2/assets/',
+  '/static/dist/assets/',
+  '/static/design/',
 ];
 
 self.addEventListener('install', event => {
@@ -31,6 +38,10 @@ self.addEventListener('activate', event => {
 
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
+
+  if (event.request.method !== 'GET') {
+    return;
+  }
 
   // API 请求：网络优先，离线返回提示
   if (url.pathname.startsWith('/api/')) {
@@ -64,6 +75,21 @@ self.addEventListener('fetch', event => {
     event.respondWith(
       fetch(event.request).catch(() =>
         caches.match(url.pathname.startsWith('/nurse') ? '/nurse' : '/')
+      )
+    );
+    return;
+  }
+
+  // 构建产物和设计系统 CSS 必须网络优先，避免浏览器继续显示旧版错位样式。
+  if (NETWORK_FIRST_PATHS.some(path => url.pathname.startsWith(path))) {
+    event.respondWith(
+      caches.open(CACHE_NAME).then(cache =>
+        fetch(event.request)
+          .then(res => {
+            if (res && res.status === 200) cache.put(event.request, res.clone());
+            return res;
+          })
+          .catch(() => cache.match(event.request))
       )
     );
     return;
