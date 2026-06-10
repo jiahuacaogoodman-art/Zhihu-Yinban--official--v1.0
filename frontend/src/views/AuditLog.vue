@@ -74,13 +74,53 @@ onMounted(loadAudit)
 </template>
 
 <style scoped>
-.al-view { max-width: 900px; }
-.al-filters { display: grid; grid-template-columns: 1fr 1fr auto; gap: var(--sp-2, 8px); margin-bottom: var(--sp-4, 16px); align-items: end; }
+.al-view {
+  width: 100%;
+  max-width: 900px;
+  min-width: 0;
+}
+.al-filters {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  gap: var(--sp-2, 8px);
+  margin-bottom: var(--sp-4, 16px);
+  align-items: end;
+  min-width: 0;
+}
 .field-group { display: flex; flex-direction: column; gap: 4px; }
 .field-label { font: 600 var(--fz-xs, 11px)/1.4 var(--font-ui); color: var(--ink-3); }
-.al-list { display: grid; gap: 6px; }
-.al-row { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: start; padding: 10px 12px; border-radius: 8px; background: rgba(15,23,42,0.02); }
-.al-content { display: flex; flex-direction: column; gap: 2px; }
+.al-list {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+}
+.al-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: start;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(15,23,42,0.02);
+}
+.al-row :deep(.chip) { justify-self: start; max-width: 100%; overflow-wrap: anywhere; }
+.al-content {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-width: 0;
+  max-width: 100%;
+}
+.al-content > * { min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
 .al-time { white-space: nowrap; }
-@media (max-width: 640px) { .al-filters { grid-template-columns: 1fr; } .al-row { grid-template-columns: 1fr; } }
+@media (max-width: 640px) {
+  .al-filters { grid-template-columns: minmax(0, 1fr); }
+  .al-row { grid-template-columns: minmax(0, 1fr); }
+  .al-time { white-space: normal; overflow-wrap: anywhere; }
+}
 </style>

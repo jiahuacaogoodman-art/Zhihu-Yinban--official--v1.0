@@ -194,12 +194,24 @@ onBeforeUnmount(clearPreviewUrls)
 </template>
 
 <style scoped>
-.mu-view { display: grid; gap: var(--sp-4, 16px); max-width: 900px; }
+.mu-view {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--sp-4, 16px);
+  min-width: 0;
+  width: 100%;
+  max-width: 900px;
+}
+.mu-view > * {
+  min-width: 0;
+  max-width: 100%;
+}
 .form-grid { display: grid; gap: var(--sp-2, 8px); margin-bottom: var(--sp-3, 12px); }
 .form-grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
 .field-group { display: flex; flex-direction: column; gap: 4px; }
 .field-label { font: 600 var(--fz-xs, 11px)/1.4 var(--font-ui); color: var(--ink-3); }
 .mu-upload-area { margin: var(--sp-3, 12px) 0; padding: var(--sp-4, 16px); border: 2px dashed rgba(15, 23, 42, 0.12); border-radius: var(--r-s, 10px); text-align: center; }
+.mu-upload-area input[type='file'] { max-width: 100%; }
 .mu-footer { margin-top: var(--sp-4, 16px); display: flex; justify-content: flex-end; }
 .mu-records { display: grid; gap: 12px; }
 .mu-record-card { display: grid; grid-template-columns: 100px 1fr; gap: 12px; padding: 12px; border-radius: var(--r-s, 10px); background: rgba(255,255,255,0.75); border: 1px solid rgba(15,23,42,0.06); }

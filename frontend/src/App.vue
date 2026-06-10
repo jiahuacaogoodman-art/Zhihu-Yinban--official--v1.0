@@ -162,7 +162,7 @@ type NavItem = {
 }
 const navItems: NavItem[] = [
   { to: '/nursing-decision', label: 'AI 护理建议', icon: '✨', short: 'AI', bottomBar: true },
-  { to: '/ehr?new=1', label: '录入档案', icon: '➕', short: '录入', bottomBar: false },
+  { to: '/ehr/new', label: '录入档案', icon: '➕', short: '录入', bottomBar: false },
   { to: '/ehr', label: '患者档案', icon: '📋', short: '档案', bottomBar: true },
   { to: '/ehr/upload', label: '病历上传', icon: '📷', short: '病历', bottomBar: false },
   { to: '/beds', label: '床位管理', icon: '🛏', short: '床位', bottomBar: true },
@@ -346,6 +346,8 @@ const bottomTabs = computed(() => navItems.filter((n) => n.bottomBar))
 .v2-layout {
   display: grid;
   grid-template-columns: 220px 1fr;
+  min-width: 0;
+  width: 100%;
   min-height: 100vh;
   min-height: 100dvh;
 }
@@ -440,6 +442,7 @@ const bottomTabs = computed(() => navItems.filter((n) => n.bottomBar))
 .v2-main {
   padding: var(--sp-5, 20px);
   max-width: 1200px;
+  min-width: 0;
   width: 100%;
 }
 .v2-main--full {
@@ -461,7 +464,8 @@ const bottomTabs = computed(() => navItems.filter((n) => n.bottomBar))
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: calc(var(--v2-sat) + 8px) 12px 8px;
+    min-width: 0;
+    padding: calc(var(--v2-sat, 0px) + 8px) 12px 8px;
     background: rgba(11, 18, 32, 0.86);
     backdrop-filter: blur(18px) saturate(160%);
     -webkit-backdrop-filter: blur(18px) saturate(160%);
@@ -522,8 +526,9 @@ const bottomTabs = computed(() => navItems.filter((n) => n.bottomBar))
   }
 
   .v2-main {
-    padding: 12px 14px var(--v2-bottom-pad);
+    padding: 12px 14px var(--v2-bottom-pad, 0px);
     max-width: 100%;
+    min-width: 0;
   }
   .v2-main--full {
     padding: 0;
