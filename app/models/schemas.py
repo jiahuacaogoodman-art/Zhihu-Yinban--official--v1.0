@@ -223,8 +223,8 @@ class TaskCardGenerateRequest(BaseModel):
 class TaskCompleteRequest(BaseModel):
     """PATCH /api/nursing/events/{event_id}/tasks/{task_id}/complete"""
 
-    # 路由里校验 done / abnormal / skipped，且有 `payload.status or "done"`
-    status: Optional[Literal["done", "abnormal", "skipped"]] = "done"
+    # 路由里校验 pending / done / abnormal / skipped，且有 `payload.status or "done"`
+    status: Optional[Literal["pending", "done", "abnormal", "skipped"]] = "done"
     completed_by: Optional[str] = None
     note: Optional[str] = None
     value: Optional[str] = None
