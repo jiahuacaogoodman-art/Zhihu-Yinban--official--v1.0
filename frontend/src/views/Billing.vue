@@ -691,7 +691,10 @@ onMounted(() => {
 <style scoped>
 .bl-view {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--sp-4, 16px);
+  min-width: 0;
+  width: 100%;
   max-width: 1080px;
 }
 
@@ -727,10 +730,14 @@ onMounted(() => {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--sp-3, 12px);
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
 }
 
 .bl-stat {
   padding: 14px !important;
+  min-width: 0;
   text-align: center;
 }
 
@@ -829,6 +836,7 @@ onMounted(() => {
 
   .bl-stats {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
   }
 
   .bl-row {
