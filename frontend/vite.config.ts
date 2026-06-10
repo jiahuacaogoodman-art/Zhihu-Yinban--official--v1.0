@@ -8,7 +8,8 @@ import { resolve } from 'node:path'
  * Vite 配置 — 多入口
  *
  *   1) build.outDir 指向 ../static/dist/，让 FastAPI 的 StaticFiles 直接挂载即可。
- *   2) base 用 '/'。
+ *   2) build base 用 '/v2/'，匹配 FastAPI 中 dist 目录挂载点；
+ *      dev base 用 '/'，避免 Vite 本地调试时 /beds、/handovers 被误判。
  *   3) emptyOutDir: true — 每次 build 清空 static/dist/。
  *   4) rollupOptions.input 配置两个入口
  *      - managers: index.html → 管理端 SPA
@@ -18,6 +19,8 @@ import { resolve } from 'node:path'
  *        static/dist/nurse.html      (护工端)
  *        static/dist/assets/...      (共享 chunk)
  */
+const isProductionBuild = process.env.NODE_ENV === 'production'
+
 export default defineConfig({
   plugins: [vue()],
   define: {
@@ -29,7 +32,7 @@ export default defineConfig({
       '@design': fileURLToPath(new URL('../static/design', import.meta.url)),
     },
   },
-  base: '/',
+  base: isProductionBuild ? '/v2/' : '/',
   build: {
     outDir: '../static/dist',
     emptyOutDir: true,

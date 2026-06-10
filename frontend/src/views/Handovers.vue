@@ -246,9 +246,14 @@ onMounted(fetchHandovers)
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--sp-3, 12px);
   width: 100%;
+  max-width: 100%;
   min-width: 0;
 }
-.handover-form .full { grid-column: 1 / -1; }
+.handover-form > * { min-width: 0; }
+.handover-form .full {
+  grid-column: 1 / -1;
+  max-width: 100%;
+}
 
 @media (max-width: 640px) {
   .handover-view { gap: 12px; }
