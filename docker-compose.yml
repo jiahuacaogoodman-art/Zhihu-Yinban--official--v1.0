@@ -143,6 +143,9 @@ services:
       - auth_data:/app/local_auth               # 用户 + API Key
       - audit_log:/app/local_audit_log          # 操作审计
       - nursing_events:/app/local_nursing_events # 护理事件流
+      - care_data:/app/local_care               # 床位/入住/交接/异常/护理记录
+      - billing_data:/app/local_billing         # 缴费/收费标准/支付渠道
+      - backups:/app/local_backups              # 冷备份
       # 协议模板挂载为只读：方便外部热编辑后 docker exec 容器内 reload
       - ./data:/app/data:ro
     healthcheck:
@@ -161,3 +164,6 @@ volumes:
   auth_data:
   audit_log:
   nursing_events:
+  care_data:
+  billing_data:
+  backups:

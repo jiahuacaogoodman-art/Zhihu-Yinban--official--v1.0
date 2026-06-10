@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 <#
 .SYNOPSIS
     智护银伴 · Windows 本地应用化启动器
@@ -46,7 +46,7 @@ $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 
 function Write-Step([string]$Message) {
-    Write-Host "\n==> $Message" -ForegroundColor Cyan
+    Write-Host "`n==> $Message" -ForegroundColor Cyan
 }
 
 function Write-Ok([string]$Message) {
@@ -74,7 +74,7 @@ function Test-PortFree([int]$TargetPort) {
 
 function Load-DotEnv([string]$EnvPath) {
     if (-not (Test-Path $EnvPath)) { return }
-    Get-Content $EnvPath | ForEach-Object {
+    Get-Content $EnvPath -Encoding UTF8 | ForEach-Object {
         $line = $_.Trim()
         if (-not $line -or $line.StartsWith('#')) { return }
         $eq = $line.IndexOf('=')
@@ -238,10 +238,13 @@ Write-Ok "端口 $Port 可用"
 Write-Step '启动后端服务'
 $logsDir = Join-Path $ProjectDir 'logs'
 New-Item -ItemType Directory -Force -Path $logsDir | Out-Null
-$logFile = Join-Path $logsDir 'launcher-backend.log'
+$stdoutLog = Join-Path $logsDir 'launcher-backend.out.log'
+$stderrLog = Join-Path $logsDir 'launcher-backend.err.log'
+$logFile = $stdoutLog
 $arguments = @('-m', 'uvicorn', 'main:app', '--host', $BindAddress, '--port', $Port)
-$process = Start-Process -FilePath (Join-Path $venvDir 'Scripts\python.exe') -ArgumentList $arguments -WorkingDirectory $ProjectDir -PassThru -RedirectStandardOutput $logFile -RedirectStandardError $logFile -WindowStyle Hidden
+$process = Start-Process -FilePath (Join-Path $venvDir 'Scripts\python.exe') -ArgumentList $arguments -WorkingDirectory $ProjectDir -PassThru -RedirectStandardOutput $stdoutLog -RedirectStandardError $stderrLog -WindowStyle Hidden
 Write-Ok "后端进程已启动 PID=$($process.Id)，日志: $logFile"
+Write-Host "  错误日志: $stderrLog" -ForegroundColor DarkGray
 
 Write-Step '等待服务健康检查'
 $healthUrl = "http://127.0.0.1:$Port/health"
@@ -264,14 +267,14 @@ for ($i = 1; $i -le 30; $i++) {
 }
 
 if (-not $ready) {
-    Write-Host "服务未能在预期时间内就绪，请查看日志：$logFile" -ForegroundColor Red
+    Write-Host "服务未能在预期时间内就绪，请查看日志：$logFile / $stderrLog" -ForegroundColor Red
     if (-not $process.HasExited) { Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue }
     exit 1
 }
 
 $appUrl = "http://127.0.0.1:$Port/"
 $nurseUrl = "http://127.0.0.1:$Port/nurse"
-Write-Host "\n启动完成" -ForegroundColor Green
+Write-Host "`n启动完成" -ForegroundColor Green
 Write-Host "  管理端: $appUrl"
 Write-Host "  护工端: $nurseUrl"
 Write-Host "  健康检查: $healthUrl"

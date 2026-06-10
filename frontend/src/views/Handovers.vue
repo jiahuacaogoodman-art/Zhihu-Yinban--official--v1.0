@@ -203,7 +203,7 @@ onMounted(fetchHandovers)
       </div>
     </div>
 
-    <Dialog v-model="createOpen" title="新增 SBAR 交接">
+    <Dialog v-model="createOpen" title="新增 SBAR 交接" panel-class="dialog--wide-form">
       <div class="handover-form">
         <Field v-model="form.shift_from" label="交班人 *" placeholder="王护士" />
         <Field v-model="form.shift_to" label="接班人 *" placeholder="李护士" />
@@ -245,7 +245,8 @@ onMounted(fetchHandovers)
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--sp-3, 12px);
-  min-width: min(620px, calc(100vw - 48px));
+  width: 100%;
+  min-width: 0;
 }
 .handover-form .full { grid-column: 1 / -1; }
 
