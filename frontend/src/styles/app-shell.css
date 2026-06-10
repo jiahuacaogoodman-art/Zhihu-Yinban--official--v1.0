@@ -179,16 +179,38 @@
 }
 
 /* ────────── 宽表单弹窗:两列表单在桌面端需要比默认确认框更宽 ────────── */
-.dialog.dialog--wide-form {
+.dialog.dialog--wide-form,
+.dialog.dialog--workflow-form {
+  width: min(760px, calc(100vw - 32px));
   max-width: min(760px, calc(100vw - 32px));
-}
-
-.dialog.dialog--wide-form .dialog-body {
+  box-sizing: border-box;
   overflow-x: hidden;
 }
 
+.dialog.dialog--wide-form .dialog-body,
+.dialog.dialog--workflow-form .dialog-body {
+  width: 100%;
+  min-width: 0;
+  overflow-x: hidden;
+}
+
+.dialog.dialog--wide-form .dialog-body > *,
+.dialog.dialog--workflow-form .dialog-body > * {
+  max-width: 100%;
+}
+
+.dialog.dialog--wide-form .field-group,
+.dialog.dialog--workflow-form .field-group,
+.dialog.dialog--wide-form .field,
+.dialog.dialog--workflow-form .field {
+  min-width: 0;
+  max-width: 100%;
+}
+
 @media (max-width: 640px) {
-  .dialog.dialog--wide-form {
+  .dialog.dialog--wide-form,
+  .dialog.dialog--workflow-form {
+    width: 100% !important;
     max-width: 100% !important;
   }
 }
