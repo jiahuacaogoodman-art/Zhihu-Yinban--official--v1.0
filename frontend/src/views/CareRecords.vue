@@ -158,7 +158,7 @@ onMounted(fetchRecords)
       </div>
     </div>
 
-    <Dialog v-model="createOpen" title="新增护理记录" panel-class="dialog--workflow-form">
+    <Dialog v-model="createOpen" title="新增护理记录" panel-class="dialog--wide-form">
       <div class="care-form">
         <Field v-model="form.patient_id" label="老人 ID *" placeholder="P001" />
         <Field v-model="form.record_type" label="记录类型" type="select">

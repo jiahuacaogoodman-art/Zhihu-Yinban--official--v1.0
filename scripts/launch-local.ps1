@@ -3,7 +3,7 @@
 .SYNOPSIS
     智护银伴 · Windows 本地应用化启动器
 .DESCRIPTION
-    面向试点/演示/院内部署的一键启动入口：
+    面向试点/演示/院内部署的「一键启动」入口：
       - 自动定位项目根目录
       - 自动创建/复用 venv
       - 自动安装 Python 依赖
@@ -13,7 +13,22 @@
       - 自动等待 /health 就绪并打开浏览器
       - 可选跳过依赖安装、跳过浏览器、允许无 Ollama 启动
 
-    注意：本文件保存为 UTF-8 with BOM，保证 Windows PowerShell 5.1 正确读取中文。
+    设计目标：让非开发者不用理解 Docker、uvicorn、venv、环境变量。
+
+.PARAMETER Port
+    后端监听端口，默认 8000。
+.PARAMETER BindAddress
+    后端监听地址，默认 127.0.0.1。院内局域网访问可改为 0.0.0.0。
+.PARAMETER SkipInstall
+    跳过 pip install -r requirements.txt，适合已完成初始化后的快速启动。
+.PARAMETER NoBrowser
+    不自动打开浏览器。
+.PARAMETER AllowNoOllama
+    Ollama 未响应时仍继续启动。适合只演示非 AI 业务模块或使用远程 API。
+.PARAMETER RunWizard
+    启动前强制弹出 GUI 配置向导（即使 .env 已经齐全）。
+.PARAMETER NoWizard
+    禁止任何情况下自动弹出向导（CI / 自动化场景使用）。
 #>
 
 [CmdletBinding()]
@@ -75,26 +90,6 @@ function Load-DotEnv([string]$EnvPath) {
     }
 }
 
-function Test-EnvCompleteness([string]$Path) {
-    if (-not (Test-Path $Path)) { return $false }
-    $script:_envHasAuth = $false
-    $script:_envHasPii  = $false
-    Get-Content $Path -Encoding UTF8 | ForEach-Object {
-        $line = $_.Trim()
-        if (-not $line -or $line.StartsWith('#')) { return }
-        $eq = $line.IndexOf('=')
-        if ($eq -lt 1) { return }
-        $key = $line.Substring(0, $eq).Trim()
-        $val = $line.Substring($eq + 1).Trim()
-        if (($val.StartsWith('"') -and $val.EndsWith('"')) -or ($val.StartsWith("'") -and $val.EndsWith("'"))) {
-            $val = $val.Substring(1, $val.Length - 2)
-        }
-        if ($key -eq 'AUTH_TOKEN' -and $val) { $script:_envHasAuth = $true }
-        if ($key -eq 'PII_ENCRYPTION_KEY' -and $val) { $script:_envHasPii = $true }
-    }
-    return ($script:_envHasAuth -and $script:_envHasPii)
-}
-
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
 $ProjectDir = Split-Path -Parent $ScriptDir
 Set-Location $ProjectDir
@@ -139,6 +134,34 @@ $envPath = Join-Path $ProjectDir '.env'
 $envExample = Join-Path $ProjectDir '.env.example'
 $wizardScript = Join-Path $ScriptDir 'setup-wizard.ps1'
 
+# ── 判断是否需要弹出 GUI 向导 ──
+# 触发条件（任一满足即弹）：
+#   1) 显式传 -RunWizard
+#   2) .env 不存在
+#   3) .env 存在但 AUTH_TOKEN 或 PII_ENCRYPTION_KEY 为空（生产环境绝对不能裸跑）
+# 例外：传了 -NoWizard 就强制不弹（CI / 远程脚本场景）。
+function Test-EnvCompleteness([string]$Path) {
+    if (-not (Test-Path $Path)) { return $false }
+    # 用脚本作用域变量是为了让 ForEach-Object 闭包能写回外层
+    $script:_envHasAuth = $false
+    $script:_envHasPii  = $false
+    Get-Content $Path -Encoding UTF8 | ForEach-Object {
+        $line = $_.Trim()
+        if (-not $line -or $line.StartsWith('#')) { return }
+        $eq = $line.IndexOf('=')
+        if ($eq -lt 1) { return }
+        $key = $line.Substring(0, $eq).Trim()
+        $val = $line.Substring($eq + 1).Trim()
+        if (($val.StartsWith('"') -and $val.EndsWith('"')) -or
+            ($val.StartsWith("'") -and $val.EndsWith("'"))) {
+            $val = $val.Substring(1, $val.Length - 2)
+        }
+        if ($key -eq 'AUTH_TOKEN'         -and $val) { $script:_envHasAuth = $true }
+        if ($key -eq 'PII_ENCRYPTION_KEY' -and $val) { $script:_envHasPii  = $true }
+    }
+    return ($script:_envHasAuth -and $script:_envHasPii)
+}
+
 $needWizard = $false
 if ($RunWizard) {
     $needWizard = $true
@@ -169,6 +192,7 @@ if ($needWizard -and -not $NoWizard) {
     }
     Write-Ok '配置向导完成，.env 已就绪'
 } elseif (-not (Test-Path $envPath)) {
+    # NoWizard 路径下 .env 还不存在 → 退回旧的拷贝逻辑
     if (Test-Path $envExample) {
         Copy-Item $envExample $envPath
         Write-Fix '.env 不存在，已从 .env.example 复制（NoWizard 模式跳过弹窗）'
@@ -193,7 +217,6 @@ try {
     $resp = Invoke-WebRequest -Uri 'http://localhost:11434/' -TimeoutSec 2 -UseBasicParsing -ErrorAction Stop
     if ($resp.StatusCode -ge 200 -and $resp.StatusCode -lt 500) { $ollamaOk = $true }
 } catch {}
-
 if ($ollamaOk) {
     Write-Ok 'Ollama 本地服务已响应 http://localhost:11434'
 } elseif ($AllowNoOllama -or $env:LLM_PROVIDER -eq 'openai') {

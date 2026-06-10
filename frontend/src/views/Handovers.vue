@@ -203,7 +203,7 @@ onMounted(fetchHandovers)
       </div>
     </div>
 
-    <Dialog v-model="createOpen" title="新增 SBAR 交接" panel-class="dialog--workflow-form">
+    <Dialog v-model="createOpen" title="新增 SBAR 交接" panel-class="dialog--wide-form">
       <div class="handover-form">
         <Field v-model="form.shift_from" label="交班人 *" placeholder="王护士" />
         <Field v-model="form.shift_to" label="接班人 *" placeholder="李护士" />

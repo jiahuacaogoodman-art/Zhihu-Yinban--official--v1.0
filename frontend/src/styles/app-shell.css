@@ -145,6 +145,25 @@
   }
 }
 
+/* ────────── Dialog 视口内约束:大表单内容滚动,操作区保持可见 ────────── */
+.dialog {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100dvh - 32px);
+  overflow: hidden;
+}
+
+.dialog-title,
+.dialog-actions {
+  flex: 0 0 auto;
+}
+
+.dialog-body {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
 /* ────────── 全屏 sheet:超大表单 / 详情专用 ────────── */
 @media (max-width: 640px) {
   .dialog.dialog--fullsheet {
@@ -156,6 +175,21 @@
   }
   .dialog.dialog--fullsheet::before {
     display: none;
+  }
+}
+
+/* ────────── 宽表单弹窗:两列表单在桌面端需要比默认确认框更宽 ────────── */
+.dialog.dialog--wide-form {
+  max-width: min(760px, calc(100vw - 32px));
+}
+
+.dialog.dialog--wide-form .dialog-body {
+  overflow-x: hidden;
+}
+
+@media (max-width: 640px) {
+  .dialog.dialog--wide-form {
+    max-width: 100% !important;
   }
 }
 
@@ -201,6 +235,17 @@
   .app-only-desktop {
     display: none !important;
   }
+}
+
+/* ────────── 表单防溢出:原生输入控件不得撑破 Dialog/Grid ────────── */
+.field,
+.field-group {
+  min-width: 0;
+}
+
+.field {
+  box-sizing: border-box;
+  max-width: 100%;
 }
 
 /* FAB:右下浮动操作按钮 */
