@@ -19,6 +19,7 @@ from loguru import logger
 from app.core.config import EHR_UPLOAD_DIR, MAX_UPLOAD_SIZE_MB, ALLOWED_UPLOAD_EXTENSIONS, BASE_DIR
 from app.middleware.auth import get_current_user, require_permission
 from app.services.audit_log import get_audit_log, _diff_meta
+from app.services.patient_lookup import find_patient_name_in_collection
 from app.services.permissions import PERM_EHR_AUDIT_READ
 from app.services.pii_crypto import PII_FIELDS, encrypt_pii_fields, decrypt_pii_fields
 from app.services.user_store import User
@@ -204,14 +205,7 @@ def _is_upload(meta: dict) -> bool:
 
 
 def _find_patient_name(collection, patient_id: str) -> Optional[str]:
-    result = collection.get(where={"patient_id": {"$eq": patient_id}}, include=["metadatas"])
-    for meta in result.get("metadatas", []):
-        if _is_profile(meta) and meta.get("name"):
-            return meta.get("name")
-    for meta in result.get("metadatas", []):
-        if meta.get("name"):
-            return meta.get("name")
-    return None
+    return find_patient_name_in_collection(collection, patient_id) or None
 
 
 def _add_document_to_collection(collection, embedding_function, doc_id: str, document: str, metadata: dict) -> None:

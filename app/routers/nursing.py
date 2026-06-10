@@ -18,6 +18,7 @@ from app.models.schemas import (
 from app.middleware.auth import get_current_user
 from app.services.audit_log import get_audit_log
 from app.services.llm_service import get_llm_service
+from app.services.patient_lookup import find_patient_name_in_collection
 from app.services.pii_crypto import decrypt_pii_fields
 from app.services.retrieval import HybridRetriever, format_evidence_block, plain_context_string
 from app.services.decision_memory import DecisionMemory, format_memory_block
@@ -309,19 +310,7 @@ async def nursing_decision(payload: NursingDecisionRequest):
 
 
 def _find_patient_name_from_collection(collection, patient_id: str) -> str:
-    try:
-        result = collection.get(
-            where={"patient_id": {"$eq": patient_id}}, include=["metadatas"]
-        )
-        for meta in result.get("metadatas", []) or []:
-            if meta and meta.get("doc_type") in (None, "", "patient_profile") and meta.get("name"):
-                return meta["name"]
-        for meta in result.get("metadatas", []) or []:
-            if meta and meta.get("name"):
-                return meta["name"]
-    except Exception:
-        pass
-    return ""
+    return find_patient_name_in_collection(collection, patient_id)
 
 
 # ── RAG 流式推理（SSE）──────────────────────────────────────────

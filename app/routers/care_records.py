@@ -15,6 +15,7 @@ from app.models.care_schemas import (
 )
 from app.services.audit_log import get_audit_log
 from app.services.care_store import get_care_store
+from app.services.patient_lookup import find_patient_name as _lookup_patient_name
 from app.services.permissions import PERM_NURSING_TASKCARD, PERM_EHR_READ
 from app.services.user_store import User
 
@@ -95,17 +96,4 @@ async def get_patient_care_records(
 
 def _find_patient_name(patient_id: str) -> str:
     """尝试从 ChromaDB 获取患者姓名"""
-    try:
-        from main import app_state
-        collection = app_state.get("db_collection")
-        if collection:
-            result = collection.get(
-                where={"patient_id": {"$eq": patient_id}},
-                include=["metadatas"],
-            )
-            for meta in result.get("metadatas", []):
-                if meta and meta.get("name"):
-                    return meta["name"]
-    except Exception:
-        pass
-    return ""
+    return _lookup_patient_name(patient_id)
