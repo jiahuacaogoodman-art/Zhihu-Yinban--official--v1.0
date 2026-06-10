@@ -3,6 +3,7 @@ import { ref, onMounted } from 'vue'
 import { Btn, Chip, Field, GlassPanel } from '../components'
 import { useToast } from '../composables/useToast'
 import { api } from '../api'
+import { formatEvidenceLabel, formatEvidenceSnippet } from '../utils/evidence'
 
 /**
  * NursingDecision — AI 护理决策（管理端核心功能）
@@ -185,8 +186,8 @@ onMounted(loadPatients)
       <template #header><span class="title-s">参考来源</span></template>
       <div class="nd-evidence">
         <div v-for="(e, i) in evidence" :key="i" class="nd-ev-item">
-          <Chip tone="info">{{ e.source_type ?? '档案' }}</Chip>
-          <span class="body-s">{{ e.text?.slice(0, 200) ?? '' }}</span>
+          <Chip tone="info">{{ formatEvidenceLabel(e) }}</Chip>
+          <span class="body-s">{{ formatEvidenceSnippet(e) }}</span>
         </div>
       </div>
     </GlassPanel>
