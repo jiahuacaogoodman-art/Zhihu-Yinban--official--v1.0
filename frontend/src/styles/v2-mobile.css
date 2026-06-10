@@ -172,6 +172,16 @@
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(255, 255, 255, 0.95));
 }
 
+/* 交接班 / 异常事件 / 护理记录这类录入表单需要比确认弹窗更宽。 */
+.dialog.dialog--workflow-form {
+  width: min(760px, calc(100vw - 32px));
+  max-width: min(760px, calc(100vw - 32px));
+}
+.dialog.dialog--workflow-form .dialog-body {
+  min-width: 0;
+  overflow-x: hidden;
+}
+
 /* 患者档案这类超长表单:宽屏做成清爽的大弹窗，正文单独滚动。 */
 .dialog.dialog--ehr-form {
   width: min(920px, calc(100vw - 32px));

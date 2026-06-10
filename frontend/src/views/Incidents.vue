@@ -206,7 +206,7 @@ onMounted(fetchIncidents)
       </div>
     </div>
 
-    <Dialog v-model="createOpen" title="上报异常事件">
+    <Dialog v-model="createOpen" title="上报异常事件" panel-class="dialog--workflow-form">
       <div class="incident-form">
         <Field v-model="form.patient_id" label="老人 ID *" placeholder="P001" />
         <Field v-model="form.incident_type" label="事件类型 *" placeholder="跌倒 / 误吸 / 走失 / 用药错误" />
@@ -246,7 +246,8 @@ onMounted(fetchIncidents)
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--sp-3, 12px);
-  min-width: min(620px, calc(100vw - 48px));
+  width: 100%;
+  min-width: 0;
 }
 .incident-form .full { grid-column: 1 / -1; }
 
