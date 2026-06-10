@@ -3,6 +3,7 @@ import { onMounted, ref, computed } from 'vue'
 import { useBedStore } from '../stores'
 import { Btn, Chip, GlassPanel, Field, Dialog, PullToRefresh, Skeleton } from '../components'
 import { useToast } from '../composables/useToast'
+import { api } from '../api'
 import type { Bed, BedFormPayload, BedStatus } from '../api/types'
 
 /**
@@ -31,8 +32,15 @@ interface BedFormState {
   notes: string
 }
 
+interface PatientOption {
+  patient_id: string
+  name: string
+  bed_number?: string | null
+}
+
 const statusFilter = ref<BedStatus | ''>('')
 const buildingFilter = ref('')
+const patientOptions = ref<PatientOption[]>([])
 
 // Dialog
 const assignDialogOpen = ref(false)
@@ -68,11 +76,27 @@ const buildings = computed(() => {
   return [...set].sort()
 })
 
-// 已有患者(用作分配 dialog 的 datalist 选项,避免新人不知道 patient_id 是啥)
-const occupiedPatients = computed(() => {
-  return bedStore.beds
-    .map((b) => ({ id: b.patient_id, name: b.patient_name }))
-    .filter((x): x is { id: string; name: string } => !!x.id)
+// 分配床位时的老人建议项:优先来自患者档案,再用已入住床位兜底。
+const assignPatientOptions = computed(() => {
+  const map = new Map<string, { id: string; name: string; bed_number?: string | null }>()
+  for (const p of patientOptions.value) {
+    if (!p.patient_id) continue
+    map.set(p.patient_id, {
+      id: p.patient_id,
+      name: p.name || p.patient_id,
+      bed_number: p.bed_number ?? null,
+    })
+  }
+  for (const bed of bedStore.beds) {
+    if (!bed.patient_id) continue
+    if (map.has(bed.patient_id)) continue
+    map.set(bed.patient_id, {
+      id: bed.patient_id,
+      name: bed.patient_name || bed.patient_id,
+      bed_number: bed.bed_number,
+    })
+  }
+  return [...map.values()].sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'))
 })
 
 const statusMap: Record<BedStatus, { label: string; tone: 'success' | 'danger' | 'warning' | 'info' }> = {
@@ -84,7 +108,18 @@ const statusMap: Record<BedStatus, { label: string; tone: 'success' | 'danger' |
 
 onMounted(() => {
   bedStore.fetchBeds()
+  fetchPatientOptions()
 })
+
+async function fetchPatientOptions() {
+  try {
+    const res = await api.get<PatientOption[] | { records?: PatientOption[]; patients?: PatientOption[] }>('/ehr/patients')
+    const list = Array.isArray(res) ? res : res.records ?? res.patients ?? []
+    patientOptions.value = list.filter((p) => !!p.patient_id)
+  } catch (e) {
+    console.warn('[beds] 患者档案列表加载失败,分配建议将仅显示已入住老人', e)
+  }
+}
 
 function openAssign(bed: Bed) {
   assignTargetBed.value = bed
@@ -332,12 +367,12 @@ async function handleRefresh(done: () => void) {
         label="老人 ID"
         required
         placeholder="例如 P001 (在'患者档案'页可查到)"
-        hint="可输入档案 ID,或在下方建议项中选择已有老人"
+        hint="可输入档案 ID,或在下方建议项中选择患者档案"
         list="bed-patient-options"
       />
       <datalist id="bed-patient-options">
-        <option v-for="p in occupiedPatients" :key="p.id" :value="p.id">
-          {{ p.name }}
+        <option v-for="p in assignPatientOptions" :key="p.id" :value="p.id">
+          {{ p.name }}{{ p.bed_number ? ` · ${p.bed_number}` : '' }}
         </option>
       </datalist>
       <template #actions>

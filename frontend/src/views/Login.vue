@@ -52,12 +52,20 @@ async function handleLogin() {
     }
     authStore.login(t)
     toast({ tone: 'success', text: '登录成功' })
-    router.replace(redirectTarget.value)
+    redirectAfterLogin(redirectTarget.value)
   } catch {
     toast({ tone: 'error', text: '网络错误，请检查后端服务' })
   } finally {
     loading.value = false
   }
+}
+
+function redirectAfterLogin(target: string) {
+  if (target === '/nurse' || target.startsWith('/nurse/')) {
+    window.location.assign(target)
+    return
+  }
+  router.replace(target)
 }
 
 // 输入框聚焦时滚到视口中央，避免 iOS 软键盘把输入框挡住
