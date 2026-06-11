@@ -1,5 +1,5 @@
 /// <reference types="vitest" />
-import { defineConfig, type Plugin } from 'vite'
+import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { fileURLToPath, URL } from 'node:url'
 import { resolve } from 'node:path'
@@ -21,24 +21,8 @@ import { resolve } from 'node:path'
  */
 const isProductionBuild = process.env.NODE_ENV === 'production'
 
-function nurseHistoryFallback(): Plugin {
-  return {
-    name: 'nurse-history-fallback',
-    configureServer(server) {
-      server.middlewares.use((req, _res, next) => {
-        const rawUrl = req.url ?? ''
-        const [pathname, query = ''] = rawUrl.split('?')
-        if (pathname === '/nurse' || pathname.startsWith('/nurse/')) {
-          req.url = `/nurse.html${query ? `?${query}` : ''}`
-        }
-        next()
-      })
-    },
-  }
-}
-
 export default defineConfig({
-  plugins: [nurseHistoryFallback(), vue()],
+  plugins: [vue()],
   define: {
     __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
   },
