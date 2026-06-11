@@ -4,6 +4,7 @@ import { Btn, Chip, Dialog, Field, GlassPanel } from '../components'
 import { useToast } from '../composables/useToast'
 import { api } from '../api'
 import { ApiError } from '../api/types'
+import { buildPaymentConfigPatch } from '../utils/paymentConfig'
 
 /**
  * PaymentChannels — 多支付渠道管理(管理员后台)
@@ -158,15 +159,12 @@ async function saveConfig() {
   const c = configChannel.value
   // 拼 patch payload:
   //   - password 字段:空 = 不改(完全不发,后端会保留旧值)
-  //   - 其他字段:完整发(后端用空字符串删字段,已填的覆盖旧值)
-  const config: Record<string, string> = {}
-  for (const f of c.config_fields) {
-    const v = (configForm[f.key] || '').trim()
-    if (f.type === 'password' && !v) {
-      // 空密码字段 = 保持当前值,跳过
-      continue
-    }
-    config[f.key] = v
+  //   - text 字段:空 = 不改(后端把空字符串视为清除字段)
+  const config = buildPaymentConfigPatch(c.config_fields, configForm)
+  if (Object.keys(config).length === 0) {
+    toast({ tone: 'info', text: '未填写新的配置，已保持当前值' })
+    configOpen.value = false
+    return
   }
   configSaving.value = true
   try {

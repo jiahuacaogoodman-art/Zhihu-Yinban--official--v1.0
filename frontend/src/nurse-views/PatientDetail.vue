@@ -53,6 +53,8 @@ interface TaskItem {
   text: string
   status: 'pending' | 'done' | 'abnormal' | 'skipped'
   priority?: string
+  eventId?: string | null
+  taskId?: string | null
   /** 后端 decision_id —— 任务卡的 outcome 回填要靠它 */
   decisionId?: string | null
   /** 标记是否正在保存，避免连点 */
