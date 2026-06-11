@@ -53,6 +53,8 @@ interface TaskItem {
   text: string
   status: 'pending' | 'done' | 'abnormal' | 'skipped'
   priority?: string
+  eventId?: string | null
+  taskId?: string | null
   /** 后端 decision_id —— 任务卡的 outcome 回填要靠它 */
   decisionId?: string | null
   /** 标记是否正在保存，避免连点 */
@@ -62,6 +64,7 @@ const taskItems = ref<TaskItem[]>([])
 const taskLoading = ref(false)
 const taskRiskLevel = ref('')
 const taskTitle = ref('')
+const taskEventId = ref<string | null>(null)
 // 整张任务卡背后的 decision_id —— 后端 task-card 接口会在 response.task_card 里返回
 const taskDecisionId = ref<string | null>(null)
 const taskRiskLabel = ref('')
@@ -109,12 +112,15 @@ async function generateTaskCard() {
     taskRiskLevel.value = card.risk_level ?? ''
     taskRiskLabel.value = card.risk_label ?? card.risk_level ?? ''
     taskTitle.value = card.event_type ?? card.nursing_advice?.title ?? '护理任务卡'
+    taskEventId.value = card.event_id ?? null
     taskDecisionId.value = card.decision_id ?? null
     const taskSource = card.immediate_tasks ?? []
-    taskItems.value = taskSource.map((t: any) => ({
+    taskItems.value = taskSource.map((t: any, index: number) => ({
       text: typeof t === 'string' ? t : t.description ?? t.text ?? '',
       status: ['done', 'abnormal', 'skipped'].includes(t?.status) ? t.status : 'pending',
       priority: t.priority,
+      eventId: card.event_id ?? null,
+      taskId: typeof t === 'string' ? `t${index + 1}` : t.task_id ?? `t${index + 1}`,
       decisionId: card.decision_id ?? null,
       saving: false,
     }))
@@ -161,10 +167,11 @@ async function askAI() {
 
 // ── Task execution ──
 //
-// Phase 7 起调用后端 PATCH /api/nursing/decisions/{decision_id}/outcome 持久化:
+// Phase 7 起调用后端护理事件任务接口 + 决策 outcome 持久化:
 //   1) UI 立即更新（optimistic）—— 护工"打卡"必须秒响应,不允许等网络
-//   2) 异步上报失败时回滚 + toast 提示,但不会阻塞下一个打卡操作
-//   3) 整张任务卡共享一个 decision_id（生成任务卡时由后端给）。当前后端按
+//   2) 任务执行写入 /nursing/events/{event_id}/tasks/{task_id}/complete
+//   3) 异步上报失败时回滚 + toast 提示,但不会阻塞下一个打卡操作
+//   4) 整张任务卡共享一个 decision_id（生成任务卡时由后端给）。当前后端按
 //      "整张卡 = 一条决策记录"建模,所以任意一项打卡都聚合上报为最近一次
 //      outcome —— 状态选取规则:任意 abnormal → 'ineffective';全 done →
 //      'effective';有 skipped 但没 abnormal → 'partial';否则 'pending'。
@@ -209,9 +216,48 @@ function scheduleOutcomePersist() {
   }, 600)
 }
 
+function syncTaskFromEvent(index: number, event: any) {
+  const item = taskItems.value[index]
+  if (!item || !event || !Array.isArray(event.immediate_tasks)) return
+  const updated = event.immediate_tasks.find((t: any) => t?.task_id === item.taskId)
+  if (!updated) return
+  if (['pending', 'done', 'abnormal', 'skipped'].includes(updated.status)) {
+    item.status = updated.status
+  }
+}
+
+async function persistTaskStatus(index: number, previousStatus: TaskItem['status']) {
+  const item = taskItems.value[index]
+  if (!item) return
+  if (!item.eventId || !item.taskId) {
+    scheduleOutcomePersist()
+    return
+  }
+  item.saving = true
+  try {
+    const res = await api.patch<any>(
+      `/nursing/events/${encodeURIComponent(item.eventId)}/tasks/${encodeURIComponent(item.taskId)}/complete`,
+      {
+        status: item.status,
+        completed_by: '护工端',
+      },
+    )
+    syncTaskFromEvent(index, res.event)
+    scheduleOutcomePersist()
+  } catch (e: any) {
+    item.status = previousStatus
+    toast({ tone: 'error', text: e.message ?? '任务状态保存失败' })
+  } finally {
+    item.saving = false
+  }
+}
+
 function markTask(index: number, status: TaskItem['status']) {
-  taskItems.value[index].status = status
-  scheduleOutcomePersist()
+  const item = taskItems.value[index]
+  if (!item || item.saving) return
+  const previousStatus = item.status
+  item.status = status
+  persistTaskStatus(index, previousStatus)
 }
 
 onMounted(fetchPatient)
@@ -270,6 +316,7 @@ onMounted(fetchPatient)
           <button
             v-for="s in quickSymptoms"
             :key="s"
+            type="button"
             class="tap-chip"
             @click="addSymptom(s)"
           >
@@ -314,21 +361,24 @@ onMounted(fetchPatient)
             :key="i"
             class="pd-task-item"
           >
-            <div
+            <button
+              type="button"
               class="task-check"
               :class="t.status"
+              :disabled="t.saving"
+              :aria-label="`切换任务 ${i + 1}：${t.text}`"
               @click="markTask(i, t.status === 'done' ? 'pending' : 'done')"
             >
               <span v-if="t.status === 'done'">✓</span>
               <span v-else-if="t.status === 'abnormal'">!</span>
               <span v-else-if="t.status === 'skipped'">—</span>
-            </div>
+            </button>
             <div class="pd-task-content">
               <span class="task-text" :class="t.status">{{ t.text }}</span>
               <div v-if="t.status === 'pending'" class="task-exec-actions">
-                <button class="btn btn-ghost btn-sm" @click="markTask(i, 'done')">完成</button>
-                <button class="btn btn-ghost btn-sm" @click="markTask(i, 'abnormal')">异常</button>
-                <button class="btn btn-ghost btn-sm" @click="markTask(i, 'skipped')">跳过</button>
+                <button type="button" class="btn btn-ghost btn-sm" :disabled="t.saving" @click="markTask(i, 'done')">完成</button>
+                <button type="button" class="btn btn-ghost btn-sm" :disabled="t.saving" @click="markTask(i, 'abnormal')">异常</button>
+                <button type="button" class="btn btn-ghost btn-sm" :disabled="t.saving" @click="markTask(i, 'skipped')">跳过</button>
               </div>
             </div>
           </div>
@@ -562,8 +612,10 @@ onMounted(fetchPatient)
 }
 
 .task-check {
+  appearance: none;
   width: 28px;
   height: 28px;
+  padding: 0;
   flex-shrink: 0;
   border-radius: 50%;
   border: 1.5px solid rgba(15, 23, 42, 0.15);
@@ -575,6 +627,10 @@ onMounted(fetchPatient)
   cursor: pointer;
   font: 700 14px/1 var(--font-mono);
   transition: all 160ms var(--ease);
+}
+.task-check:disabled {
+  cursor: progress;
+  opacity: 0.7;
 }
 .task-check.done {
   background: var(--green, #10b981);

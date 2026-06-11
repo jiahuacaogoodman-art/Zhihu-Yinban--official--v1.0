@@ -18,6 +18,7 @@ from app.models.schemas import (
 from app.middleware.auth import get_current_user
 from app.services.audit_log import get_audit_log
 from app.services.llm_service import get_llm_service
+from app.services.patient_lookup import find_patient_name_in_collection
 from app.services.pii_crypto import decrypt_pii_fields
 from app.services.retrieval import HybridRetriever, format_evidence_block, plain_context_string
 from app.services.decision_memory import DecisionMemory, format_memory_block
@@ -309,19 +310,7 @@ async def nursing_decision(payload: NursingDecisionRequest):
 
 
 def _find_patient_name_from_collection(collection, patient_id: str) -> str:
-    try:
-        result = collection.get(
-            where={"patient_id": {"$eq": patient_id}}, include=["metadatas"]
-        )
-        for meta in result.get("metadatas", []) or []:
-            if meta and meta.get("doc_type") in (None, "", "patient_profile") and meta.get("name"):
-                return meta["name"]
-        for meta in result.get("metadatas", []) or []:
-            if meta and meta.get("name"):
-                return meta["name"]
-    except Exception:
-        pass
-    return ""
+    return find_patient_name_in_collection(collection, patient_id)
 
 
 # ── RAG 流式推理（SSE）──────────────────────────────────────────
@@ -1073,20 +1062,20 @@ async def get_nursing_event(event_id: str):
 
 @router.patch("/nursing/events/{event_id}/tasks/{task_id}/complete", summary="更新任务执行状态：完成/异常/跳过，并自动入档留痕")
 async def complete_care_task(event_id: str, task_id: str, payload: TaskCompleteRequest):
-    allowed_status = {"done": "已完成", "abnormal": "异常上报", "skipped": "已跳过"}
+    allowed_status = {"pending": "待执行", "done": "已完成", "abnormal": "异常上报", "skipped": "已跳过"}
     status_value = payload.status or "done"
     if status_value not in allowed_status:
-        raise HTTPException(status_code=400, detail="status 只能是 done / abnormal / skipped")
+        raise HTTPException(status_code=400, detail="status 只能是 pending / done / abnormal / skipped")
 
     def updater(event: dict) -> dict:
         operator = payload.completed_by or event.get("reporter") or "护工端"
         for task in event.get("immediate_tasks", []):
             if task.get("task_id") == task_id:
                 task["status"] = status_value
-                task["completed_at"] = _now_str()
-                task["completed_by"] = operator
+                task["completed_at"] = None if status_value == "pending" else _now_str()
+                task["completed_by"] = None if status_value == "pending" else operator
                 task["note"] = payload.note
-                task["value"] = payload.value
+                task["value"] = None if status_value == "pending" else payload.value
                 if payload.unit:
                     task["unit"] = payload.unit
                 trail = {
