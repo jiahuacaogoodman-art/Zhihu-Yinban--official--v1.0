@@ -120,6 +120,7 @@ const { push: toast } = useToast()
 const activeTab = ref<SubTab>('overview')
 const loading = ref(false)
 const admissionsLoading = ref(false)
+const exportingReceiptId = ref<string | null>(null)
 
 const overview = ref<OverviewItem[]>([])
 const billingRecords = ref<BillingRecord[]>([])
@@ -444,6 +445,20 @@ async function submitStandard() {
   }
 }
 
+async function exportReceipt(record: BillingRecord) {
+  exportingReceiptId.value = record.record_id
+  try {
+    await api.download(
+      `/export/billing/receipt/${encodeURIComponent(record.record_id)}/pdf`,
+      `收据_${record.receipt_number || record.record_id}.pdf`,
+    )
+  } catch (e: unknown) {
+    toast({ tone: 'error', text: errMsg(e, '导出收据失败') })
+  } finally {
+    exportingReceiptId.value = null
+  }
+}
+
 onMounted(() => {
   loadOverview()
   loadAdmissions()
@@ -543,6 +558,14 @@ onMounted(() => {
             </div>
             <Chip tone="accent">{{ cycleLabel(r.billing_cycle) }}</Chip>
             <strong>{{ money(r.amount) }}</strong>
+            <Btn
+              variant="ghost"
+              size="sm"
+              :loading="exportingReceiptId === r.record_id"
+              @click="exportReceipt(r)"
+            >
+              收据
+            </Btn>
           </div>
         </div>
       </div>
