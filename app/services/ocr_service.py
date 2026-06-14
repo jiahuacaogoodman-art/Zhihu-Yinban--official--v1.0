@@ -5,6 +5,8 @@
           两者都未安装时不会阻断上传，只返回 ocr_unavailable。
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass
 from pathlib import Path
 import os
