@@ -115,7 +115,7 @@ function Save-EnvFile {
 
     $finalText = ($resultLines -join "`r`n").TrimEnd() + "`r`n"
     # UTF-8 NoBOM，避免 Linux 容器读取时第一行带 BOM 解析失败
-    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+    $utf8NoBom = New-Object System.Text.UTF8Encoding -ArgumentList $false
     [System.IO.File]::WriteAllText($Path, $finalText, $utf8NoBom)
 }
 
@@ -210,30 +210,30 @@ $defaults = @{
 
 $form = New-Object System.Windows.Forms.Form
 $form.Text = '智护银伴 · 配置向导'
-$form.Size = New-Object System.Drawing.Size(720, 640)
+$form.Size = New-Object System.Drawing.Size -ArgumentList 720, 640
 $form.StartPosition = 'CenterScreen'
 $form.FormBorderStyle = 'FixedDialog'
 $form.MaximizeBox = $false
 $form.MinimizeBox = $true
-$form.Font = New-Object System.Drawing.Font('Microsoft YaHei UI', 9)
+$form.Font = [System.Drawing.Font]::new('Microsoft YaHei UI', [single]9)
 
 $header = New-Object System.Windows.Forms.Label
 $header.Text = '配置 .env 文件 — 填写后点底部 [保存并继续]'
-$header.Location = New-Object System.Drawing.Point(15, 12)
-$header.Size = New-Object System.Drawing.Size(680, 22)
-$header.Font = New-Object System.Drawing.Font('Microsoft YaHei UI', 11, [System.Drawing.FontStyle]::Bold)
+$header.Location = New-Object System.Drawing.Point -ArgumentList 15, 12
+$header.Size = New-Object System.Drawing.Size -ArgumentList 680, 22
+$header.Font = [System.Drawing.Font]::new('Microsoft YaHei UI', [single]11, [System.Drawing.FontStyle]::Bold)
 $form.Controls.Add($header)
 
 $pathLabel = New-Object System.Windows.Forms.Label
 $pathLabel.Text = "目标文件: $EnvPath"
-$pathLabel.Location = New-Object System.Drawing.Point(15, 36)
-$pathLabel.Size = New-Object System.Drawing.Size(680, 16)
+$pathLabel.Location = New-Object System.Drawing.Point -ArgumentList 15, 36
+$pathLabel.Size = New-Object System.Drawing.Size -ArgumentList 680, 16
 $pathLabel.ForeColor = [System.Drawing.Color]::DimGray
 $form.Controls.Add($pathLabel)
 
 $tabs = New-Object System.Windows.Forms.TabControl
-$tabs.Location = New-Object System.Drawing.Point(15, 60)
-$tabs.Size = New-Object System.Drawing.Size(680, 480)
+$tabs.Location = New-Object System.Drawing.Point -ArgumentList 15, 60
+$tabs.Size = New-Object System.Drawing.Size -ArgumentList 680, 480
 $form.Controls.Add($tabs)
 
 # ─────────── Tab 1：安全密钥 ───────────
@@ -243,71 +243,71 @@ $tabs.Controls.Add($tabSecurity)
 
 $lblAuth = New-Object System.Windows.Forms.Label
 $lblAuth.Text = '管理员 Token (AUTH_TOKEN)'
-$lblAuth.Location = New-Object System.Drawing.Point(15, 18)
-$lblAuth.Size = New-Object System.Drawing.Size(640, 18)
-$lblAuth.Font = New-Object System.Drawing.Font('Microsoft YaHei UI', 9, [System.Drawing.FontStyle]::Bold)
+$lblAuth.Location = New-Object System.Drawing.Point -ArgumentList 15, 18
+$lblAuth.Size = New-Object System.Drawing.Size -ArgumentList 640, 18
+$lblAuth.Font = [System.Drawing.Font]::new('Microsoft YaHei UI', [single]9, [System.Drawing.FontStyle]::Bold)
 $tabSecurity.Controls.Add($lblAuth)
 
 $lblAuthHint = New-Object System.Windows.Forms.Label
 $lblAuthHint.Text = '首次启动时自动创建的 admin 用户，本 Token 即其 API Key。建议直接点右侧 [生成]。'
-$lblAuthHint.Location = New-Object System.Drawing.Point(15, 38)
-$lblAuthHint.Size = New-Object System.Drawing.Size(640, 16)
+$lblAuthHint.Location = New-Object System.Drawing.Point -ArgumentList 15, 38
+$lblAuthHint.Size = New-Object System.Drawing.Size -ArgumentList 640, 16
 $lblAuthHint.ForeColor = [System.Drawing.Color]::DimGray
 $tabSecurity.Controls.Add($lblAuthHint)
 
 $txtAuth = New-Object System.Windows.Forms.TextBox
-$txtAuth.Location = New-Object System.Drawing.Point(15, 60)
-$txtAuth.Size = New-Object System.Drawing.Size(520, 24)
+$txtAuth.Location = New-Object System.Drawing.Point -ArgumentList 15, 60
+$txtAuth.Size = New-Object System.Drawing.Size -ArgumentList 520, 24
 $txtAuth.Text = $defaults.AUTH_TOKEN
-$txtAuth.Font = New-Object System.Drawing.Font('Consolas', 9)
+$txtAuth.Font = [System.Drawing.Font]::new('Consolas', [single]9)
 $tabSecurity.Controls.Add($txtAuth)
 
 $btnGenAuth = New-Object System.Windows.Forms.Button
 $btnGenAuth.Text = '生成'
-$btnGenAuth.Location = New-Object System.Drawing.Point(545, 58)
-$btnGenAuth.Size = New-Object System.Drawing.Size(110, 28)
+$btnGenAuth.Location = New-Object System.Drawing.Point -ArgumentList 545, 58
+$btnGenAuth.Size = New-Object System.Drawing.Size -ArgumentList 110, 28
 $btnGenAuth.Add_Click({ $txtAuth.Text = New-AuthToken })
 $tabSecurity.Controls.Add($btnGenAuth)
 
 $lblPii = New-Object System.Windows.Forms.Label
 $lblPii.Text = 'PII 加密密钥 (PII_ENCRYPTION_KEY)'
-$lblPii.Location = New-Object System.Drawing.Point(15, 110)
-$lblPii.Size = New-Object System.Drawing.Size(640, 18)
-$lblPii.Font = New-Object System.Drawing.Font('Microsoft YaHei UI', 9, [System.Drawing.FontStyle]::Bold)
+$lblPii.Location = New-Object System.Drawing.Point -ArgumentList 15, 110
+$lblPii.Size = New-Object System.Drawing.Size -ArgumentList 640, 18
+$lblPii.Font = [System.Drawing.Font]::new('Microsoft YaHei UI', [single]9, [System.Drawing.FontStyle]::Bold)
 $tabSecurity.Controls.Add($lblPii)
 
 $lblPiiHint = New-Object System.Windows.Forms.Label
 $lblPiiHint.Text = '姓名 / 身份证 / 联系方式等 10 个高敏字段写入前会用此密钥加密 (Fernet)。'
-$lblPiiHint.Location = New-Object System.Drawing.Point(15, 130)
-$lblPiiHint.Size = New-Object System.Drawing.Size(640, 16)
+$lblPiiHint.Location = New-Object System.Drawing.Point -ArgumentList 15, 130
+$lblPiiHint.Size = New-Object System.Drawing.Size -ArgumentList 640, 16
 $lblPiiHint.ForeColor = [System.Drawing.Color]::DimGray
 $tabSecurity.Controls.Add($lblPiiHint)
 
 $txtPii = New-Object System.Windows.Forms.TextBox
-$txtPii.Location = New-Object System.Drawing.Point(15, 152)
-$txtPii.Size = New-Object System.Drawing.Size(520, 24)
+$txtPii.Location = New-Object System.Drawing.Point -ArgumentList 15, 152
+$txtPii.Size = New-Object System.Drawing.Size -ArgumentList 520, 24
 $txtPii.Text = $defaults.PII_ENCRYPTION_KEY
-$txtPii.Font = New-Object System.Drawing.Font('Consolas', 9)
+$txtPii.Font = [System.Drawing.Font]::new('Consolas', [single]9)
 $tabSecurity.Controls.Add($txtPii)
 
 $btnGenPii = New-Object System.Windows.Forms.Button
 $btnGenPii.Text = '生成'
-$btnGenPii.Location = New-Object System.Drawing.Point(545, 150)
-$btnGenPii.Size = New-Object System.Drawing.Size(110, 28)
+$btnGenPii.Location = New-Object System.Drawing.Point -ArgumentList 545, 150
+$btnGenPii.Size = New-Object System.Drawing.Size -ArgumentList 110, 28
 $btnGenPii.Add_Click({ $txtPii.Text = New-FernetKey })
 $tabSecurity.Controls.Add($btnGenPii)
 
 $warnPanel = New-Object System.Windows.Forms.Panel
-$warnPanel.Location = New-Object System.Drawing.Point(15, 200)
-$warnPanel.Size = New-Object System.Drawing.Size(640, 240)
+$warnPanel.Location = New-Object System.Drawing.Point -ArgumentList 15, 200
+$warnPanel.Size = New-Object System.Drawing.Size -ArgumentList 640, 240
 $warnPanel.BackColor = [System.Drawing.Color]::FromArgb(255, 252, 232)
 $warnPanel.BorderStyle = 'FixedSingle'
 $tabSecurity.Controls.Add($warnPanel)
 
 $lblWarn = New-Object System.Windows.Forms.Label
 $lblWarn.Text = "⚠ 重要提示`r`n`r`n• 这两个值一旦确认就必须妥善保管，AUTH_TOKEN 丢了无法登录管理端，PII_ENCRYPTION_KEY 丢了已加密的档案无法解密读出。`r`n`r`n• 强烈建议两项都点 [生成] 让脚本随机生成；不要用 ' admin'、'123456' 这种弱口令。`r`n`r`n• 生成后请立刻把 AUTH_TOKEN 复制到安全位置（密码管理器 / 院方保险柜），第一次部署后这就是您的管理员 Token。`r`n`r`n• 想换 Token？保存退出后，再次运行向导重填即可；管理员 Token 重置后旧 Token 立即失效。"
-$lblWarn.Location = New-Object System.Drawing.Point(12, 10)
-$lblWarn.Size = New-Object System.Drawing.Size(615, 220)
+$lblWarn.Location = New-Object System.Drawing.Point -ArgumentList 12, 10
+$lblWarn.Size = New-Object System.Drawing.Size -ArgumentList 615, 220
 $lblWarn.ForeColor = [System.Drawing.Color]::FromArgb(133, 77, 14)
 $warnPanel.Controls.Add($lblWarn)
 
@@ -318,39 +318,39 @@ $tabs.Controls.Add($tabLLM)
 
 $grpProvider = New-Object System.Windows.Forms.GroupBox
 $grpProvider.Text = '推理后端类型'
-$grpProvider.Location = New-Object System.Drawing.Point(15, 15)
-$grpProvider.Size = New-Object System.Drawing.Size(640, 70)
+$grpProvider.Location = New-Object System.Drawing.Point -ArgumentList 15, 15
+$grpProvider.Size = New-Object System.Drawing.Size -ArgumentList 640, 70
 $tabLLM.Controls.Add($grpProvider)
 
 $rbOllama = New-Object System.Windows.Forms.RadioButton
 $rbOllama.Text = '本地 Ollama（推荐：100% 离线、档案不出院）'
-$rbOllama.Location = New-Object System.Drawing.Point(15, 25)
-$rbOllama.Size = New-Object System.Drawing.Size(310, 22)
+$rbOllama.Location = New-Object System.Drawing.Point -ArgumentList 15, 25
+$rbOllama.Size = New-Object System.Drawing.Size -ArgumentList 310, 22
 $rbOllama.Checked = ($defaults.LLM_PROVIDER -eq 'ollama')
 $grpProvider.Controls.Add($rbOllama)
 
 $rbOpenAI = New-Object System.Windows.Forms.RadioButton
 $rbOpenAI.Text = '远程 OpenAI 兼容 API（DeepSeek / 智谱 / 自建 vLLM）'
-$rbOpenAI.Location = New-Object System.Drawing.Point(330, 25)
-$rbOpenAI.Size = New-Object System.Drawing.Size(300, 22)
+$rbOpenAI.Location = New-Object System.Drawing.Point -ArgumentList 330, 25
+$rbOpenAI.Size = New-Object System.Drawing.Size -ArgumentList 300, 22
 $rbOpenAI.Checked = ($defaults.LLM_PROVIDER -eq 'openai')
 $grpProvider.Controls.Add($rbOpenAI)
 
 # ── Ollama 子区域 ──
 $panelOllama = New-Object System.Windows.Forms.Panel
-$panelOllama.Location = New-Object System.Drawing.Point(15, 95)
-$panelOllama.Size = New-Object System.Drawing.Size(640, 190)
+$panelOllama.Location = New-Object System.Drawing.Point -ArgumentList 15, 95
+$panelOllama.Size = New-Object System.Drawing.Size -ArgumentList 640, 190
 $tabLLM.Controls.Add($panelOllama)
 
 $lblModel = New-Object System.Windows.Forms.Label
 $lblModel.Text = '模型名称 (OLLAMA_MODEL_NAME)'
-$lblModel.Location = New-Object System.Drawing.Point(0, 0)
-$lblModel.Size = New-Object System.Drawing.Size(640, 18)
+$lblModel.Location = New-Object System.Drawing.Point -ArgumentList 0, 0
+$lblModel.Size = New-Object System.Drawing.Size -ArgumentList 640, 18
 $panelOllama.Controls.Add($lblModel)
 
 $cbModel = New-Object System.Windows.Forms.ComboBox
-$cbModel.Location = New-Object System.Drawing.Point(0, 22)
-$cbModel.Size = New-Object System.Drawing.Size(520, 24)
+$cbModel.Location = New-Object System.Drawing.Point -ArgumentList 0, 22
+$cbModel.Size = New-Object System.Drawing.Size -ArgumentList 520, 24
 $cbModel.DropDownStyle = 'DropDown'
 $cbModel.Items.AddRange(@(
     'hf.co/mradermacher/HuatuoGPT-o1-7B-GGUF:Q4_K_M',
@@ -367,25 +367,25 @@ $panelOllama.Controls.Add($cbModel)
 
 $btnDetect = New-Object System.Windows.Forms.Button
 $btnDetect.Text = '检测 Ollama'
-$btnDetect.Location = New-Object System.Drawing.Point(530, 20)
-$btnDetect.Size = New-Object System.Drawing.Size(110, 28)
+$btnDetect.Location = New-Object System.Drawing.Point -ArgumentList 530, 20
+$btnDetect.Size = New-Object System.Drawing.Size -ArgumentList 110, 28
 $panelOllama.Controls.Add($btnDetect)
 
 $lblApi = New-Object System.Windows.Forms.Label
 $lblApi.Text = 'Ollama API 地址 (OLLAMA_API_URL)'
-$lblApi.Location = New-Object System.Drawing.Point(0, 60)
-$lblApi.Size = New-Object System.Drawing.Size(640, 18)
+$lblApi.Location = New-Object System.Drawing.Point -ArgumentList 0, 60
+$lblApi.Size = New-Object System.Drawing.Size -ArgumentList 640, 18
 $panelOllama.Controls.Add($lblApi)
 
 $txtApi = New-Object System.Windows.Forms.TextBox
-$txtApi.Location = New-Object System.Drawing.Point(0, 82)
-$txtApi.Size = New-Object System.Drawing.Size(640, 24)
+$txtApi.Location = New-Object System.Drawing.Point -ArgumentList 0, 82
+$txtApi.Size = New-Object System.Drawing.Size -ArgumentList 640, 24
 $txtApi.Text = $defaults.OLLAMA_API_URL
 $panelOllama.Controls.Add($txtApi)
 
 $lblDetectResult = New-Object System.Windows.Forms.Label
-$lblDetectResult.Location = New-Object System.Drawing.Point(0, 115)
-$lblDetectResult.Size = New-Object System.Drawing.Size(640, 70)
+$lblDetectResult.Location = New-Object System.Drawing.Point -ArgumentList 0, 115
+$lblDetectResult.Size = New-Object System.Drawing.Size -ArgumentList 640, 70
 $lblDetectResult.ForeColor = [System.Drawing.Color]::DimGray
 $lblDetectResult.Text = '尚未检测。点击 [检测 Ollama] 验证服务是否在线、当前已安装哪些模型。'
 $panelOllama.Controls.Add($lblDetectResult)
@@ -411,58 +411,58 @@ $btnDetect.Add_Click({
 
 # ── OpenAI 子区域 ──
 $panelOpenAI = New-Object System.Windows.Forms.Panel
-$panelOpenAI.Location = New-Object System.Drawing.Point(15, 95)
-$panelOpenAI.Size = New-Object System.Drawing.Size(640, 280)
+$panelOpenAI.Location = New-Object System.Drawing.Point -ArgumentList 15, 95
+$panelOpenAI.Size = New-Object System.Drawing.Size -ArgumentList 640, 280
 $tabLLM.Controls.Add($panelOpenAI)
 
 $lblBase = New-Object System.Windows.Forms.Label
 $lblBase.Text = 'API Base URL (OPENAI_API_BASE)'
-$lblBase.Location = New-Object System.Drawing.Point(0, 0)
-$lblBase.Size = New-Object System.Drawing.Size(640, 18)
+$lblBase.Location = New-Object System.Drawing.Point -ArgumentList 0, 0
+$lblBase.Size = New-Object System.Drawing.Size -ArgumentList 640, 18
 $panelOpenAI.Controls.Add($lblBase)
 
 $txtBase = New-Object System.Windows.Forms.TextBox
-$txtBase.Location = New-Object System.Drawing.Point(0, 22)
-$txtBase.Size = New-Object System.Drawing.Size(640, 24)
+$txtBase.Location = New-Object System.Drawing.Point -ArgumentList 0, 22
+$txtBase.Size = New-Object System.Drawing.Size -ArgumentList 640, 24
 $txtBase.Text = $defaults.OPENAI_API_BASE
 $panelOpenAI.Controls.Add($txtBase)
 
 $lblBaseHint = New-Object System.Windows.Forms.Label
 $lblBaseHint.Text = '示例: https://api.deepseek.com/v1  /  https://open.bigmodel.cn/api/paas/v4  /  http://gpu:8000/v1'
-$lblBaseHint.Location = New-Object System.Drawing.Point(0, 48)
-$lblBaseHint.Size = New-Object System.Drawing.Size(640, 16)
+$lblBaseHint.Location = New-Object System.Drawing.Point -ArgumentList 0, 48
+$lblBaseHint.Size = New-Object System.Drawing.Size -ArgumentList 640, 16
 $lblBaseHint.ForeColor = [System.Drawing.Color]::DimGray
 $panelOpenAI.Controls.Add($lblBaseHint)
 
 $lblOaiModel = New-Object System.Windows.Forms.Label
 $lblOaiModel.Text = '模型名 (OPENAI_MODEL)'
-$lblOaiModel.Location = New-Object System.Drawing.Point(0, 75)
-$lblOaiModel.Size = New-Object System.Drawing.Size(640, 18)
+$lblOaiModel.Location = New-Object System.Drawing.Point -ArgumentList 0, 75
+$lblOaiModel.Size = New-Object System.Drawing.Size -ArgumentList 640, 18
 $panelOpenAI.Controls.Add($lblOaiModel)
 
 $txtOaiModel = New-Object System.Windows.Forms.TextBox
-$txtOaiModel.Location = New-Object System.Drawing.Point(0, 97)
-$txtOaiModel.Size = New-Object System.Drawing.Size(640, 24)
+$txtOaiModel.Location = New-Object System.Drawing.Point -ArgumentList 0, 97
+$txtOaiModel.Size = New-Object System.Drawing.Size -ArgumentList 640, 24
 $txtOaiModel.Text = $defaults.OPENAI_MODEL
 $panelOpenAI.Controls.Add($txtOaiModel)
 
 $lblOaiKey = New-Object System.Windows.Forms.Label
 $lblOaiKey.Text = 'API Key (OPENAI_API_KEY，自建 vLLM 可留空)'
-$lblOaiKey.Location = New-Object System.Drawing.Point(0, 130)
-$lblOaiKey.Size = New-Object System.Drawing.Size(640, 18)
+$lblOaiKey.Location = New-Object System.Drawing.Point -ArgumentList 0, 130
+$lblOaiKey.Size = New-Object System.Drawing.Size -ArgumentList 640, 18
 $panelOpenAI.Controls.Add($lblOaiKey)
 
 $txtOaiKey = New-Object System.Windows.Forms.TextBox
-$txtOaiKey.Location = New-Object System.Drawing.Point(0, 152)
-$txtOaiKey.Size = New-Object System.Drawing.Size(640, 24)
+$txtOaiKey.Location = New-Object System.Drawing.Point -ArgumentList 0, 152
+$txtOaiKey.Size = New-Object System.Drawing.Size -ArgumentList 640, 24
 $txtOaiKey.Text = $defaults.OPENAI_API_KEY
 $txtOaiKey.UseSystemPasswordChar = $true
 $panelOpenAI.Controls.Add($txtOaiKey)
 
 $ckShowKey = New-Object System.Windows.Forms.CheckBox
 $ckShowKey.Text = '显示明文'
-$ckShowKey.Location = New-Object System.Drawing.Point(0, 180)
-$ckShowKey.Size = New-Object System.Drawing.Size(120, 22)
+$ckShowKey.Location = New-Object System.Drawing.Point -ArgumentList 0, 180
+$ckShowKey.Size = New-Object System.Drawing.Size -ArgumentList 120, 22
 $ckShowKey.Add_CheckedChanged({ $txtOaiKey.UseSystemPasswordChar = -not $ckShowKey.Checked })
 $panelOpenAI.Controls.Add($ckShowKey)
 
@@ -482,13 +482,13 @@ $tabs.Controls.Add($tabService)
 
 $lblHost = New-Object System.Windows.Forms.Label
 $lblHost.Text = '监听地址 (HOST)'
-$lblHost.Location = New-Object System.Drawing.Point(15, 18)
-$lblHost.Size = New-Object System.Drawing.Size(300, 18)
+$lblHost.Location = New-Object System.Drawing.Point -ArgumentList 15, 18
+$lblHost.Size = New-Object System.Drawing.Size -ArgumentList 300, 18
 $tabService.Controls.Add($lblHost)
 
 $cbHost = New-Object System.Windows.Forms.ComboBox
-$cbHost.Location = New-Object System.Drawing.Point(15, 40)
-$cbHost.Size = New-Object System.Drawing.Size(300, 24)
+$cbHost.Location = New-Object System.Drawing.Point -ArgumentList 15, 40
+$cbHost.Size = New-Object System.Drawing.Size -ArgumentList 300, 24
 $cbHost.DropDownStyle = 'DropDown'
 $cbHost.Items.AddRange(@('127.0.0.1', '0.0.0.0'))
 $cbHost.Text = $defaults.HOST
@@ -496,54 +496,54 @@ $tabService.Controls.Add($cbHost)
 
 $lblHostHint = New-Object System.Windows.Forms.Label
 $lblHostHint.Text = '127.0.0.1：仅本机访问；0.0.0.0：开放给局域网内其他设备'
-$lblHostHint.Location = New-Object System.Drawing.Point(15, 68)
-$lblHostHint.Size = New-Object System.Drawing.Size(640, 18)
+$lblHostHint.Location = New-Object System.Drawing.Point -ArgumentList 15, 68
+$lblHostHint.Size = New-Object System.Drawing.Size -ArgumentList 640, 18
 $lblHostHint.ForeColor = [System.Drawing.Color]::DimGray
 $tabService.Controls.Add($lblHostHint)
 
 $lblPort = New-Object System.Windows.Forms.Label
 $lblPort.Text = '端口 (PORT)'
-$lblPort.Location = New-Object System.Drawing.Point(340, 18)
-$lblPort.Size = New-Object System.Drawing.Size(140, 18)
+$lblPort.Location = New-Object System.Drawing.Point -ArgumentList 340, 18
+$lblPort.Size = New-Object System.Drawing.Size -ArgumentList 140, 18
 $tabService.Controls.Add($lblPort)
 
 $txtPort = New-Object System.Windows.Forms.TextBox
-$txtPort.Location = New-Object System.Drawing.Point(340, 40)
-$txtPort.Size = New-Object System.Drawing.Size(140, 24)
+$txtPort.Location = New-Object System.Drawing.Point -ArgumentList 340, 40
+$txtPort.Size = New-Object System.Drawing.Size -ArgumentList 140, 24
 $txtPort.Text = $defaults.PORT
 $tabService.Controls.Add($txtPort)
 
 $lblUpload = New-Object System.Windows.Forms.Label
 $lblUpload.Text = '单张病历照片大小上限 (MB)'
-$lblUpload.Location = New-Object System.Drawing.Point(15, 110)
-$lblUpload.Size = New-Object System.Drawing.Size(300, 18)
+$lblUpload.Location = New-Object System.Drawing.Point -ArgumentList 15, 110
+$lblUpload.Size = New-Object System.Drawing.Size -ArgumentList 300, 18
 $tabService.Controls.Add($lblUpload)
 
 $txtUpload = New-Object System.Windows.Forms.TextBox
-$txtUpload.Location = New-Object System.Drawing.Point(15, 132)
-$txtUpload.Size = New-Object System.Drawing.Size(140, 24)
+$txtUpload.Location = New-Object System.Drawing.Point -ArgumentList 15, 132
+$txtUpload.Size = New-Object System.Drawing.Size -ArgumentList 140, 24
 $txtUpload.Text = $defaults.MAX_UPLOAD_SIZE_MB
 $tabService.Controls.Add($txtUpload)
 
 $ckDegraded = New-Object System.Windows.Forms.CheckBox
 $ckDegraded.Text = '允许降级启动 (EMBEDDING_ALLOW_DEGRADED) — 推荐勾上'
-$ckDegraded.Location = New-Object System.Drawing.Point(15, 180)
-$ckDegraded.Size = New-Object System.Drawing.Size(640, 22)
+$ckDegraded.Location = New-Object System.Drawing.Point -ArgumentList 15, 180
+$ckDegraded.Size = New-Object System.Drawing.Size -ArgumentList 640, 22
 $ckDegraded.Checked = ($defaults.EMBEDDING_ALLOW_DEGRADED -eq 'true')
 $tabService.Controls.Add($ckDegraded)
 
 $lblDegHint = New-Object System.Windows.Forms.Label
 $lblDegHint.Text = '勾选后即使 embedding 模型加载失败，服务也能起来（RAG 不可用，但基础对话可用）。生产环境若要严格模式可关闭。'
-$lblDegHint.Location = New-Object System.Drawing.Point(35, 205)
-$lblDegHint.Size = New-Object System.Drawing.Size(620, 32)
+$lblDegHint.Location = New-Object System.Drawing.Point -ArgumentList 35, 205
+$lblDegHint.Size = New-Object System.Drawing.Size -ArgumentList 620, 32
 $lblDegHint.ForeColor = [System.Drawing.Color]::DimGray
 $tabService.Controls.Add($lblDegHint)
 
 # ─────────── 底部按钮 ───────────
 $btnSave = New-Object System.Windows.Forms.Button
 $btnSave.Text = '保存并继续'
-$btnSave.Location = New-Object System.Drawing.Point(440, 555)
-$btnSave.Size = New-Object System.Drawing.Size(120, 32)
+$btnSave.Location = New-Object System.Drawing.Point -ArgumentList 440, 555
+$btnSave.Size = New-Object System.Drawing.Size -ArgumentList 120, 32
 $btnSave.BackColor = [System.Drawing.Color]::FromArgb(16, 185, 129)
 $btnSave.ForeColor = [System.Drawing.Color]::White
 $btnSave.FlatStyle = 'Flat'
@@ -551,14 +551,14 @@ $form.Controls.Add($btnSave)
 
 $btnCancel = New-Object System.Windows.Forms.Button
 $btnCancel.Text = '取消'
-$btnCancel.Location = New-Object System.Drawing.Point(575, 555)
-$btnCancel.Size = New-Object System.Drawing.Size(120, 32)
+$btnCancel.Location = New-Object System.Drawing.Point -ArgumentList 575, 555
+$btnCancel.Size = New-Object System.Drawing.Size -ArgumentList 120, 32
 $form.Controls.Add($btnCancel)
 
 $btnExample = New-Object System.Windows.Forms.Button
 $btnExample.Text = '查看 .env.example'
-$btnExample.Location = New-Object System.Drawing.Point(15, 555)
-$btnExample.Size = New-Object System.Drawing.Size(150, 32)
+$btnExample.Location = New-Object System.Drawing.Point -ArgumentList 15, 555
+$btnExample.Size = New-Object System.Drawing.Size -ArgumentList 150, 32
 $btnExample.Add_Click({
     if (Test-Path $EnvExample) {
         Start-Process notepad.exe -ArgumentList "`"$EnvExample`""
@@ -647,7 +647,7 @@ $($updates.AUTH_TOKEN)
 4. 看完请删除本文件，避免泄露。
 ======================================================================
 "@
-        $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+        $utf8NoBom = New-Object System.Text.UTF8Encoding -ArgumentList $false
         [System.IO.File]::WriteAllText($tokenBackup, $backupContent, $utf8NoBom)
 
         [System.Windows.Forms.MessageBox]::Show(
