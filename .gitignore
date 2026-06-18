@@ -7,6 +7,7 @@ __pycache__/
 venv/
 env/
 .venv/
+.venv*/
 *.egg-info/
 dist/
 build/
@@ -21,6 +22,7 @@ static/dist/
 local_ehr_db/
 local_ehr_uploads/
 local_backups/
+local_care/
 *.sqlite3
 *.db
 
